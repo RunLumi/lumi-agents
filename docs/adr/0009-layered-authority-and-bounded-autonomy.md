@@ -43,3 +43,14 @@ Existing authenticated browser/app sessions are protected resources and require 
 - Hooks, skills, agents, plugins, MCP servers, and external harnesses cannot widen authority.
 - Safe refusal is preferred to silent escalation across trust boundaries.
 - Financial, legal, destructive, admin/security, sensitive-export, and broad communication actions remain conservative by default.
+
+
+## Normative specs
+
+This ADR is implemented primarily by:
+
+- `docs/specs/v1/04-policy-approval-capabilities.md`;
+- `docs/specs/v1/05-execution-router.md`;
+- `docs/specs/v1/07-native-desktop-executor.md`;
+- `docs/specs/v1/14-mcp-connectors-extension-sdk.md`;
+- `docs/specs/v1/17-security-privacy-secrets.md`.
