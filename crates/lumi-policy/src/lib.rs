@@ -53,10 +53,8 @@ mod tests {
     #[test]
     fn read_only_semantic_action_is_allowed() {
         assert_eq!(
-            DefaultPolicy::new().evaluate(&request(
-                ExecutionTier::NativeSemantic,
-                RiskLevel::ReadOnly
-            )),
+            DefaultPolicy::new()
+                .evaluate(&request(ExecutionTier::NativeSemantic, RiskLevel::ReadOnly)),
             Decision::Allow
         );
     }
@@ -75,10 +73,7 @@ mod tests {
     #[test]
     fn non_read_only_vision_requires_approval() {
         assert!(matches!(
-            DefaultPolicy::new().evaluate(&request(
-                ExecutionTier::Vision,
-                RiskLevel::Reversible
-            )),
+            DefaultPolicy::new().evaluate(&request(ExecutionTier::Vision, RiskLevel::Reversible)),
             Decision::RequireApproval { .. }
         ));
     }
