@@ -1,0 +1,13 @@
+[package]
+name = "lumi-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+lumi-policy = { path = "../lumi-policy" }
+lumi-protocol = { path = "../lumi-protocol" }
+
+[lints]
+workspace = true
