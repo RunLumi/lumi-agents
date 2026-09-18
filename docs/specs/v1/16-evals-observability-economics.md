@@ -186,3 +186,72 @@ Alert on:
 ## 16.15 Tests
 
 V1 MUST prove metric calculations use verified completion and that expected approvals are distinguished from rescue.
+
+
+## 16.16 Canonical executor-outcome metrics
+
+Track counts/rates for:
+
+- DELIVERED;
+- REFUSED;
+- NO_EFFECT;
+- AMBIGUOUS;
+- ERROR;
+- CANCELLED.
+
+A declared REFUSED MAY be a passing result when the tested contract requires safe refusal.
+
+NO_EFFECT, AMBIGUOUS, and unproven capability MUST NOT count as successful delivery.
+
+## 16.17 Computer-use certification matrix
+
+Native/browser computer-use certification MUST identify:
+
+- OS/version;
+- app/version/toolkit/browser;
+- runtime/driver version;
+- action;
+- semantic vs coordinate targeting;
+- foreground/background;
+- executor route;
+- permission state;
+- expected outcome;
+- oracle/evidence;
+- observed outcome.
+
+A generic "macOS supported" or "Windows supported" claim is insufficient.
+
+## 16.18 Collateral-effect metrics
+
+Where observable, evals SHOULD track unintended changes to:
+
+- focused app/window;
+- z-order;
+- real pointer/cursor;
+- non-target input;
+- clipboard;
+- unrelated files;
+- unrelated network destinations;
+- wrong account/tenant/window/origin.
+
+Correct target mutation with unacceptable collateral effects is not a certified success.
+
+## 16.19 Compatibility/lifecycle matrix
+
+Regression corpus MUST include:
+
+- client/runtime capability mismatch;
+- supported downgrade behavior;
+- runtime-generation change;
+- stale executor/session handle;
+- provider instance/account switch;
+- policy tightening during active work;
+- resume after ambiguous side effect;
+- fork from checkpoint;
+- cancellation during approval/execution.
+
+## 16.20 Privacy-history tests
+
+If local action history is enabled, automated tests SHOULD prove that baseline history excludes forbidden raw content classes defined by spec 11.
+
+A telemetry/evidence feature that improves debugging by violating privacy defaults fails certification.
