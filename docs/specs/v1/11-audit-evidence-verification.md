@@ -123,3 +123,78 @@ V1 MUST test:
 - retention deletion;
 - cross-tenant evidence isolation;
 - selective screenshot policy.
+
+
+## 11.15 Durable action phases
+
+For consequential work, audit/state SHOULD allow reconstruction of:
+
+1. normalized intent persisted;
+2. policy evaluated;
+3. approval requested/resolved when applicable;
+4. dispatch started;
+5. executor outcome recorded;
+6. verification result recorded;
+7. final action/task outcome committed.
+
+A durable-intent acknowledgment MUST NOT be presented as successful execution.
+
+This ordering is required for safe recovery after crash/restart.
+
+## 11.16 Executor outcome vs verification
+
+Audit MUST preserve executor outcome separately from verification status.
+
+Executor outcomes:
+
+- DELIVERED;
+- REFUSED;
+- NO_EFFECT;
+- AMBIGUOUS;
+- ERROR;
+- CANCELLED.
+
+Verification remains:
+
+- PASSED;
+- FAILED;
+- AMBIGUOUS;
+- NOT_REQUIRED.
+
+Examples:
+
+- DELIVERED + FAILED verifier => workflow action not successful.
+- REFUSED + NOT_REQUIRED => may be correct if refusal was expected.
+- AMBIGUOUS => MUST block blind retry for consequential effects.
+
+## 11.17 Privacy-minimized local history
+
+The baseline local action-history profile SHOULD retain structured operational metadata while excluding raw content not required for accountability.
+
+Do not persist by default:
+
+- plaintext secrets;
+- typed text;
+- clipboard contents;
+- raw tool arguments/results;
+- screenshots/video/audio;
+- accessibility trees;
+- window titles;
+- URLs;
+- local file/profile paths;
+- arbitrary free-form model reasoning.
+
+Evidence policy MAY opt into specific content when necessary, with explicit retention/access rules.
+
+There MUST NOT be a customer-production "debug mode" that silently disables privacy policy.
+
+## 11.18 Additional tests
+
+V1 MUST additionally test:
+
+- crash between intent persistence and dispatch;
+- crash after external effect but before finalization;
+- executor outcome and verifier status remain distinct;
+- baseline local history excludes forbidden content classes;
+- explicit evidence policy permits only the selected additional content;
+- AMBIGUOUS action cannot be auto-replayed without recovery verification.
