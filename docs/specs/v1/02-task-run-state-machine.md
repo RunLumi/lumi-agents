@@ -202,3 +202,61 @@ V1 MUST include tests for:
 - restart from checkpoint;
 - cancellation;
 - policy version change.
+
+
+## 2.17 Task lifecycle operations
+
+The runtime MUST model these operations explicitly rather than encoding them as ordinary chat messages:
+
+- CREATE;
+- RESUME;
+- FORK;
+- STEER;
+- PAUSE;
+- CANCEL;
+- CHECKPOINT;
+- ARCHIVE.
+
+### Fork
+
+Fork creates a new task/run lineage from a known checkpoint/history boundary.
+
+Future side effects MUST use new task/run/action/idempotency identity.
+
+A fork MUST NOT reuse a parent action ID to repeat a real-world side effect.
+
+### Steer
+
+Steer adds trusted user direction to an active task.
+
+Steer MUST obey the same platform/organization policy ceiling as the original task.
+
+External connector/webhook/email events are observations/triggers, not equivalent to user steer.
+
+### Archive
+
+Archive removes work from active views without violating audit/evidence retention policy.
+
+## 2.18 Provider route snapshot
+
+Each run SHOULD persist the provider/model routing snapshot needed to explain and safely resume work:
+
+- provider driver;
+- provider instance/account;
+- model;
+- router/policy version;
+- privacy/data-egress classification;
+- capabilities relied upon.
+
+Resume MUST NOT silently reroute outside the original or newly authorized privacy/policy envelope.
+
+## 2.19 Environment compatibility on resume
+
+Resume MUST validate:
+
+- environment identity;
+- runtime generation;
+- required runtime capabilities;
+- executor compatibility.
+
+Stale runtime/session handles from a previous generation MUST fail closed.
