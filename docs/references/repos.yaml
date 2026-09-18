@@ -1,0 +1,144 @@
+version: 1
+updated_at: "2026-09-18"
+
+status_values:
+  - dependency
+  - candidate
+  - reference
+  - watch
+
+review_tiers:
+  A: "weekly skim; monthly deep review"
+  B: "monthly skim; quarterly deep review"
+
+repositories:
+  - repo: pingdotgg/t3code
+    tier: A
+    status: reference
+    category:
+      - agent-harness
+      - provider-adapters
+      - remote-control
+      - orchestration
+      - multi-surface
+    reviewed_ref: "9ea9c3d5d2c444133e3ddff40eecf38737951589"
+    reviewed_at: "2026-09-18"
+    observed_license: MIT
+    learn:
+      - environment owns filesystem, credentials, provider processes and machine state
+      - typed RPC plus capability negotiation for independently versioned clients/environments
+      - durable intent before side effects
+      - provider quirks isolated behind adapters
+      - cloud relay can stay out of normal traffic hot path
+      - unsafe native helpers isolated from the main app process
+      - explicit checkpoints and state-based async testing
+    do_not_copy:
+      - full event sourcing before Lumi demonstrates the need
+      - Electron as a default desktop-shell decision
+      - harness-control architecture as a substitute for Lumi business policy and verification
+
+  - repo: trycua/cua
+    tier: A
+    status: candidate
+    category: [native-computer-use, desktop-driver, evals]
+    reviewed_at: "2026-09-18"
+    observed_license: MIT
+    learn:
+      - cross-platform semantic native automation
+      - replaceable native driver boundary
+      - permission modes and computer-use eval infrastructure
+
+  - repo: iFurySt/open-codex-computer-use
+    tier: A
+    status: reference
+    category: [native-computer-use, accessibility, background-input]
+    reviewed_at: "2026-09-18"
+    observed_license: MIT
+    learn:
+      - macOS accessibility-first automation
+      - practical Windows UIA fallback architecture
+      - non-intrusive/background input experiments
+
+  - repo: microsoft/playwright
+    tier: A
+    status: candidate
+    category: [browser-automation, testing]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify at dependency adoption"
+    learn:
+      - semantic browser control
+      - auto-waiting and locator contracts
+      - traces and deterministic browser fixtures
+
+  - repo: openai/codex
+    tier: A
+    status: watch
+    category: [coding-agent, local-runtime, ux]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify before reuse"
+    learn:
+      - coding-agent execution UX
+      - local runtime patterns
+      - approvals, sandboxing, long-running work
+
+  - repo: anthropics/claude-code
+    tier: A
+    status: watch
+    category: [coding-agent, hooks, permissions, ux]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify before reuse"
+    learn:
+      - agent workflow UX
+      - permission/hook model
+      - context and tool ergonomics
+
+  - repo: browser-use/browser-use
+    tier: B
+    status: watch
+    category: [browser-agent, vision, browser-runtime]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify before reuse"
+    learn:
+      - agent-oriented browser state and recovery
+      - browser-specific model/tool loop tradeoffs
+
+  - repo: OpenHands/OpenHands
+    tier: B
+    status: watch
+    category: [agent-runtime, sandbox, coding-agent]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify before reuse"
+    learn:
+      - sandbox/workspace execution
+      - agent runtime and evaluation architecture
+
+  - repo: aaif-goose/goose
+    tier: B
+    status: watch
+    category: [agent-runtime, extensions, provider-abstraction]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify before reuse"
+    learn:
+      - extensible local agent runtime
+      - provider/extension architecture
+
+  - repo: modelcontextprotocol/typescript-sdk
+    tier: B
+    status: watch
+    category: [mcp, protocol, tools]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify before reuse"
+    learn:
+      - protocol evolution
+      - client/server compatibility
+      - tool capability contracts
+
+  - repo: e2b-dev/E2B
+    tier: B
+    status: watch
+    category: [sandbox, cloud-execution]
+    reviewed_at: "2026-09-18"
+    observed_license: "verify before reuse"
+    learn:
+      - isolated cloud execution
+      - sandbox lifecycle and developer ergonomics
