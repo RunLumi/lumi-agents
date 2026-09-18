@@ -249,3 +249,122 @@ docs/
 ```
 
 Create modules when implementation requires them. The diagram is a destination, not a scaffolding checklist.
+
+
+## Execution environment is a first-class identity
+
+An **ExecutionEnvironment** is the machine/runtime that actually owns the work.
+
+It owns or brokers:
+
+- local filesystem state;
+- authenticated browser/app sessions;
+- local credentials and secret references;
+- installed applications;
+- provider instances that run locally;
+- native permissions;
+- runtime version;
+- executor capabilities;
+- local policy state.
+
+Remote web/mobile/desktop supervisors control an environment through authenticated protocol. They do not substitute their own filesystem, credentials, or machine state for the environment's.
+
+Every task records its execution-environment identity and a capability snapshot.
+
+## Capability negotiation
+
+Clients, control plane, and local runtimes may upgrade independently.
+
+Compatibility is based on typed protocol version plus advertised capabilities, not optimistic version assumptions.
+
+Examples of runtime capabilities:
+
+```text
+task_resume
+task_fork
+approval_digest_v1
+browser_semantic
+native_background_input
+artifact_docx
+provider_openai
+provider_anthropic
+provider_gemini
+workflow_pack_v1
+```
+
+Missing capability means:
+
+- hide or reject the operation;
+- use an explicitly compatible fallback;
+- never silently reinterpret it.
+
+Persisted state must remain readable across supported upgrade/downgrade paths.
+
+## Durable intent before side effects
+
+For externally visible or otherwise consequential work, record durable intent before dispatch:
+
+```text
+normalize action
+  -> persist intent + idempotency state
+  -> authorize
+  -> obtain approval when required
+  -> execute
+  -> persist execution result
+  -> verify postcondition
+  -> finalize outcome
+```
+
+An acknowledgment that intent is durable is not the same as successful execution.
+
+External I/O should not be hidden inside the same persistence transaction that records intent.
+
+The system must survive a crash between any two steps without blindly repeating an ambiguous side effect.
+
+## Canonical execution outcomes
+
+Executor transport success is not effect success.
+
+Normalize action outcomes to:
+
+- `DELIVERED` — required effect was independently observed;
+- `REFUSED` — executor deliberately declined before mutation under a known contract;
+- `NO_EFFECT` — action was attempted but the expected effect was not observed;
+- `AMBIGUOUS` — the system cannot prove whether the effect occurred;
+- `ERROR` — execution failed with a classified error;
+- `CANCELLED` — cancelled before completion.
+
+`REFUSED` can be the correct expected result in an eval.
+
+An unproven capability is a gap, never implicit success.
+
+## Supervised process isolation
+
+Keep the privileged Rust core small.
+
+Where practical, lower-trust or crash-prone engines run in supervised child processes with:
+
+- deadlines;
+- cancellation;
+- bounded IPC;
+- explicit capability negotiation;
+- restart policy;
+- structured errors.
+
+Candidates include:
+
+- Playwright/browser workers;
+- Cua Driver;
+- MCP/plugin bridges;
+- future native helpers;
+- model/provider helper processes.
+
+A stalled or crashed executor should not take down policy, task state, or the desktop control surface.
+
+## Task lifecycle
+
+Long-running work uses the lifecycle defined in `docs/specs/task-lifecycle-v0.md`.
+
+The architecture treats create, resume, fork, steer, pause, cancel, checkpoint, and archive as protocol operations rather than prompt conventions.
+
+Task resources and attachments are stored separately from model transcript/context where practical.
