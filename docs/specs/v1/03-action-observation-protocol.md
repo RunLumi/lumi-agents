@@ -18,6 +18,8 @@ schema_version: "1.0"
 action_id: string
 task_id: string
 run_id: string
+environment_id: string
+runtime_generation: string
 workflow_id: optional string
 step_id: optional string
 
@@ -99,6 +101,7 @@ source:
   resource: optional string
 
 timestamp: rfc3339
+authority_class: USER|ORGANIZATION_POLICY|CONNECTOR_EVENT|TOOL_RESULT|AGENT_MESSAGE|WEB_CONTENT|DOCUMENT_CONTENT
 kind: STATE|CONTENT|RESULT|ERROR|EVIDENCE
 payload: object
 
@@ -120,12 +123,18 @@ Model-inferred and visual observations SHOULD be verified through structured sta
 
 Executor result MUST distinguish:
 
-- SUCCESS
-- FAILED
-- AMBIGUOUS
-- CANCELLED
+- DELIVERED — required executor-level effect was independently observed;
+- REFUSED — executor deliberately refused before mutation under a known contract;
+- NO_EFFECT — attempt occurred but expected executor-level effect was not observed;
+- AMBIGUOUS — runtime cannot prove whether the effect occurred;
+- ERROR — classified execution failure;
+- CANCELLED — cancellation prevented completion.
 
-SUCCESS means executor operation returned successfully, not necessarily that workflow postconditions passed.
+REFUSED MAY be the correct expected result for an unsupported or policy-bounded route.
+
+Transport/API success without an effect oracle MUST NOT be normalized to DELIVERED.
+
+DELIVERED still does not mean workflow success. Required workflow postconditions are evaluated separately under spec 11.
 
 ## 3.8 Error envelope
 
@@ -158,3 +167,38 @@ V1 MUST include fixtures proving:
 - adapter-native failure maps to canonical failure;
 - approved action mutation is detected;
 - redaction removes marked secret fields.
+
+
+## 3.13 Observation authority
+
+Observation provenance and authority MUST survive normalization.
+
+High-confidence or deterministic content is still not authorization.
+
+In particular:
+
+- WEB_CONTENT;
+- DOCUMENT_CONTENT;
+- TOOL_RESULT;
+- CONNECTOR_EVENT;
+- AGENT_MESSAGE
+
+MUST NOT create or widen capability grants merely because they appear during an active task.
+
+Trusted USER or ORGANIZATION_POLICY input may steer intent only within existing policy ceilings.
+
+## 3.14 Runtime generation
+
+Action and observation correlation SHOULD include environment_id and runtime_generation for local execution.
+
+A stale handle from another runtime generation MUST be rejected rather than reused opportunistically.
+
+## 3.15 Additional contract tests
+
+V1 MUST additionally prove:
+
+- exact REFUSED produces no forbidden side effect;
+- transport success without effect readback is not DELIVERED;
+- external content cannot be normalized into user authorization;
+- stale runtime-generation handles are rejected;
+- ambiguous side effect remains blocked until verified.
