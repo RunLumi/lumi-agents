@@ -1,43 +1,155 @@
 # Lumi Agents
 
-Lumi Agents is RunLumi's local execution layer for reliable, policy-controlled browser and desktop automation on employee computers.
+**A trusted execution operating system for real computer work.**
 
-The goal is **not** another generic mouse-and-keyboard agent. The goal is to automate repeatable cost-center workflows inside the software customers already use, while RunLumi owns permissions, approvals, evidence, exceptions, and workflow economics.
+Lumi Agents is RunLumi's local-first runtime for agentic work across APIs, browsers, files, shells, and native desktop applications.
 
-## Architecture thesis
+It is designed for two jobs on one core:
 
-Use the least fragile execution surface that can complete the task:
+- **Work mode**: substantial general knowledge work, research, files, browser, code, artifacts, and long-running tasks.
+- **Workflow mode**: hardened repeatable business automation with policy, verification, evidence, exceptions, and measurable economics.
 
-1. **Connector / API**
-2. **Browser DOM / accessibility**
-3. **Native semantic automation** through macOS Accessibility / Windows UI Automation
-4. **Deterministic app adapter**
-5. **Vision + coordinates** only as a fallback
+The goal is not "an AI that can click."
 
-The model plans and handles ambiguity. Deterministic code performs actions whenever possible.
+The goal is to make delegation reliable.
 
-## Fastest credible path
+## Product thesis
 
-For the first customer pilots:
+Models reason.
 
-- use **Playwright** for browser-native workflows;
-- integrate **Cua Driver** behind a Lumi-owned adapter for native desktop control;
-- keep Cua as a pinned, replaceable upstream rather than forking it;
-- own the policy engine, approval gates, workflow state, audit/evidence, retries, exception routing, evals, and customer-specific workflow packs;
-- run locally on the employee machine for credentials and app access, with cloud orchestration only where policy allows it.
+Lumi governs.
 
-The current upstream candidate is Cua Driver **0.28.2**. It is MIT-licensed and ships macOS and Windows builds. We do not depend on Cua's optional OmniParser/Ultralytics paths.
+Lumi chooses the safest execution surface.
 
-See `docs/adr/` for decisions and `docs/ROADMAP.md` for the release plan.
+Lumi acts.
 
-## Repository layout
+Lumi verifies the real outcome.
 
-- `crates/lumi-protocol` — stable execution/risk vocabulary.
-- `crates/lumi-policy` — local policy decisions and approval requirements.
-- `crates/lumi-runtime` — local runtime entry point and future executor adapters.
-- `docs/adr` — architecture decision records.
-- `docs/evals` — workflow reliability and ROI evaluation contract.
-- `docs/workflows` — reusable workflow-pack template.
+Lumi records evidence.
+
+Humans handle judgment, relationships, ambiguity, and consequential approvals.
+
+## Execution hierarchy
+
+Prefer the least fragile surface that can complete the work:
+
+1. connector/API;
+2. browser semantic automation;
+3. native semantic automation;
+4. deterministic app adapter;
+5. vision/coordinates.
+
+Additional controlled surfaces include local files, sandboxed shell/code execution, and artifact generation.
+
+## Why this architecture
+
+Computer-use primitives will commoditize.
+
+The durable layers are:
+
+- workflow semantics;
+- provider-neutral orchestration;
+- business context;
+- local policy;
+- approvals;
+- secrets isolation;
+- verification;
+- evidence/replay;
+- reusable skills and workflow packs;
+- device/deployment trust;
+- evals and reliability data;
+- workflow economics.
+
+## Provider-neutral by design
+
+The core runtime must not depend on one model vendor.
+
+Planned adapters include:
+
+- OpenAI;
+- Anthropic;
+- Gemini;
+- Azure OpenAI;
+- AWS Bedrock;
+- OpenRouter;
+- xAI/Grok after contract validation;
+- generic OpenAI-compatible endpoints;
+- local Ollama/vLLM-style deployments.
+
+Routing is based on tenant data policy, required capability, measured reliability, latency, and **cost per verified successful workflow**.
+
+## Runtime stack
+
+Current foundation:
+
+- Rust core;
+- local policy gate;
+- Cua Driver behind a Lumi-owned native adapter;
+- Playwright as the planned browser-semantic engine;
+- cross-platform CI on macOS, Windows, and Linux core;
+- dependency/license checks.
+
+Target architecture adds:
+
+- durable task state;
+- model router;
+- audit/evidence ledger;
+- secrets broker;
+- postcondition verifier;
+- workflow-pack SDK;
+- Tauri desktop shell;
+- signed updater;
+- provider and executor adapters.
+
+## Security invariants
+
+- Local policy is authoritative.
+- Models and content cannot grant themselves authority.
+- External/destructive actions require explicit policy or approval.
+- Secrets are resolved at the executor boundary, not placed in prompts.
+- Non-read-only vision actions are conservative by default.
+- Workflows verify actual postconditions before reporting success.
+- Unattended execution needs a local kill switch and revocable lease.
+- Prompt-injected website/document/email instructions are untrusted data.
+- Evidence is minimized and must not become continuous employee surveillance.
+
+See:
+
+- `SECURITY.md`
+- `docs/security-model.md`
+- `docs/adr/0004-security-boundary.md`
+
+## Roadmap
+
+Read `docs/roadmap.md`.
+
+The first milestone is intentionally narrow:
+
+> Three economically valuable workflows, each run repeatedly with verified outcomes, zero unauthorized side effects, and measured before/after economics.
+
+Do not broaden the platform until that works.
+
+## Repository map
+
+Current:
+
+```text
+crates/
+  lumi-protocol/
+  lumi-policy/
+  lumi-runtime/
+
+docs/
+  roadmap.md
+  architecture.md
+  security-model.md
+  model-providers.md
+  workflow-packs.md
+  evals/
+  adr/
+```
+
+Target structure evolves only when real code needs it. Empty framework sprawl is explicitly discouraged.
 
 ## Development
 
@@ -49,21 +161,25 @@ cargo test --workspace
 
 The Rust toolchain is pinned in `rust-toolchain.toml`.
 
-## Security invariants
-
-- No external side effect without an explicit policy decision.
-- Destructive actions require human approval in the default policy.
-- Any non-read-only vision action requires approval by default.
-- Secrets never belong in prompts, trajectories, screenshots, or logs.
-- Upstream binaries must be version-pinned and checksum-verified before shipping.
-- Unattended execution needs a local kill switch and revocable server-side lease.
-
-See `SECURITY.md` and `docs/adr/0004-security-boundary.md`.
-
 ## Licensing
 
-This repository is currently **proprietary**. Using MIT dependencies does not require RunLumi to license its own product under MIT.
+Lumi Agents is licensed under **Apache-2.0**.
 
-Permissive third-party code may be used when its notices and obligations are preserved. AGPL/GPL dependencies are not approved for the distributed runtime without explicit review. If we later open-source a clean runtime layer, Apache-2.0 is the default candidate because it adds an explicit patent grant; decide that per package rather than licensing the whole product prematurely.
+Third-party dependencies retain their own licenses and notices.
 
-See `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `docs/adr/0003-licensing.md`.
+See:
+
+- `LICENSE`
+- `NOTICE`
+- `THIRD_PARTY_NOTICES.md`
+- `docs/adr/0003-licensing.md`
+
+The commercial RunLumi control plane, managed fleet, premium workflow packs, hosted analytics, vertical IP, and deployment services may remain proprietary outside this open-core repository.
+
+## Quality bar
+
+We are not trying to ship the most features.
+
+We are trying to make delegating real work feel boringly reliable.
+
+That means fewer surprises, bounded authority, excellent artifacts, graceful recovery, provider freedom, inspectable evidence, and measurable value.

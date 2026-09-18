@@ -1,38 +1,106 @@
 # Release gates
 
-## Internal alpha
+A Lumi release is allowed to move forward only when the trust boundary, workflow reliability, and rollback story are stronger than the previous ring.
 
-Required before an employee installs a build:
+## Ring 0: internal development
 
-- upstream computer-use binary pinned to an exact version and checksum;
-- local policy gate cannot be bypassed by the planner/model;
-- external side effects require approval by default;
-- local stop/kill path tested;
-- no production secret appears in logs or traces;
-- deterministic smoke fixture passes on the target OS.
+Required:
 
-## Customer pilot
+- all Rust checks green;
+- policy tests green;
+- dependency/advisory/license checks green;
+- no secrets/customer data in repository or fixtures;
+- upstream binaries pinned by exact version/checksum;
+- deterministic fixtures for changed behavior;
+- protocol compatibility tests for changed contracts.
 
-In addition to alpha:
+## Ring 1: internal alpha
 
-- macOS build signed and notarized;
-- Windows installer code-signed;
-- updater artifacts signed and rollback tested;
-- Keychain/Credential Manager used for local secrets;
-- permission onboarding is explicit;
-- browser-profile attachment is explicit and policy controlled;
-- redacted evidence bundle exists for every material action;
-- device can be remotely revoked;
-- workflow eval threshold in `docs/ROADMAP.md` is met;
-- dependency/license scan and SBOM are produced.
+Before an employee installs a build:
 
-## Production
+- local policy cannot be bypassed by planner/model;
+- external/destructive actions require policy or approval;
+- local emergency stop works;
+- task cancellation works;
+- no plaintext production secret appears in prompts/logs/traces;
+- deterministic smoke fixtures pass on target OS;
+- required postcondition verifier can block false success;
+- updater is disabled or signed/controlled.
 
-In addition to pilot:
+Alpha workflow gate:
 
-- MDM/enterprise deployment path documented;
-- update signing keys have backup/recovery procedure;
-- security incident and kill-switch runbooks tested;
-- cross-platform regression suite blocks release;
-- customer-specific workflow packs are versioned independently from the runtime;
-- every release can answer: what changed, which workflows are affected, how to roll back, and which evidence proves the build.
+- >=30 repeated runs per target workflow;
+- >=90% verified completion in controlled scenarios;
+- 0 unauthorized side effects;
+- failure taxonomy recorded.
+
+## Ring 2: dogfood
+
+In addition:
+
+- signed macOS and Windows builds;
+- macOS notarization;
+- Keychain/Windows protected secret storage;
+- explicit permission onboarding;
+- browser-profile attachment explicit/policy-controlled;
+- evidence redaction tested;
+- crash/restart recovery tested;
+- ambiguous side effects do not auto-retry;
+- provider budgets enforced;
+- prompt-injection suite passes.
+
+## Ring 3: customer canary
+
+In addition:
+
+- signed updater;
+- rollback tested;
+- SBOM generated;
+- artifact checksums published;
+- device identity and revocation;
+- customer data-egress policy tested;
+- local-only mode tested when offered;
+- support/runbook exists;
+- incident/kill-switch runbook exercised;
+- compatibility matrix documented.
+
+Canary workflow gate:
+
+- >=100 representative runs per certified workflow;
+- >=95% verified completion;
+- <5% unexpected human-rescue events on hardened routine paths;
+- zero policy bypasses in release corpus;
+- expected human approvals are not counted as rescue.
+
+## Ring 4: stable
+
+In addition:
+
+- MDM/enterprise deployment path documented where applicable;
+- update signing keys have backup/recovery process;
+- cross-platform regression matrix blocks release;
+- escaped production failures are represented in regression corpus where reproducible;
+- customer workflow packs are independently versioned;
+- release notes identify affected contracts/workflows/providers;
+- rollback target is known and tested.
+
+For narrow hardened workflows, target 99%+ verified completion on explicitly supported OS/app/version combinations.
+
+Consequential actions may still require approval regardless of technical success rate.
+
+## Mandatory release evidence
+
+Every external release must be able to answer:
+
+1. What changed?
+2. Which protocol/contracts changed?
+3. Which workflows/providers/apps are affected?
+4. Which security boundary changed?
+5. Which evals prove the behavior?
+6. What remains unverified?
+7. How do we roll back?
+8. What third-party/license changes entered?
+9. Which artifacts are signed and checksum-verified?
+10. Which customer data/evidence policy changed?
+
+If these answers are unclear, do not ship.
