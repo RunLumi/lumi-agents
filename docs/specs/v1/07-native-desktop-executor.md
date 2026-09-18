@@ -127,3 +127,93 @@ V1 MUST test:
 - ambiguous save;
 - vision fallback approval;
 - macOS and Windows deterministic fixtures.
+
+
+## 7.15 Canonical outcomes
+
+Native executor MUST return one of:
+
+- DELIVERED;
+- REFUSED;
+- NO_EFFECT;
+- AMBIGUOUS;
+- ERROR;
+- CANCELLED.
+
+An OS/API call returning success is not sufficient evidence of DELIVERED.
+
+DELIVERED requires the executor's declared effect oracle to observe the intended executor-level state change.
+
+A known unsupported route SHOULD return a stable REFUSED code before mutation instead of falling through to a riskier path.
+
+## 7.16 Certification matrix
+
+Native support claims MUST be backed by an explicit certification matrix containing at least:
+
+- OS and version;
+- app and version/toolkit;
+- runtime/driver version;
+- action;
+- semantic vs coordinate addressing;
+- foreground/background mode;
+- executor route;
+- required OS permissions;
+- expected outcome;
+- effect oracle;
+- observed outcome.
+
+Do not infer support for an untested app/toolkit/version simply because the underlying OS API exists.
+
+## 7.17 Collateral-effect oracles
+
+Where observable, background/native evals SHOULD verify:
+
+- active/focused application remains correct;
+- z-order does not change unexpectedly;
+- physical pointer/cursor remains preserved when promised;
+- input does not leak to another app/window;
+- wrong account/window/resource is not mutated;
+- REFUSED causes no process launch, focus change, or global input;
+- clipboard/files/network do not change outside the normalized action.
+
+## 7.18 Runtime generation and session handles
+
+Desktop executor sessions/handles MUST be bound to an execution environment runtime generation.
+
+After driver/runtime restart, rebind, or permission-host change:
+
+- stale handles MUST fail closed;
+- cached target identity MUST be re-resolved;
+- protected grants MUST be revalidated where necessary.
+
+## 7.19 Existing authenticated sessions
+
+Attaching to an existing authenticated browser/application profile is a protected capability.
+
+When this path is supported, authorization SHOULD bind to concrete context such as:
+
+- profile/account;
+- process/runtime generation;
+- application;
+- allowed origins/workspaces.
+
+Before a material mutation, revalidate mutable target context such as current origin, active account/tenant, selected customer, file identity, or target window.
+
+## 7.20 No silent global-input fallback
+
+The executor MUST NOT silently fall back from semantic/app-scoped/background delivery to unrestricted global keyboard/mouse input.
+
+Such escalation requires an explicitly allowed execution preference plus fresh policy evaluation.
+
+## 7.21 Additional tests
+
+V1 MUST additionally test:
+
+- exact REFUSED with no collateral side effects;
+- OS API success but missing effect -> NO_EFFECT;
+- unknown effect after interruption -> AMBIGUOUS;
+- background delivery preserves focus/cursor where promised;
+- input does not leak to another app/window;
+- stale generation handle rejected;
+- authenticated-profile target changes before mutation -> block/re-authorize;
+- global-input fallback denied unless explicitly authorized.
