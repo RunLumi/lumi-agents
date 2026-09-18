@@ -1,0 +1,59 @@
+{
+  "schema_name": "lumi.action",
+  "schema_version": "1.0",
+  "action_id": "act-2026-09-18-alpha",
+  "task_id": "task-2026-09-18-alpha",
+  "run_id": "run-2026-09-18-alpha",
+  "workflow_id": "wf-customer-email-followup",
+  "step_id": "send-followup",
+  "principal": {
+    "principal_id": "user-2026-09-18-alpha",
+    "tenant_id": "tenant-acme",
+    "kind": "USER",
+    "authenticated_at": "2026-09-18T09:00:00Z",
+    "authentication_strength": "MFA"
+  },
+  "capability": "email.send",
+  "resource": {
+    "resource_type": "email_message",
+    "id": "outbound/quote-followup-cust-42",
+    "sensitivity": "CONFIDENTIAL"
+  },
+  "target": {
+    "canonical": "mailto:customer@example.test"
+  },
+  "operation": "send_customer_email",
+  "arguments": {
+    "body": "Hi — following up on the quote we sent last week. Does Tuesday work for a call?",
+    "subject": "Following up: quote Q-2091"
+  },
+  "expected_effect": {
+    "summary": "Send the quote follow-up email to the customer's primary address",
+    "external_visibility": true,
+    "reversible": false
+  },
+  "risk_class": "COMMUNICATION",
+  "execution_preferences": {
+    "allowed_tiers": ["CONNECTOR_API", "BROWSER_SEMANTIC"],
+    "preferred_tier": "CONNECTOR_API"
+  },
+  "evidence_requirements": ["STRUCTURED_STATE", "RESOURCE_REFERENCE"],
+  "postconditions": [
+    {
+      "id": "message-exists-in-sent",
+      "description": "The sent message exists with the expected subject",
+      "check": "record_field_equals",
+      "resource": {
+        "resource_type": "email_message",
+        "id": "outbound/quote-followup-cust-42"
+      },
+      "field": "subject",
+      "expected": "Following up: quote Q-2091"
+    }
+  ],
+  "idempotency": {
+    "key": "quote-followup-cust-42",
+    "semantics": "CLIENT_KEY"
+  },
+  "timeout_ms": 30000
+}

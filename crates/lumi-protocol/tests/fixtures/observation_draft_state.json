@@ -1,0 +1,24 @@
+{
+  "schema_name": "lumi.observation",
+  "schema_version": "1.0",
+  "observation_id": "obs-2026-09-18-alpha",
+  "task_id": "task-2026-09-18-alpha",
+  "run_id": "run-2026-09-18-alpha",
+  "source": {
+    "surface": "BROWSER",
+    "adapter": "playwright/1.49",
+    "resource": "https://mail.example.test/compose"
+  },
+  "timestamp": "2026-09-18T09:00:05.25Z",
+  "kind": "STATE",
+  "payload": {
+    "draft_saved": true,
+    "recipient": "customer@example.test",
+    "selector": "#compose-status",
+    "value": "Draft saved"
+  },
+  "confidence": {
+    "kind": "STRUCTURED"
+  },
+  "action_id": "act-2026-09-18-alpha"
+}

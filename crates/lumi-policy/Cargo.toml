@@ -8,5 +8,8 @@ publish.workspace = true
 [dependencies]
 lumi-protocol = { path = "../lumi-protocol" }
 
+[dev-dependencies]
+serde_json = "1"
+
 [lints]
 workspace = true

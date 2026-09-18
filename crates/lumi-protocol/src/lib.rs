@@ -1,51 +1,72 @@
-//! Stable vocabulary shared by the Lumi planner, policy engine, and executors.
+//! Stable vocabulary shared by the Lumi planner, policy engine, executors,
+//! verifiers, audit ledger, workflow packs, and control-plane sync.
+//!
+//! This crate implements [spec 01] (core domain model) and [spec 03]
+//! (action/observation protocol). It is deliberately dependency-light and
+//! contains no execution, authorization, or I/O logic: models may *propose*
+//! values from this vocabulary, but nothing here grants authority.
+//!
+//! Normative invariants enforced by this crate:
+//!
+//! - Persisted protocol messages carry `schema_name` / `schema_version` and
+//!   unknown versions or enum values fail explicitly (never coerce).
+//! - Timestamps are UTC RFC 3339.
+//! - IDs are opaque strings and never encode secrets.
+//! - Secret values are referenced, never embedded ([`SecretRef`]).
+//! - Payloads support field-level redaction before egress or long-term audit.
+//! - Material action changes are detectable via [`ActionProposal::material_digest`].
+//!
+//! [spec 01]: ../../docs/specs/v1/01-core-domain-model.md
+//! [spec 03]: ../../docs/specs/v1/03-action-observation-protocol.md
 
-/// Ordered from the most deterministic integration surface to the least.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ExecutionTier {
-    ConnectorApi,
-    BrowserSemantic,
-    NativeSemantic,
-    AppAdapter,
-    Vision,
-}
+pub mod action;
+pub mod artifact;
+pub mod budget;
+pub mod canonical;
+pub mod device;
+pub mod error;
+pub mod evidence;
+pub mod ids;
+pub mod observation;
+pub mod postcondition;
+pub mod principal;
+pub mod redaction;
+pub mod resource;
+pub mod result;
+pub mod risk;
+pub mod run;
+pub mod schema;
+pub mod task;
+pub mod tenant;
+pub mod tier;
+pub mod timestamp;
 
-/// Risk is about the real-world effect, not how technically difficult an action is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RiskLevel {
-    ReadOnly,
-    Reversible,
-    ExternalSideEffect,
-    Destructive,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ActionRequest {
-    pub action_id: String,
-    pub workflow_id: String,
-    pub tier: ExecutionTier,
-    pub risk: RiskLevel,
-    pub target: String,
-    pub operation: String,
-}
-
-impl ActionRequest {
-    #[must_use]
-    pub fn new(
-        action_id: impl Into<String>,
-        workflow_id: impl Into<String>,
-        tier: ExecutionTier,
-        risk: RiskLevel,
-        target: impl Into<String>,
-        operation: impl Into<String>,
-    ) -> Self {
-        Self {
-            action_id: action_id.into(),
-            workflow_id: workflow_id.into(),
-            tier,
-            risk,
-            target: target.into(),
-            operation: operation.into(),
-        }
-    }
-}
+pub use action::{
+    ActionProposal, ExecutionPreferences, ExpectedEffect, Idempotency, IdempotencySemantics, Target,
+};
+pub use artifact::{Artifact, ArtifactType, PublicationState, ValidationStatus};
+pub use budget::{Budget, ConsumedBudget};
+pub use device::{Device, Platform, TrustState, UpdateRing};
+pub use error::{ErrorEnvelope, FailureCategory, RecoveryAction, RetryClass};
+pub use evidence::{EvidenceRef, EvidenceRequirement};
+pub use ids::{
+    ActionId, ApprovalId, ArtifactId, ConnectorInstanceId, DeviceId, EvidenceId, OrganizationId,
+    PrincipalId, ProviderRequestId, RunId, StepId, TaskId, TenantId, UserId, WorkflowId,
+    WorkflowVersion,
+};
+pub use observation::{
+    Confidence, ConfidenceKind, Observation, ObservationKind, ObservationSource,
+};
+pub use postcondition::{Postcondition, PostconditionCheck, PostconditionId};
+pub use principal::{AuthenticationStrength, Principal, PrincipalKind};
+pub use redaction::{redact_value, RedactionRule, SecretRef, REDACTED_MARKER};
+pub use resource::Capability;
+pub use resource::{capabilities, Resource, ResourceRef, ResourceType, SensitivityLabel};
+pub use result::{ExecutionResult, ExecutionStatus, Grounding};
+pub use risk::RiskClass;
+pub use run::{Run, RunState};
+pub use schema::{ProtocolError, PROTOCOL_VERSION};
+pub use task::{PrivacyConstraint, Task, TaskMode, TaskStatus};
+pub use tenant::{DataEgressPolicy, RetentionPolicy, Tenant};
+pub use tier::{ExecutionTier, ObservationSurface};
+pub use timestamp::Timestamp;
