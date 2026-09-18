@@ -108,3 +108,147 @@ V1 MUST test:
 - unexpected network target denied;
 - extension crash isolated;
 - cross-tenant connector isolation.
+
+
+## 14.14 Canonical extension vocabulary
+
+Lumi uses these distinct extension concepts:
+
+### TOOL
+
+A typed callable capability.
+
+Tool existence does not grant authority.
+
+### SKILL
+
+Reusable procedural/model context.
+
+A Skill MAY bundle:
+
+- instructions;
+- examples;
+- references;
+- scripts;
+- assets;
+- validation/eval material.
+
+Skill activation is context, not authorization.
+
+### AGENT
+
+A bounded delegated reasoning/execution role.
+
+Agent definition MUST declare:
+
+- purpose;
+- context scope;
+- required model capabilities;
+- allowed tools/skills;
+- budget/deadline;
+- output contract.
+
+Agent MUST NOT inherit all parent secrets/capabilities by default.
+
+### HOOK
+
+A deterministic lifecycle handler.
+
+Candidate hook points include:
+
+- TaskStarted;
+- BeforePlan;
+- BeforeAction;
+- AfterAction;
+- BeforeVerification;
+- ApprovalRequested;
+- ApprovalResolved;
+- TaskPaused;
+- TaskCompleted;
+- TaskFailed;
+- ContextCompacting.
+
+Hook MAY validate, enrich, log, narrow, deny, or schedule policy-authorized follow-up work.
+
+Hook MUST NOT widen policy or grant itself capability.
+
+### COMMAND
+
+An explicit user-invoked operation.
+
+Command maps to normal Lumi protocol/policy. It is not a privileged backdoor.
+
+### WORKFLOW_PACK
+
+A production automation package with explicit policy, postconditions, exceptions, evidence, evals, compatibility, and economics.
+
+A Workflow Pack MAY compose Tools, Skills, Agents, Hooks, and Connectors.
+
+## 14.15 Extension manifest additions
+
+In addition to section 14.3, extensible packages SHOULD declare:
+
+- extension kind;
+- minimum runtime/protocol;
+- hooks;
+- tools;
+- skills;
+- agents;
+- commands;
+- supported platforms;
+- signing/provenance metadata where available.
+
+Paths/resources SHOULD resolve relative to the extension root rather than hardcoded install locations.
+
+## 14.16 Organization policy ceiling
+
+Organization-managed policy MAY restrict:
+
+- extension origins;
+- extension signing requirements;
+- extension kinds;
+- hooks;
+- network/filesystem scope;
+- MCP servers;
+- marketplaces/catalogs;
+- dangerous/unrestricted modes.
+
+Project/user extensions MUST NOT widen organization policy.
+
+## 14.17 Public marketplace gate
+
+Do not ship a broad public extension marketplace until the runtime has:
+
+- package provenance/signature verification;
+- enforceable permission declarations;
+- update-review policy;
+- uninstall/revocation;
+- license metadata;
+- dependency/artifact provenance;
+- malicious-extension eval corpus;
+- organization allow/deny policy.
+
+V1 SHOULD prioritize first-party and private organization extensions.
+
+## 14.18 Hook safety
+
+Hook execution MUST have:
+
+- timeout/deadline;
+- bounded input/output schema;
+- failure semantics;
+- provenance;
+- applicable capability scope.
+
+Security-critical deny/fail-closed logic belongs in deterministic policy, not solely in model-prompt hooks.
+
+## 14.19 Additional tests
+
+V1 MUST additionally test:
+
+- Skill/Agent/Hook cannot self-grant capability;
+- organization policy blocks disallowed project extension;
+- hook timeout does not hang task runtime;
+- hook rewrite causing material ActionProposal change triggers re-authorization;
+- extension relative paths remain portable across install roots;
+- third-party extension crash is isolated where process isolation is configured.
