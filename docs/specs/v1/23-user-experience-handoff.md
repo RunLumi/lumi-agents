@@ -150,3 +150,69 @@ V1 UX tests SHOULD cover:
 - background task visibility;
 - artifact draft vs publish;
 - failed verification shown honestly.
+
+
+## 23.17 Multi-surface supervision
+
+Desktop, web, and future mobile clients are control surfaces over the same durable task/environment contracts.
+
+A remote client MUST NOT pretend to own:
+
+- local filesystem;
+- local credentials;
+- browser/app sessions;
+- native permissions;
+- executor state.
+
+Those belong to the ExecutionEnvironment.
+
+Shared task/approval/exception state SHOULD live behind common typed contracts rather than duplicated client logic.
+
+## 23.18 Capability-aware UX
+
+Clients MUST render actions based on the selected environment's advertised capabilities.
+
+If a runtime does not support a feature:
+
+- hide it;
+- disable it with a clear reason;
+- or route to an explicitly compatible fallback.
+
+Do not display a control that will silently reinterpret into a weaker or riskier operation.
+
+## 23.19 Remote supervision
+
+Remote supervision SHOULD support:
+
+- inspect progress;
+- pause/cancel;
+- steer;
+- approve/reject;
+- supply missing information;
+- inspect artifacts/evidence;
+- resume.
+
+Remote transport authentication does not itself authorize every task/action operation.
+
+Remote approval UI MUST show the same normalized business effect as local approval UI.
+
+## 23.20 Reconnect behavior
+
+After client disconnect/reconnect:
+
+- task truth comes from durable runtime state;
+- client cache is not authoritative;
+- current environment capabilities override stale cached capabilities;
+- pending approval status is reloaded;
+- a previously active native/browser surface is re-observed before takeover/resume.
+
+## 23.21 Additional UX tests
+
+V1 SHOULD additionally cover:
+
+- same task supervised from desktop then web without state divergence;
+- stale client capability after runtime downgrade;
+- reconnect while WAITING_APPROVAL;
+- remote cancel invalidates new action admission;
+- remote client cannot reference its own local file path as environment-owned resource;
+- local and remote approval render identical normalized business effect.

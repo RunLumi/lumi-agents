@@ -142,3 +142,103 @@ Every adapter must pass a shared test suite covering:
 Do not normalize away safety-relevant provider behavior.
 
 Adapters may surface provider-specific confirmation/safety signals into Lumi policy as observations, but Lumi policy remains authoritative.
+
+
+## Driver, instance, catalog, session
+
+Do not model a provider as one global singleton.
+
+Use four layers:
+
+```text
+ProviderDriver
+  -> ProviderInstance
+    -> ModelCatalog
+      -> Session / Task route
+```
+
+### ProviderDriver
+
+The implementation/protocol family, such as:
+
+- OpenAI;
+- Anthropic;
+- Gemini;
+- Bedrock;
+- OpenAI-compatible.
+
+### ProviderInstance
+
+One concrete account/configuration boundary.
+
+It owns or references:
+
+- credentials;
+- endpoint/region;
+- organization/account;
+- data policy;
+- rate limits;
+- provider-specific settings;
+- cached model catalog.
+
+Two accounts using the same driver must not share mutable authentication/session state accidentally.
+
+### ModelCatalog
+
+The capability description discovered for one provider instance.
+
+Catalog data is evidence about availability, not durable authorization.
+
+### Route snapshot
+
+When a task/turn starts, persist the routing decision:
+
+- provider driver;
+- provider instance;
+- model;
+- router/policy version;
+- capability match;
+- data-egress classification;
+- service tier when relevant.
+
+A configuration reload must not silently change an active task's trust posture.
+
+If continuing work becomes incompatible with updated managed requirements, stop or require an explicit reroute.
+
+## External agent-harness adapters
+
+A local coding/work harness such as Codex CLI, Claude Code, or OpenCode is **not** the same abstraction as a model provider.
+
+Lumi may later support:
+
+```text
+AgentHarnessDriver
+  -> local authenticated harness instance
+  -> normalized Lumi task/events
+```
+
+This can be useful in Work mode for bring-your-existing-subscription adoption.
+
+Rules:
+
+- harness events are normalized at the adapter edge;
+- harness approval state does not supersede Lumi policy;
+- harness credentials remain environment-owned;
+- Workflow mode should prefer direct provider/executor contracts when stronger control, cost accounting, or verification is required.
+
+Do not make Lumi's core dependent on the lifecycle or CLI format of one external harness.
+
+## Authority of external model events
+
+Provider/tool/harness output is observation, not user authority.
+
+External notifications should preserve provenance and authority class so the orchestrator can distinguish:
+
+- trusted user steer;
+- developer/system policy;
+- connector event;
+- provider-generated tool result;
+- another agent's message;
+- untrusted web/document content.
+
+No provider event grants new permissions merely because it arrived inside an active task.

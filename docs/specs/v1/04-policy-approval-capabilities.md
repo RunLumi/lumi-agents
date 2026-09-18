@@ -163,3 +163,98 @@ V1 MUST test:
 - missing policy fails closed;
 - content injection cannot change policy;
 - pre-authorized bounded action allowed while out-of-bound variant requires approval/denial.
+
+
+## 4.16 Layered authority ceiling
+
+Effective authority is the intersection of:
+
+```text
+product hard invariants
+  ∩ organization managed policy
+  ∩ user policy
+  ∩ workflow/pack manifest
+  ∩ task temporary grant
+```
+
+Lower layers MAY narrow higher ceilings.
+
+They MUST NOT widen them.
+
+Policy composition MUST be monotonic toward equal or less authority.
+
+## 4.17 Autonomy mode is separate from authority
+
+Autonomy mode describes how aggressively already-authorized work may proceed.
+
+Initial modes:
+
+- SUPERVISED;
+- BOUNDED_UNATTENDED;
+- UNRESTRICTED_DEVELOPMENT.
+
+Changing autonomy mode MUST NOT grant a capability denied by effective policy.
+
+BOUNDED_UNATTENDED MUST use a reviewed capability manifest covering relevant tools/actions, resources, apps/origins, file roots, connector scopes, risk ceilings, expiry, and budgets.
+
+UNRESTRICTED_DEVELOPMENT MUST remain unavailable where non-overridable platform/organization rules forbid it.
+
+## 4.18 Temporary scoped grants
+
+When more authority is required, request the least additional permission that can complete the task.
+
+Examples:
+
+- one origin instead of arbitrary network;
+- one file/path instead of a broad tree;
+- one account/window/application instead of global computer control;
+- one action/destination/value range instead of session-wide approval.
+
+Temporary grant MUST include:
+
+- source/approver;
+- scope;
+- task/run;
+- environment/runtime generation when local;
+- expiry;
+- optional single-use semantics.
+
+A temporary grant cannot widen organization/platform ceilings.
+
+## 4.19 Protected authenticated sessions
+
+Attaching to an existing authenticated browser/application profile is a protected capability, not a convenience toggle.
+
+Policy/grant SHOULD bind to concrete context where available:
+
+- profile/account identity;
+- process/runtime generation;
+- allowed origin/workspace;
+- application identity.
+
+Immediately before a material mutation, executor/policy path MUST revalidate mutable protected context such as current origin, account, tenant/customer, destination, file identity, or process/window identity.
+
+## 4.20 Least-authority fallback
+
+Fallback across a stronger trust boundary MUST NOT occur silently.
+
+Examples requiring policy/approval review:
+
+- semantic -> global pointer;
+- background -> foreground;
+- isolated browser -> authenticated existing profile;
+- sandboxed shell -> host shell;
+- narrow egress -> arbitrary egress.
+
+A precise refusal is preferable to an unauthorized fallback.
+
+## 4.21 Additional tests
+
+V1 MUST additionally test:
+
+- autonomy mode cannot widen policy;
+- temporary grant cannot exceed organization ceiling;
+- temporary grant expires and is task/environment scoped;
+- browser/profile account/origin changed before mutation -> action blocked or re-approved;
+- lower-trust hook/extension cannot grant itself authority;
+- broad fallback is refused when only narrow route was authorized.

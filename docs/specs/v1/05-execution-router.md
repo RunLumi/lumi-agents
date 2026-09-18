@@ -129,3 +129,69 @@ V1 MUST test:
 - fallback reason recorded;
 - unsupported tier fails explicitly;
 - vision fallback cannot bypass approval requirement.
+
+
+## 5.13 Trust-boundary fallback
+
+Fallback across a stronger trust boundary MUST require fresh policy evaluation and, when policy requires it, approval.
+
+Examples:
+
+- semantic target -> raw global pointer;
+- background delivery -> foreground activation;
+- isolated browser context -> existing authenticated profile;
+- sandboxed shell -> host shell;
+- bounded network egress -> arbitrary network;
+- app-scoped action -> system-wide automation.
+
+The router MUST prefer a precise REFUSED outcome over an unauthorized or surprising fallback.
+
+## 5.14 Canonical executor outcomes
+
+Every executor MUST normalize execution to:
+
+- DELIVERED;
+- REFUSED;
+- NO_EFFECT;
+- AMBIGUOUS;
+- ERROR;
+- CANCELLED.
+
+An adapter-native "success" MUST NOT become DELIVERED unless the required executor-level effect is observed according to the executor contract.
+
+REFUSED MAY be the expected correct outcome for an unsupported or policy-bounded path.
+
+## 5.15 Supervised executor processes
+
+Crash-prone or lower-trust executors SHOULD run behind supervised process boundaries where practical.
+
+Examples:
+
+- browser worker;
+- Cua/native driver;
+- plugin/MCP bridge;
+- external agent harness;
+- optional native helper.
+
+Supervision SHOULD provide:
+
+- deadline;
+- cancellation;
+- bounded/versioned IPC;
+- structured errors;
+- health;
+- restart policy;
+- runtime-generation identity.
+
+Executor crash MUST NOT corrupt policy authority or durable task state.
+
+## 5.16 Additional routing tests
+
+V1 MUST additionally test:
+
+- background route unavailable -> no silent foreground activation;
+- semantic route unavailable -> no silent global-pointer escalation;
+- isolated browser denied -> no silent existing-profile attachment;
+- exact REFUSED has no forbidden side effect;
+- adapter-native success without effect oracle is not DELIVERED;
+- executor restart invalidates stale generation-bound handles.

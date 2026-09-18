@@ -811,6 +811,96 @@ docs/
 
 Do not create every directory before code requires it. This is a target map, not permission for empty-framework sprawl.
 
+
+# Research-driven architecture deltas
+
+The September 2026 deep dives into T3 Code, OpenAI Codex, Claude Code, and Cua Driver sharpen several roadmap decisions.
+
+## ExecutionEnvironment becomes a P0 primitive
+
+Before remote/mobile control expands, Lumi needs a stable identity for the environment that owns:
+
+- filesystem and workspace state;
+- authenticated browser/app sessions;
+- local secrets;
+- installed apps;
+- provider instances;
+- native permissions;
+- executor capabilities.
+
+Remote surfaces supervise this environment. They do not impersonate it.
+
+## Task lifecycle becomes explicit
+
+Implement Task Lifecycle v0 alongside Action Protocol v0:
+
+- create;
+- resume;
+- fork;
+- steer;
+- pause;
+- cancel;
+- checkpoint;
+- archive.
+
+This is required for long-running work, crash recovery, mobile/web supervision, and provider switching.
+
+## Capability negotiation before multi-surface scale
+
+Desktop, web, mobile, control plane, and runtimes will not always upgrade together.
+
+Add typed capability negotiation before a second major control surface ships.
+
+Unsupported capability must be hidden/refused or deliberately degraded, never silently ignored.
+
+## Extension taxonomy before marketplace
+
+Implement the extension model in this order:
+
+1. first-party Tools;
+2. first-party Skills;
+3. deterministic Hooks;
+4. bounded Agents;
+5. private organization extensions;
+6. third-party ecosystem only after signatures/provenance/policy enforcement are mature.
+
+Do not build a public marketplace as a growth feature before the trust model works.
+
+## Bounded unattended mode before broad autonomy
+
+Workflow mode should gain a reviewed capability manifest covering:
+
+- tools/actions;
+- apps;
+- browser origins/profiles;
+- file roots;
+- connector scopes;
+- risk ceilings;
+- time/action/cost budgets.
+
+Autonomy mode never widens organization/user policy.
+
+## Exact refusal is a product feature
+
+Computer-use capability claims must be evidence-backed.
+
+Build the action/eval pipeline around:
+
+```text
+DELIVERED | REFUSED | NO_EFFECT | AMBIGUOUS | ERROR | CANCELLED
+```
+
+The runtime should prefer a precise refusal over a fragile fallback across a stronger trust boundary.
+
+## Direct provider and external harness adapters stay separate
+
+Lumi should support direct model providers as the primary architecture.
+
+Later Work mode may optionally control authenticated external harnesses such as coding agents already installed by the user.
+
+That is an adoption/compatibility surface, not the provider abstraction itself.
+
+
 # Roadmap
 
 ## Phase 0: next 7 days

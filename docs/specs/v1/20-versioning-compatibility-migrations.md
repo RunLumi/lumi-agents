@@ -105,3 +105,66 @@ V1 MUST include:
 - workflow version pin;
 - worker protocol mismatch;
 - downgrade/rollback where supported.
+
+
+## 20.15 Capability negotiation
+
+Runtime/environment descriptor MUST advertise supported capabilities separately from product version.
+
+Clients MUST NOT infer feature support from version number alone when capabilities can vary by:
+
+- platform;
+- build;
+- managed policy;
+- optional executor/provider;
+- staged rollout;
+- runtime generation.
+
+Capability examples:
+
+- task.resume.v1;
+- task.fork.v1;
+- approval.digest.v1;
+- browser.semantic.v1;
+- native.background_input.v1;
+- workflow_pack.v1;
+- artifact.docx.v1.
+
+## 20.16 Safe downgrade
+
+When an environment/runtime loses a capability after downgrade or configuration change:
+
+- clients MUST stop offering or invoking that capability;
+- cached optimistic state MUST NOT override current environment descriptor;
+- persisted data using newer semantics MUST fail explicitly or use a documented compatibility projection;
+- consequential behavior MUST NOT silently degrade to a weaker trust boundary.
+
+## 20.17 Independently versioned surfaces
+
+Web, desktop, mobile, local runtime, provider adapters, and control plane MAY upgrade independently.
+
+Protocol changes MUST define:
+
+- producer version;
+- consumer compatibility;
+- persisted-history compatibility;
+- downgrade behavior;
+- capability flag if behavior is optional.
+
+## 20.18 Runtime generation
+
+ExecutionEnvironment SHOULD expose a runtime_generation that changes whenever process/runtime identity changes in a way that invalidates local handles.
+
+Generation-bound handles MUST NOT survive restart/rebind by assumption.
+
+## 20.19 Additional tests
+
+V1 MUST additionally include:
+
+- old client/new runtime;
+- new client/old runtime;
+- runtime downgrade losing a capability;
+- stale cached capability after downgrade;
+- stale generation-bound handle;
+- persisted history containing optional newer fields;
+- unsupported consequential feature refuses rather than silently weakening behavior.

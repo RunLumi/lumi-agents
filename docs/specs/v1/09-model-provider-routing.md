@@ -200,3 +200,113 @@ Shared adapter suite MUST cover:
 - images where supported;
 - local-only routing;
 - fallback constraints.
+
+
+## 9.16 Driver, instance, catalog, route snapshot
+
+Provider architecture MUST distinguish:
+
+```text
+ProviderDriver
+  -> ProviderInstance
+    -> ModelCatalog
+      -> Task/Turn RouteSnapshot
+```
+
+### ProviderDriver
+
+Represents one protocol/implementation family.
+
+Examples:
+
+- OpenAI;
+- Anthropic;
+- Gemini;
+- Bedrock;
+- OpenAI-compatible.
+
+### ProviderInstance
+
+Represents one concrete account/configuration boundary.
+
+It owns or references:
+
+- credentials;
+- endpoint;
+- account/organization;
+- region;
+- data policy;
+- rate-limit/account state;
+- provider-specific settings;
+- cached model catalog.
+
+Two instances using the same driver MUST NOT accidentally share mutable authentication, session, or catalog state.
+
+### ModelCatalog
+
+Catalog describes currently discovered models/capabilities for one instance.
+
+Catalog state does not itself grant authorization.
+
+### RouteSnapshot
+
+Each task/turn SHOULD persist:
+
+- provider driver;
+- provider instance ID;
+- model;
+- router version;
+- applicable policy version;
+- capability match;
+- privacy/data-egress classification;
+- region/service tier where relevant.
+
+Resume SHOULD reuse or explicitly re-evaluate this snapshot.
+
+Configuration reload MUST NOT silently widen an active task's privacy, provider, region, or authority envelope.
+
+## 9.17 Provider instance lifecycle
+
+Provider instance health/setup checks MUST avoid unintended side effects such as:
+
+- launching login flows;
+- starting provider hooks/MCP servers;
+- changing credential stores;
+- creating durable sessions.
+
+Setup/authentication is an explicit operation.
+
+Sign-out/revocation MUST prevent admission of new sessions before clearing mutable credential/account state.
+
+## 9.18 External agent harnesses
+
+External local agent harnesses such as Codex CLI, Claude Code, or OpenCode are not ModelProvider adapters.
+
+If supported, they MUST use a separate abstraction such as:
+
+```text
+AgentHarnessDriver
+  -> HarnessInstance
+  -> Normalized Lumi task/events
+```
+
+This may support bring-your-existing-subscription Work mode.
+
+Rules:
+
+- harness credentials remain execution-environment owned;
+- harness provider/tool events are lower-trust observations;
+- harness approval state does not replace Lumi policy;
+- workflow schemas do not depend on harness CLI/event shapes;
+- Workflow mode MAY prefer direct model/executor contracts where stronger control, accounting, or verification is required.
+
+## 9.19 Additional tests
+
+V1 MUST additionally test:
+
+- two accounts using same ProviderDriver remain isolated;
+- provider setup probe does not create a login/session side effect;
+- RouteSnapshot persists across resume;
+- policy/config tightening does not silently reroute active task outside its envelope;
+- external harness approval cannot bypass Lumi policy;
+- provider instance revocation blocks new task admission.
