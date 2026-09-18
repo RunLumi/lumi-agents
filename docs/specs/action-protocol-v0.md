@@ -1,58 +1,10 @@
-# Action Protocol v0
+# Action Protocol v0 — Superseded
 
-Status: design contract for implementation.
+Status: **Historical / superseded**
 
-## Goal
+This design sketch has been superseded by:
 
-Normalize side effects before policy and execution.
+- [Spec 03 — Action & Observation Protocol v1](./v1/03-action-observation-protocol.md)
+- [Spec 04 — Policy, Approval & Capability Model v1](./v1/04-policy-approval-capabilities.md)
 
-## Core types
-
-```text
-ActionProposal
-- action_id
-- workflow_id
-- run_id
-- principal
-- capability
-- resource
-- target
-- arguments
-- expected_effect
-- risk_class
-- evidence_requirements
-- postconditions
-- idempotency_key
-- timeout
-```
-
-## Risk classes
-
-- READ
-- LOCAL_WRITE
-- EXTERNAL_WRITE
-- COMMUNICATION
-- DATA_EXPORT
-- CREDENTIAL
-- FINANCIAL
-- LEGAL_CONSENT
-- DESTRUCTIVE
-- ADMIN
-
-## Decisions
-
-- ALLOW
-- DENY
-- REQUIRE_APPROVAL
-
-## Invariants
-
-- Policy evaluates normalized business action, not raw UI gesture.
-- Material action mutation invalidates prior approval.
-- Executor adapters cannot skip policy.
-- Required verification failure cannot report success.
-- Action retry requires idempotency/ambiguity handling.
-
-## Compatibility
-
-The public protocol must not contain provider-, Cua-, Playwright-, macOS-, or Windows-specific types.
+Do not implement new production behavior against v0.
