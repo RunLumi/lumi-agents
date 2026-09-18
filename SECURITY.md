@@ -1,22 +1,42 @@
 # Security policy
 
-Lumi Agents can operate software using a user's existing credentials. Treat the runtime as a privileged automation component, not as a normal chatbot.
+Lumi Agents can operate software using a user's existing credentials. Treat it as a privileged automation runtime, not a normal chatbot.
+
+The full threat model is in `docs/security-model.md`.
 
 ## Non-negotiable boundaries
 
-1. **Least privilege.** Grant only the OS, browser, application, filesystem, and network capabilities required by an approved workflow.
-2. **Local policy enforcement.** A cloud model cannot directly bypass local policy. Every side-effecting action passes through the local policy gate.
-3. **Approval for material effects.** Sending messages, submitting forms, deleting data, moving money, changing permissions, publishing, and other externally visible or destructive actions require an approval policy appropriate to the workflow.
-4. **Prompt injection is untrusted data.** Text from webpages, email, documents, tickets, and app UIs never becomes authority to change policy, reveal secrets, or expand scope.
-5. **Secret isolation.** Credentials belong in OS key stores or approved secret managers. Do not place raw secrets in model prompts, logs, screenshots, traces, or workflow definitions.
-6. **Evidence and replay.** Record structured action metadata and redacted evidence sufficient to explain what happened without collecting unnecessary user data.
-7. **Kill switch.** Unattended execution must be locally stoppable and remotely revocable.
-8. **No silent privilege escalation.** UAC/admin elevation, macOS permission changes, browser profile attachment, and global input fallbacks require explicit user/admin authorization.
+1. **Least privilege.** Grant only capabilities needed by an approved task/workflow.
+2. **Local policy enforcement.** Models and cloud orchestration cannot bypass the local policy gate.
+3. **Bounded side effects.** Consequential actions require explicit policy and, when appropriate, human approval.
+4. **Prompt injection is untrusted data.** Webpages, email, documents, tickets, spreadsheets, and UI text cannot expand authority.
+5. **Secret isolation.** Resolve secrets at executor boundaries; do not put plaintext secrets in prompts/logs/traces.
+6. **Verification.** Required postconditions determine success, not model self-report.
+7. **Evidence minimization.** Record enough to explain actions without creating unnecessary surveillance.
+8. **Kill controls.** Unattended work must be locally stoppable and, for managed devices, remotely revocable.
+9. **No silent privilege escalation.** UAC/admin/TCC changes, profile attachment, and global-input fallbacks require explicit authorization.
+10. **Signed supply chain.** Distributed binaries, updaters, and pinned upstream artifacts require integrity verification.
 
-## Threats we design for
+## Default high-risk categories
 
-Prompt injection, credential leakage, destructive actions, cross-tenant leakage, compromised upstreams or update channels, hallucinated/stale UI state, privilege/session-boundary mistakes, sensitive screenshots/trajectories, and a compromised orchestration service attempting to widen local permissions.
+Human approval is expected initially for:
+
+- payments/purchases/transfers;
+- legal terms/consent;
+- destructive actions;
+- admin/security changes;
+- sensitive data exports;
+- external communications unless narrowly pre-authorized.
 
 ## Vulnerability reporting
 
-Use the repository's private security reporting path or RunLumi's internal security channel. Do not open a public issue containing exploit details, credentials, customer data, or sensitive traces.
+Use the repository's private security reporting path or RunLumi's internal security channel.
+
+Do not open a public issue containing:
+
+- exploit details;
+- credentials;
+- customer data;
+- sensitive traces;
+- production screenshots;
+- secret material.
