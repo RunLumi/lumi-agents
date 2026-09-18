@@ -162,3 +162,45 @@ T3 treats web, desktop, and mobile as first-class surfaces sharing runtime/domai
 5. Design remote control so control-plane relay is not automatically the data hot path.
 6. Make risky executor adapters supervised child processes where feasible.
 7. Add checkpoint/restore as an explicit Work-mode roadmap primitive.
+
+
+## Completed deep dives — 2026-09-18
+
+- [T3 Code](./README.md#t3-code-review--2026-09-18)
+- [OpenAI Codex](./deep-dives/openai-codex.md)
+- [Anthropic Claude Code](./deep-dives/claude-code.md)
+- [Cua Driver](./deep-dives/cua-driver.md)
+
+### Cross-reference synthesis
+
+The current architecture deliberately combines different strengths rather than copying one system:
+
+| Reference | Strongest transferable lesson | Lumi adaptation |
+| --- | --- | --- |
+| T3 Code | execution environment ownership + remote/multi-surface contracts | `ExecutionEnvironment`, capability negotiation, direct/local authority |
+| OpenAI Codex | explicit task/thread lifecycle + sandbox/approval separation | Task Lifecycle v0, scoped temporary grants, external-content authority |
+| Claude Code | clean extension taxonomy + hooks/skills/managed policy | Tool/Skill/Agent/Hook/Connector/Workflow Pack separation |
+| Cua Driver | exact refusal + bounded manifests + empirical action matrix | bounded unattended mode, canonical action outcomes, collateral-effect evals |
+
+The synthesis is more important than any individual implementation:
+
+```text
+T3 environment ownership
++ Codex durable task lifecycle
++ Claude extension ergonomics
++ Cua computer-use safety/evals
++ Lumi business policy, verification, workflow packs and economics
+= Lumi Agents
+```
+
+## Adoption rule
+
+A reference finding enters Lumi architecture only when at least one is true:
+
+- it fixes a demonstrated failure;
+- it materially improves safety/reliability;
+- it reduces recurring implementation cost;
+- it unlocks a validated product requirement;
+- it simplifies an existing design without weakening guarantees.
+
+Interesting is not enough.
