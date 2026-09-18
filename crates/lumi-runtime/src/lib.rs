@@ -29,9 +29,7 @@ pub fn dispatch<E: Executor>(
             executor.execute(request)?;
             Ok(DispatchOutcome::Executed)
         }
-        Decision::RequireApproval { reason } => {
-            Ok(DispatchOutcome::ApprovalRequired { reason })
-        }
+        Decision::RequireApproval { reason } => Ok(DispatchOutcome::ApprovalRequired { reason }),
         Decision::Deny { reason } => Ok(DispatchOutcome::Denied { reason }),
     }
 }
