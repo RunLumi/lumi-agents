@@ -44,4 +44,15 @@ This combines four evidence-backed lessons:
 - Unsupported capabilities reject or deliberately degrade.
 - Acknowledging durable intent is not reporting completed work.
 - Side-effect retry requires post-crash ambiguity checks.
-- Task Lifecycle v0 becomes a P0 dependency.
+- Normative v1 task/run, action/observation, compatibility, and control-plane specs carry these requirements.
+
+
+## Normative specs
+
+This ADR is implemented by:
+
+- `docs/specs/v1/01-core-domain-model.md`;
+- `docs/specs/v1/02-task-run-state-machine.md`;
+- `docs/specs/v1/03-action-observation-protocol.md`;
+- `docs/specs/v1/19-api-control-plane-sync.md`;
+- `docs/specs/v1/20-versioning-compatibility-migrations.md`.
