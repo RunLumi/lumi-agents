@@ -76,6 +76,8 @@ V1 does **not** require:
 | 21 | release-certification | release/certification gates |
 | 22 | v1-definition-of-done | v1 completion checklist |
 | 23 | user-experience-handoff | task delegation, approval, progress, takeover |
+| 24 | skills-subagents | reusable skills and bounded subagent orchestration |
+| 25 | v1-implementation-order | implementation dependency graph and sequencing |
 
 ## 0.5 Global invariants
 
