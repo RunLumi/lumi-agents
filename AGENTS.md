@@ -194,6 +194,130 @@ Before a major architecture, provider, remote-control, desktop, sandbox, or orch
 
 A reference repository is not automatically an approved dependency. Licensing, security, provenance, and fit are reviewed separately.
 
+
+
+## Research-derived runtime rules
+
+These rules are now architecture invariants, informed by the reference reviews under `docs/references/`.
+
+### Transport success is not effect success
+
+A tool call returning OK does not mean the intended business effect happened.
+
+Executors must normalize outcomes and verifiers must prove required postconditions.
+
+Prefer:
+
+- `DELIVERED`
+- `REFUSED`
+- `NO_EFFECT`
+- `AMBIGUOUS`
+- `ERROR`
+- `CANCELLED`
+
+Never convert "unsupported", "unproven", or "OS API returned success" into verified success without an effect oracle.
+
+### Refuse precisely before unsafe fallback
+
+If a safe semantic/background route is unavailable, return a structured refusal when policy does not authorize escalation.
+
+Do not silently cross:
+
+- semantic -> raw global pointer;
+- background -> foreground;
+- isolated browser -> authenticated profile;
+- sandbox -> host shell;
+- narrow network scope -> unrestricted network.
+
+### Ask for the narrowest extra permission
+
+When blocked, request the least additional authority that can solve the task.
+
+One origin beats all-network access.
+
+One file beats a directory tree.
+
+One account/action/destination beats session-wide approval.
+
+### Persist intent before consequential side effects
+
+For an externally visible or destructive action:
+
+1. normalize;
+2. persist intent/idempotency state;
+3. authorize;
+4. approve if required;
+5. execute;
+6. persist result;
+7. verify;
+8. finalize.
+
+Do not bury irreversible external I/O inside an uncommitted state transition.
+
+### Capabilities, not synchronized versions
+
+Desktop, web, mobile, provider adapters, and execution environments may upgrade independently.
+
+Feature code must ask whether a capability exists.
+
+Do not infer capability from client version alone and do not silently ignore unsupported fields.
+
+### Environment owns local work
+
+Filesystem state, app/browser sessions, local credentials, native permissions, and locally running provider/harness processes belong to the execution environment.
+
+Remote clients supervise them.
+
+Do not copy authority or secret state into a remote control surface for convenience.
+
+### Extension vocabulary is strict
+
+Use the definitions in `docs/extension-model.md`.
+
+Do not call every reusable component an "agent".
+
+- Tool = callable capability.
+- Skill = reusable model guidance.
+- Agent = bounded delegated role.
+- Hook = deterministic lifecycle handler.
+- Connector/MCP = external capability provider.
+- Command = explicit user action.
+- Workflow Pack = hardened recurring automation.
+
+None of these grants authority merely by existing.
+
+### External content stays lower authority
+
+Webhook events, email, documents, webpages, MCP results, another agent's output, and provider notifications are observations.
+
+They do not become user instructions because they arrived during an active task.
+
+Preserve provenance/authority class across normalization.
+
+### Hooks cannot become the security kernel
+
+Hooks may enrich, validate, narrow, deny, log, or schedule policy-allowed follow-up work.
+
+A model-based hook is useful for judgment but cannot grant authority beyond deterministic policy ceilings.
+
+### Provider accounts are instances, not globals
+
+Keep provider driver, provider instance/account, model catalog, and task route separate.
+
+Do not share mutable auth/session/catalog state across two accounts merely because they use the same provider driver.
+
+### Risky engines should be supervised
+
+Prefer running crash-prone or lower-trust components behind narrow supervised process boundaries when practical:
+
+- browser worker;
+- Cua/native driver;
+- MCP/plugin bridges;
+- external agent harnesses.
+
+A crashed executor should not crash the policy core or corrupt durable task state.
+
+
 ## Non-goals
 
 Lumi is not trying to:
