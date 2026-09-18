@@ -24,6 +24,7 @@ repositories:
     reviewed_ref: "9ea9c3d5d2c444133e3ddff40eecf38737951589"
     reviewed_at: "2026-09-18"
     observed_license: MIT
+    deep_dive: "docs/references/README.md#t3-code-review--2026-09-18"
     learn:
       - environment owns filesystem, credentials, provider processes and machine state
       - typed RPC plus capability negotiation for independently versioned clients/environments
@@ -40,13 +41,30 @@ repositories:
   - repo: trycua/cua
     tier: A
     status: candidate
-    category: [native-computer-use, desktop-driver, evals]
+    category:
+      - native-computer-use
+      - desktop-driver
+      - permissions
+      - evals
+      - local-history
+    reviewed_ref: "05f29785b508a4441ec3aa06c556a8e8b26c1d71"
     reviewed_at: "2026-09-18"
     observed_license: MIT
+    deep_dive: "docs/references/deep-dives/cua-driver.md"
     learn:
-      - cross-platform semantic native automation
-      - replaceable native driver boundary
-      - permission modes and computer-use eval infrastructure
+      - permission mode is separate from managed/user capability-policy ceilings
+      - bounded automation uses reviewed manifests for tools apps browser resources and file roots
+      - existing authenticated browser profiles are explicit protected grants
+      - delivered refused and unproven are distinct empirically tested outcomes
+      - desktop evals include focus z-order cursor and leaked-input side-effect oracles
+      - capability support is certified as an OS toolkit delivery and oracle matrix
+      - mutable protected state such as browser origin is revalidated immediately before mutation
+      - privacy-minimized encrypted action history can avoid storing raw content
+      - runtime generation and session ownership invalidate stale handles safely
+    do_not_copy:
+      - generic computer-use risk classes as a replacement for Lumi business-effect policy
+      - broad platform certification before paid workflows require the matrix
+      - optional components with incompatible or separately reviewed licenses
 
   - repo: iFurySt/open-codex-computer-use
     tier: A
@@ -72,25 +90,58 @@ repositories:
 
   - repo: openai/codex
     tier: A
-    status: watch
-    category: [coding-agent, local-runtime, ux]
+    status: reference
+    category:
+      - coding-agent
+      - local-runtime
+      - task-lifecycle
+      - approvals
+      - sandbox
+      - provider-routing
+    reviewed_ref: "7498521d288b9b3b96ffba4eedf089d8d6e06a84"
     reviewed_at: "2026-09-18"
-    observed_license: "verify before reuse"
+    observed_license: Apache-2.0
+    deep_dive: "docs/references/deep-dives/openai-codex.md"
     learn:
-      - coding-agent execution UX
-      - local runtime patterns
-      - approvals, sandboxing, long-running work
+      - thread and turn lifecycle exposes start resume fork steer interrupt archive and compaction as explicit protocol
+      - approval reviewer and sandbox are separate dimensions
+      - temporary scoped permissions are preferable to broad escalation
+      - external messages retain lower tool-level authority and do not imply user authorization
+      - task resources can persist independently from conversation history
+      - active threads preserve provider configuration and managed requirements are validated
+      - protocol and runtime capability compatibility is checked instead of silently ignoring unsupported options
+      - starting work in a directory does not automatically create durable project trust
+    do_not_copy:
+      - OpenAI-specific provider types in Lumi public workflow contracts
+      - coding-thread semantics as the only state model for business workflows
+      - automated approval review as authority over financial legal destructive or sensitive business effects
 
   - repo: anthropics/claude-code
     tier: A
-    status: watch
-    category: [coding-agent, hooks, permissions, ux]
+    status: reference
+    category:
+      - coding-agent
+      - hooks
+      - skills
+      - agents
+      - extensions
+      - managed-permissions
+    reviewed_ref: "31a3b00bef145a0393d9dbf840a98674fec07712"
     reviewed_at: "2026-09-18"
-    observed_license: "verify before reuse"
+    observed_license: "proprietary; use subject to Anthropic Commercial Terms"
+    deep_dive: "docs/references/deep-dives/claude-code.md"
     learn:
-      - agent workflow UX
-      - permission/hook model
-      - context and tool ergonomics
+      - commands agents skills hooks and MCP integrations are distinct extension primitives
+      - deterministic lifecycle hooks complement model-driven skills and agents
+      - skills can bundle instructions scripts references examples and assets
+      - managed organization settings can cap user and project customization
+      - independent specialist agents can improve review when aggregation and confidence filtering are explicit
+      - completion hooks provide a useful lifecycle slot before an agent stops
+    do_not_copy:
+      - source implementation without explicit license permission
+      - prompt-based hooks as Lumi's core security boundary
+      - model-selected skill activation as sufficient production workflow guarantee
+      - multi-agent consensus as proof of correctness
 
   - repo: browser-use/browser-use
     tier: B
