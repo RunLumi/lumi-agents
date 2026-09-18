@@ -1,5 +1,8 @@
 # Extension Model
 
+> Explanatory design note. Normative definitions live in `docs/specs/v1/14-mcp-connectors-extension-sdk.md` and `docs/specs/v1/24-skills-subagents.md`.
+
+
 ## Purpose
 
 Lumi needs a precise vocabulary for extensibility so "plugin", "agent", "skill", "tool", and "workflow" do not collapse into one unsafe abstraction.
