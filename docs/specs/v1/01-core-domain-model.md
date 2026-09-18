@@ -79,6 +79,7 @@ Device represents a managed or unmanaged local execution host.
 Required fields:
 
 - device_id;
+- environment_id;
 - tenant_id;
 - platform: MACOS | WINDOWS | LINUX_CORE;
 - architecture;
@@ -244,3 +245,34 @@ Persisted protocol messages MUST include:
 - schema_version.
 
 Unknown required enum values MUST fail explicitly rather than being silently coerced.
+
+
+## 1.16 ExecutionEnvironment
+
+ExecutionEnvironment is one running local execution authority on a Device.
+
+It owns or brokers:
+
+- local filesystem/workspace state;
+- authenticated browser/application sessions;
+- local secret references;
+- provider/harness instances running on the machine;
+- native OS permissions;
+- executor availability;
+- runtime generation;
+- advertised protocol capabilities.
+
+Required fields:
+
+- environment_id;
+- tenant_id;
+- device_id;
+- runtime_version;
+- runtime_generation;
+- capabilities;
+- status: ONLINE | OFFLINE | DRAINING | REVOKED;
+- last_seen_at.
+
+Remote web/mobile/control-plane clients supervise an ExecutionEnvironment. They MUST NOT substitute their own filesystem, credentials, or local-machine state for it.
+
+A runtime generation change MUST invalidate stale executor/session handles.
