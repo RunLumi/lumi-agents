@@ -178,6 +178,22 @@ Before adding an abstraction, ask:
 
 Do not build a framework for hypothetical future elegance.
 
+
+## External learning loop
+
+Lumi should learn aggressively from excellent adjacent systems without cargo-culting them.
+
+Before a major architecture, provider, remote-control, desktop, sandbox, or orchestration decision:
+
+1. check `docs/references/repos.yaml` for relevant reference projects;
+2. inspect primary code/docs at a pinned commit, not only README marketing;
+3. write down both the transferable principle and what should **not** be copied;
+4. prefer a cheap experiment before adopting the pattern;
+5. update the reviewed commit/date and learning summary when the review materially changes our model;
+6. create/update an ADR if the learning changes Lumi architecture.
+
+A reference repository is not automatically an approved dependency. Licensing, security, provenance, and fit are reviewed separately.
+
 ## Non-goals
 
 Lumi is not trying to:
