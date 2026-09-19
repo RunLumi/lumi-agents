@@ -1,0 +1,23 @@
+[package]
+name = "lumi-workflows"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+lumi-protocol = { path = "../lumi-protocol" }
+lumi-policy = { path = "../lumi-policy" }
+lumi-audit = { path = "../lumi-audit" }
+lumi-state = { path = "../lumi-state" }
+lumi-evals = { path = "../lumi-evals" }
+lumi-packs = { path = "../lumi-packs" }
+lumi-orchestrator = { path = "../lumi-orchestrator" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[lints]
+workspace = true

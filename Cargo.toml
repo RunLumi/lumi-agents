@@ -11,6 +11,7 @@ members = [
     "crates/lumi-evals",
     "crates/lumi-native",
     "crates/lumi-packs",
+    "crates/lumi-workflows",
     "crates/lumi-runtime",
 ]
 

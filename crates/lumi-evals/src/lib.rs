@@ -15,10 +15,10 @@ pub mod metrics;
 pub mod outcomes;
 pub mod slo;
 
-pub use economics::{WorkflowEconomics, YEAR_MONTHS};
+pub use economics::{DerivedEconomics, WorkflowEconomics, YEAR_MONTHS};
 pub use metrics::{
-    CorpusContract, MetricStore, ProviderRequestStats, RunMetrics, VERIFIED_COMPLETION_ALPHA,
-    VERIFIED_COMPLETION_CANARY, VERIFIED_COMPLETION_HARDENED,
+    CorpusContract, MetricStore, ProviderRequestStats, RunMetrics, WorkflowAggregate,
+    VERIFIED_COMPLETION_ALPHA, VERIFIED_COMPLETION_CANARY, VERIFIED_COMPLETION_HARDENED,
 };
 pub use outcomes::StepOutcomeClass;
 pub use slo::{

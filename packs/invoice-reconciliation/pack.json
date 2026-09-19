@@ -1,0 +1,220 @@
+{
+  "manifest": {
+    "pack_id": "invoice-reconciliation",
+    "version": "1.0.0",
+    "owner": "ops@acme.test",
+    "status": "ALPHA",
+    "runtime_version_range": ">=0.1",
+    "supported_os": [
+      "macos-14",
+      "windows-11"
+    ],
+    "required_connectors": [
+      "erp-connector@1.0",
+      "bank-connector@1.0"
+    ],
+    "required_model_capabilities": [
+      "structured_output"
+    ],
+    "privacy_classification": "CONFIDENTIAL",
+    "default_budget": {
+      "max_actions": 20,
+      "max_retries": 3,
+      "max_external_writes": 2
+    },
+    "inputs": {
+      "fields": [
+        {
+          "name": "period",
+          "value_type": "string",
+          "description": "Reconciliation period, e.g. 2026-09",
+          "required": true
+        },
+        {
+          "name": "ledger_account",
+          "value_type": "string",
+          "description": "GL account to reconcile",
+          "required": true
+        }
+      ]
+    },
+    "outputs": {
+      "fields": [
+        {
+          "name": "reconciliation_report",
+          "value_type": "object",
+          "description": "Matched/mismatched invoice sets",
+          "required": true
+        },
+        {
+          "name": "mismatch_count",
+          "value_type": "number",
+          "description": "Number of mismatches found",
+          "required": true
+        }
+      ]
+    },
+    "compatibility": {
+      "runtime_versions": [
+        ">=0.1"
+      ],
+      "operating_systems": [
+        "macos-14",
+        "windows-11"
+      ],
+      "connector_versions": [
+        "erp-connector@1.0",
+        "bank-connector@1.0"
+      ]
+    },
+    "economics": {
+      "manual_minutes_per_run": 45,
+      "residual_human_minutes_per_run": 5,
+      "runs_per_month": 60,
+      "loaded_labor_cost_per_hour_micro_usd": 65000000,
+      "runtime_variable_cost_per_run_micro_usd": 25000,
+      "implementation_hours": 60,
+      "payback_hypothesis": "<4 months at 60 runs/month; exception rate under 10%"
+    }
+  },
+  "steps": [
+    {
+      "step_id": "fetch-invoices",
+      "purpose": "Fetch open invoices for the period from the ERP",
+      "capability": "api.read",
+      "operation": "fetch_open_invoices",
+      "arguments_template": {
+        "period": "$input.period",
+        "account": "$input.ledger_account"
+      },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": [
+        "CONNECTOR_API"
+      ],
+      "risk_class": "READ",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "invoice-set-loaded",
+          "description": "Open invoice set exists for the period",
+          "check": "record_exists",
+          "resource": {
+            "resource_type": "database_record",
+            "id": "erp/invoices/$input.period"
+          }
+        }
+      ],
+      "idempotency": {
+        "semantics": "VERIFY_BEFORE_RETRY"
+      },
+      "evidence": [
+        "STRUCTURED_STATE"
+      ],
+      "resource_type": "database_record",
+      "resource_id_template": "erp/invoices/$input.period",
+      "target_template": "erp://acme.test/invoices?period=$input.period",
+      "exception_route": {
+        "triggers": [
+          "CONNECTOR_FAILURE",
+          "NETWORK"
+        ],
+        "target": {
+          "route": "retry"
+        },
+        "guidance": "Retry with backoff; escalate to ops if the ERP stays unreachable"
+      }
+    },
+    {
+      "step_id": "fetch-ledger",
+      "purpose": "Fetch the ledger statement from the bank connector",
+      "capability": "api.read",
+      "operation": "fetch_ledger_statement",
+      "arguments_template": {
+        "period": "$input.period",
+        "account": "$input.ledger_account"
+      },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": [
+        "CONNECTOR_API"
+      ],
+      "risk_class": "READ",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "ledger-loaded",
+          "description": "Ledger statement exists for the period",
+          "check": "record_exists",
+          "resource": {
+            "resource_type": "database_record",
+            "id": "bank/ledger/$input.period"
+          }
+        }
+      ],
+      "idempotency": {
+        "semantics": "VERIFY_BEFORE_RETRY"
+      },
+      "evidence": [
+        "STRUCTURED_STATE"
+      ],
+      "resource_type": "database_record",
+      "resource_id_template": "bank/ledger/$input.period",
+      "target_template": "bank://acme.test/ledger?period=$input.period",
+      "exception_route": {
+        "triggers": [
+          "CONNECTOR_FAILURE",
+          "AUTH_SESSION"
+        ],
+        "target": {
+          "route": "user"
+        },
+        "guidance": "Bank session expired: route to finance ops for re-auth"
+      }
+    },
+    {
+      "step_id": "match-and-report",
+      "purpose": "Match invoices against the ledger and write the reconciliation report artifact",
+      "capability": "files.write",
+      "operation": "write_reconciliation_report",
+      "arguments_template": {
+        "period": "$input.period",
+        "output": "workspaces/recon/report-$input.period.json"
+      },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": [
+        "CONNECTOR_API"
+      ],
+      "risk_class": "LOCAL_WRITE",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "report-written",
+          "description": "Report artifact exists",
+          "check": "file_exists",
+          "path": "workspaces/recon/report.json"
+        }
+      ],
+      "idempotency": {
+        "key": "recon-report",
+        "semantics": "CLIENT_KEY"
+      },
+      "evidence": [
+        "CHECKSUM"
+      ],
+      "resource_type": "file",
+      "resource_id_template": "workspaces/recon/report-$input.period.json",
+      "target_template": "file://workspaces/recon/report-$input.period.json",
+      "exception_route": {
+        "triggers": [
+          "FILESYSTEM"
+        ],
+        "target": {
+          "route": "stop"
+        },
+        "guidance": "Workspace write failures stop the run; check disk and permissions"
+      }
+    }
+  ]
+}
