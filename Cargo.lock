@@ -424,6 +424,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-native"
+version = "0.1.0"
+dependencies = [
+ "lumi-protocol",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lumi-orchestrator"
 version = "0.1.0"
 dependencies = [
