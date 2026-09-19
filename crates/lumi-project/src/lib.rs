@@ -35,8 +35,8 @@ pub use changeset::{
 pub use error::ProjectError;
 pub use files::{FileOpsError, MutationOutcome, ProjectFiles, MAX_PATCH_BYTES, MAX_READ_BYTES};
 pub use git::{
-    CommitInfo, FileStatus, GitError, GitRepo, GitStatus, WorktreeEntry, GIT_MAX_OUTPUT_BYTES,
-    GIT_TIMEOUT_MS,
+    normalize_path, CommitInfo, FileStatus, GitError, GitRepo, GitStatus, WorktreeEntry,
+    GIT_MAX_OUTPUT_BYTES, GIT_TIMEOUT_MS,
 };
 pub use record::{
     capability_snapshot, detect_git, detect_source, scan_instructions, AuthorizedRoot,

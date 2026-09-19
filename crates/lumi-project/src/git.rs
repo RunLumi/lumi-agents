@@ -336,6 +336,10 @@ impl GitRepo {
     }
 
     /// Rejects `.git` and any path outside the repository worktree.
+    ///
+    /// Comparisons normalize Windows verbatim paths (`\\?\C:\...`) that
+    /// `canonicalize` produces against the plain form `git` reports, so
+    /// in-repo paths are never falsely refused cross-platform.
     fn validate_in_repo(&self, path: &Path) -> Result<(), GitError> {
         if path.as_os_str() == ".git" {
             return Err(GitError::OutsideRepo {
@@ -349,7 +353,11 @@ impl GitRepo {
         };
         let canonical = std::fs::canonicalize(&absolute)
             .map_err(|e| GitError::Io(format!("resolving {}: {e}", path.display())))?;
-        if !canonical.starts_with(&self.root) || canonical == self.root.join(".git") {
+        let repo_root = std::fs::canonicalize(&self.root)
+            .map_err(|e| GitError::Io(format!("resolving repo root: {e}")))?;
+        let canonical = normalize_path(canonical);
+        let repo_root = normalize_path(repo_root);
+        if !canonical.starts_with(&repo_root) || canonical == repo_root.join(".git") {
             return Err(GitError::OutsideRepo {
                 path: path.display().to_string(),
             });
@@ -397,9 +405,16 @@ impl GitRepo {
     /// # Errors
     /// [`GitError`] on command failure.
     pub fn create_worktree(&self, path: &Path, new_branch: &str) -> Result<(), GitError> {
+        let target = normalize_path(path.to_path_buf());
         run_expect(
             &self.root,
-            &["worktree", "add", "-b", new_branch, &path.to_string_lossy()],
+            &[
+                "worktree",
+                "add",
+                "-b",
+                new_branch,
+                &target.to_string_lossy(),
+            ],
         )
         .map(|_| ())
     }
@@ -544,4 +559,19 @@ fn unquote(path: String) -> String {
     } else {
         path
     }
+}
+
+/// Removes the Windows verbatim prefix `canonicalize` produces so
+/// canonical paths compare equal to the plain paths git reports
+/// (`\\?\C:\a` -> `C:\a`, `\\?\UNC\server\share` -> `\\server\share`).
+#[must_use]
+pub fn normalize_path(path: PathBuf) -> PathBuf {
+    let text = path.as_os_str().to_string_lossy();
+    if let Some(stripped) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{stripped}"));
+    }
+    if let Some(stripped) = text.strip_prefix(r"\\?\") {
+        return PathBuf::from(stripped);
+    }
+    path
 }
