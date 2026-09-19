@@ -231,6 +231,7 @@ fn full_pipeline_read_execute_approve_execute_verify() {
         StepOutcome::VerifiedSuccess {
             action_id: read.action_id,
             verification: VerificationStatus::NotRequired,
+            observation: None,
         }
     );
 
@@ -272,6 +273,7 @@ fn full_pipeline_read_execute_approve_execute_verify() {
         StepOutcome::VerifiedSuccess {
             action_id: email.action_id,
             verification: VerificationStatus::Passed,
+            observation: None,
         }
     );
 
