@@ -1,12 +1,37 @@
 # Lumi Design System
 
-## 0. Brand Summary
+## How to use this guide
+
+**Preserve the shared Lumi identity.** Civic Editorial Intelligence, the lit operating
+desk, light-only warm paper, Geist/Geist Mono, folded-L geometry, restrained material
+depth, and every existing color value remain the brand contract. Improve hierarchy,
+consistency, state clarity, and usability within that language; do not rebrand a page.
+
+[AGENTS.md](AGENTS.md) governs scope and trust. [Spec 23](docs/specs/v1/23-user-experience-handoff.md)
+governs Lumi Agents interaction semantics. This guide governs visual expression.
+§19 owns base tokens; §10 owns component behavior; §24 is the review gate. Reuse the
+existing primitive before adding a variant. A new component must solve a repeated
+user problem that composition cannot, with explicit states and a removal test.
+
+**Shared brand is not shared product scope.** CEO Brief, Daily Pulse, routes, native
+class names, and `frontend/` paths below are companion-product reference examples,
+not claims that those features/files exist here. Lumi Agents implements its own
+Project → Task → Run journey using the same visual language. Do not add companion
+screens, mobile shells, or a framework merely to match an example.
+
+In this repository, inspect [desktop styles](apps/desktop/src/style.css),
+[markup](apps/desktop/src/index.html), and [behavior](apps/desktop/src/app.js) before
+implementation. Existing code or screenshots may lag this contract; record drift
+rather than treating it as a new palette. This document does not prove deployed
+parity, installed fonts, accessibility compliance, or passing tests.
+
+## 0. Brand Summary — companion-product context
 
 **Product name:** Lumi
 **Vietnamese sales name:** Lumi AI Workspace
 **Product category:** AI operating workspace for SME teams and CEOs
 **Core product wedge:** Daily Pulse → Operating Memory → CEO Morning Brief
-**Primary URL for MVP:** `lumi.locuno.com`
+**Companion-product URL reference:** `lumi.locuno.com` (verify before publishing)
 
 Lumi turns clear SME updates into a calm, evidence-based CEO morning brief: an operating assistant
 for stuck, late, risky, or decision-bound work, not a chatbot, task clone, or surveillance tool.
@@ -31,9 +56,9 @@ AI gimmicks, or decorative noise. It must satisfy a CEO, team member, and top de
 
 ## 1.3 The Exceptional Standard
 
-Lumi must be good enough that Silicon Valley comparisons stop mattering:
+Evaluate Lumi by what the user can understand and accomplish:
 
-* **Immediate trust:** a CEO believes the morning signal before understanding the system.
+* **Earned trust:** the user sees the source, freshness, and limits before relying on a signal.
 * **Quiet authority:** composed, edited, inevitable, never decorated.
 * **Operational warmth:** serious, not cold, for teams in Vietnam, Malaysia, Indonesia,
   Saudi Arabia, the Philippines, Latvia, and markets like them.
@@ -42,7 +67,7 @@ Lumi must be good enough that Silicon Valley comparisons stop mattering:
 * **Unconventional restraint:** show fewer things in a better order with stronger evidence,
   not a visual gimmick.
 
-Every screen must make a real operating meeting calmer and more decisive; otherwise it is not done.
+Every screen must make its actual job clearer, safer, or faster; visual polish alone is not completion.
 
 ## 1.4 The Product Metaphor
 
@@ -184,9 +209,9 @@ information with evidence so every section answers: “What should I know or dec
 > a light `ColorScheme` and `values-night` mirrors it. Never restore dark palette.
 >
 > **One source of truth.** The token table in §19 is canonical. Every platform
-> mirror (`frontend/src/index.css`, `ios/Lumi/UI/Shared/LumiKit.swift`,
+> mirror in companion projects (`frontend/src/index.css`, `ios/Lumi/UI/Shared/LumiKit.swift`,
 > `ios/LumiMac/Theme/LumiColors.swift`, `ios/LumiWatch/Theme/WatchColors.swift`,
-> `android/.../theme/Color.kt`) must match it byte-for-byte — see the
+> `android/.../theme/Color.kt`) must preserve the same resolved sRGB values — see the
 > **Cross-Platform Token Parity** contract in §19.
 
 ## 5.1 Primary Palette
@@ -399,26 +424,19 @@ Avoid bright SaaS green.
 
 ## 5.3 Tonal Ramps & Wide-Gamut
 
-Every brand hue is generated from a single **OKLCH ramp** (`50`→`950`), not
-hand-picked per shade. OKLCH is perceptually uniform, so equal numeric steps
-look like equal visual steps — hovers, pressed states, chart series, and
-elevation tints all derive from the same ladder and never clash. Each brand
-anchor is pinned at the exact ramp step that round-trips to its original sRGB
-hex with zero drift (e.g. `lumi-blue = blue-600 = #006093`,
-`hover = blue-700 = #004F80`, `active = blue-800 = #003E6A`). The blue ramp is
-authored at hue ~235: the anchors round-trip exactly, and the deepest steps sit
-slightly bluer after sRGB gamut mapping — expected, not drift. The full ramps
-live in `frontend/src/index.css`; treat them as the generator, the §19 hexes as
-the contract.
+Use the existing **OKLCH ramps** where the host project provides them; do not invent
+new shades during feature work. The §19 sRGB anchors, hover, and pressed values
+remain exact. A perceptual color space helps interpolation, but does not guarantee
+identical perceived steps, zero hue shift after gamut mapping, or contrast.
 
-**Wide-gamut (Display-P3).** Because the ramps are authored in `oklch()`, modern
-P3 displays — every recent iPhone, iPad, and Mac — render the brand at a fuller
-chroma than sRGB can express, automatically, with **no hue shift**. The handful
-of soft tints still pinned to sRGB hex are lifted on P3 via a single
-`@media (color-gamut: p3)` block. sRGB displays keep the exact §19 values: this
-is pure progressive enhancement, never a different design. This is a deliberate
-edge most products skip — colour that is *more alive on better screens* without
-ever being wrong on ordinary ones.
+Companion web projects may provide ramps and Display-P3 enhancements in
+`frontend/src/index.css`. Their presence is not established in Lumi Agents. Preserve
+existing approved enhancements where present, with the exact sRGB fallback; never
+reinterpret the canonical hex values to make the brand more saturated. Verify the
+rendered foreground/background pair on the target display. Wide gamut is optional;
+consistent identity and legibility are required.
+
+---
 
 ## 5.4 Color Temperament
 
@@ -449,8 +467,9 @@ Color budget per screen:
 | Amber / red / green combined | 1-6% |
 | Decorative color | 0% |
 
-Any new hue needs a product reason, a semantic name, token parity across
-platforms, and contrast verification. "It looks nice" is not a reason.
+These budgets guide emphasis, not pixel quotas that hide real warnings. Reuse existing
+hues and semantic roles. A palette change requires a separate, explicitly approved
+brand decision across affected Lumi projects; page-level work cannot authorize it.
 
 ## 5.5 Dark-ground status tints
 
@@ -486,14 +505,9 @@ Rules:
 
 ## 6.1 Typeface — one brand family, two voices by weight
 
-Type is **one family, Geist**, spoken in two voices by *weight and tracking* — a
-tighter, heavier voice for the moments that carry trust, a lighter voice for dense
-UI. The single family is the point: Geist reads as a *calm operating system from
-the near future*, not enterprise documentation. It replaced the old IBM Plex Sans +
-Inter pairing on 2026-07-09 (rationale: `docs/improvements/2026-07/week-28/geist-font-system.md`):
-Plex signalled "IBM cloud / consulting deck" and Inter had become the
-default-SaaS-template face — both too safe to define a new category. Geist is sharper, quieter, more "future infrastructure," and one coherent
-family is cleaner than two.
+Type is **one family, Geist**, with authority expressed through weight and tracking,
+not a second display face. Geist Mono serves technical content. Keep this shared
+identity across Lumi products; framework choice does not change typography.
 
 | Role | Face | Voice | Weight · tracking |
 |------|------|-------|-------------------|
@@ -502,18 +516,16 @@ family is cleaner than two.
 | **Numeric / tabular** (tables, metrics, badges) | Geist, `tabular-nums` | figures align in columns; counts don't jitter | — |
 | **Mono** (code, evidence hashes, technical bits) | **Geist Mono** (`--font-mono`) | the mono of the same system | 400–500 |
 
-**Geist is self-hosted** (`@fontsource/geist` + `@fontsource/geist-mono`,
-`font-display: swap` — no render-blocking Google Fonts; TASTE.md §3.A). Critically,
-**Geist covers Vietnamese** (the `vietnamese` subset ships in the static package), so
-the primary market renders in the *brand* font, never a fallback. Rendering is tuned
-globally: `font-optical-sizing: auto`, `text-rendering: optimizeLegibility`, and
-`font-feature-settings: "ss01","cv01","tnum"` + `calt`/`kern`.
+Where bundled, serve Geist and Geist Mono locally with `font-display: swap`; verify
+the actual font assets, license, Vietnamese glyphs, and loaded weights rather than
+assuming a named CSS family is installed. Do not add a font package as an incidental
+part of a documentation or unrelated feature change.
 
-**Noto is the multilingual safety net, not the brand.** For scripts Geist does not
-cover (Thai, Arabic, Devanagari, CJK, Korean), the stack *names* the matching Noto
-family as a fallback — OS-provided, never self-hosted (self-hosting CJK would blow the
-bundle budget, §performance). Noto solves missing glyphs; it never carries brand
-personality.
+**Noto is the multilingual safety net, not the brand.** Preserve the fallback stacks
+below, but named Noto families are not guaranteed to exist on every OS. Test actual
+Vietnamese, Arabic/RTL, and other supported scripts with the shipped font stack;
+record missing coverage. Use natural shaping and platform fallback, never tofu or
+shrunk text. Font feature settings must match features the loaded font supports.
 
 Canonical stacks (mirrored on every platform — §19):
 
@@ -536,24 +548,11 @@ fonts · decorative serifs · thin weights below 400.
 
 ## 6.2 Type Scale
 
-> The **canonical scale is fluid** — `clamp()`-based `--text-xs … --text-display`
-> tokens that breathe between phone and desktop without breakpoints (defined in
-> §19, paired with the `--tracking-*` tokens). The nominal px below are the
-> desktop anchors of that scale.
-
-```css
---font-sans: Geist, "Noto Sans", "Noto Sans Thai", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC", "Noto Sans TC", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-
---text-xs: 12px;
---text-sm: 14px;
---text-md: 16px;
---text-lg: 18px;
---text-xl: 22px;
---text-2xl: 28px;
---text-3xl: 36px;
---text-4xl: 48px;
---text-5xl: 64px;
-```
+The canonical scale is the fluid `--text-xs` through `--text-display` set in §19.
+Do not copy a second fixed-pixel scale into a component. The examples below describe
+roles; resolve them through the host's shared primitive and text tokens. §16 sets
+readability floors: body/input text must not fall below 16px at default scale,
+metadata below 12px, or user-selected text scaling be overridden.
 
 ## 6.3 Product UI Typography
 
@@ -574,9 +573,9 @@ color: var(--color-civic-navy);     /* editorial ink — never pure black */
 warm paper; navy looks editorial. Lumi Blue is for actions, links, and selected state;
 body stays ink/navy and metadata soft-slate.
 
-Use shared `<PageHeader>`, never a hand-rolled `<h1>`. It has an optional 11px, uppercase,
-`0.14em`-tracked soft-slate editorial eyebrow (date, section, context) and one-line lede.
-Today and CEO Brief use a locale-aware date eyebrow (`Intl.toLocaleDateString`, no i18n key)
+Use the host’s shared page-header primitive with a semantic `<h1>`, an optional 12px,
+uppercase, `0.14em`-tracked soft-slate eyebrow (date, section, context), and one-line lede.
+Companion Today and CEO Brief can use a locale-aware date eyebrow (`Intl.DateTimeFormat`)
 to orient executives before the title; use it whenever a page has a natural where/when line.
 
 ### Section title
@@ -712,15 +711,11 @@ dashboards) use 1200px. Narrow for prose and decisions; wide for grids and table
 
 ## 7.3 Whitespace Rule
 
-Target composition:
-
-```text
-70% whitespace
-30% content
-```
-
-This means edited, not empty. Avoid dense dashboards, excess widgets, competing cards,
-small-label clutter, and multi-column executive pages.
+Whitespace separates decisions and groups related information; it is not a percentage
+quota. Briefs need reading space; operating tables need comparison density. Use §7.2
+spacing tokens and remove irrelevant content before widening gaps. The primary job,
+current state, and next action should remain visible on a small laptop. Do not hide
+necessary context below the fold to make a screen look calm.
 
 ## 7.4 One Message Per Section
 
@@ -764,7 +759,7 @@ Detail sheet
 Rules:
 
 * Tables are for comparison, not decoration.
-* Mobile becomes ranked cards with the same fields in priority order.
+* On narrow views, use ranked cards when comparison survives; otherwise keep a labelled, keyboard-accessible table scroll region without forcing the whole page sideways.
 * Filters must reduce cognitive load. If a filter is rarely used, move it.
 * Empty states should explain what creates records and what Lumi will do next.
 
@@ -959,7 +954,8 @@ own status palette.
 In components, use the **shadcn/Tailwind utilities** — never a raw `box-shadow`,
 an arbitrary `shadow-[…]`, or a stock `shadow-sm/md/lg/xl/2xl` (those are the
 inconsistency this ramp replaces). The guard
-`node frontend/scripts/check-design-tokens.mjs` rejects them.
+A token guard should reject them; verify the host’s actual check. The companion
+example `node frontend/scripts/check-design-tokens.mjs` is not a command in this repository.
 
 ```html
 <div class="shadow-elevation-1">  <!-- resting card -->
@@ -1071,7 +1067,7 @@ drop). The result is a tactile object you want to press, not a flat rectangle.
 
 ```css
 background-color: var(--color-lumi-blue);
-background-image: var(--gradient-primary);   /* the only allowed gradient */
+background-image: var(--gradient-primary);   /* approved button lighting */
 box-shadow: var(--shadow-button);            /* inner highlight + navy drop */
 color: white;
 border: 1px solid color-mix(in oklch, var(--color-lumi-blue-active) 35%, transparent);
@@ -1090,9 +1086,9 @@ letter-spacing: 0;
 - **Focus-visible:** 2px blue focus ring, 2px offset, never hidden by the shadow.
 - **Disabled:** no gradient, no shadow, `opacity: 0.55`, cursor default.
 
-> This single, near-imperceptible sheen is the **one** gradient in the system. It
-> is structural lighting, not decoration — it must never be visible as a "gradient,"
-> only as the button looking *lit*. Coloured/decorative gradients remain banned.
+> This sheen and the existing canvas top light (`--canvas-glow`) are approved
+> material lighting, alongside the supplied app-icon treatment. These narrow
+> exceptions do not permit decorative gradients, AI glow, or new color treatments.
 
 Button size contract:
 
@@ -1207,7 +1203,7 @@ active: transform translateY(0);
 
 Use cards for brief, task, risk, decision, project, and pulse summaries. Avoid nested cards,
 glass/blurred translucency, colored or heavy gradients (only the near-invisible primary-button
-sheen in §10.1), untinted black shadows, and over-coloring.
+sheen in §10.1; canvas light stays on the canvas), untinted black shadows, and over-coloring.
 
 ---
 
@@ -1221,7 +1217,7 @@ border: 1px solid var(--color-border);
 border-radius: var(--radius-control);
 background: white;
 padding: 0 12px;
-font-size: 15px;
+font-size: max(1rem, 16px);
 line-height: 1.4;
 box-shadow: var(--shadow-input);
 ```
@@ -1276,8 +1272,8 @@ placeholder text as the label.
 Five families (`neutral · info · success · warning · danger`) define the quad in
 `index.css`; components reference token classes, never inline values.
 
-**Geometry.** `rounded-full`, `h-5`, `px-2`, `gap-1.5`, dot `5px`; text `11px / 560 /
-tracking-0.01em / tabular-nums`: small, dense, engineered, never shouty.
+**Geometry.** `rounded-full`, minimum 20px height, `px-2`, `gap-1.5`, dot `5px`; text `12px / 560 /
+tracking-0.01em / tabular-nums`: compact and readable. Grow with text scaling; interactive chips need the hit area in §16.3.
 
 **States (every badge earns them).**
 - **Resting:** surface + inset ring + lit edge + (status only) dot.
@@ -1398,7 +1394,7 @@ If not, redesign mobile before adding features.
 
 ---
 
-## 10.5 Tables
+## 10.6 Tables
 
 Tables should be functional, not spreadsheet-like.
 
@@ -1437,10 +1433,11 @@ color: var(--color-soft-slate);
 
 ---
 
-## 10.6 Page Primitives
+## 10.7 Page Primitives
 
-Every surface uses shared editorial primitives (`frontend/src/components/page/`), never
-hand-rolled headers or raw `<h1>`s, to keep hierarchy and rhythm identical.
+Every surface reuses its host’s shared editorial primitives (companion example:
+`frontend/src/components/page/`). Preserve semantic heading structure; a plain HTML
+implementation does not need React or a component library to express the contract.
 
 ### PageHeader
 
@@ -1473,15 +1470,15 @@ Authored empty state, never blank: icon, title, one-line population explanation,
 
 > The CEO Brief page is the reference implementation of all three.
 
-## 10.7 Severity rails — colour as triage
+## 10.8 Severity rails — colour as triage
 
-List and digest items use a **3px left status-hue rail** for pre-reading triage. Only
+List and digest items use a **3px inline-start status-hue rail** for pre-reading triage. Only
 attention levels get one; calm items stay rail-less, applying the §8.3 vocabulary to rows.
 
 | Level | Rail | Used for |
 |-------|------|----------|
-| Danger | `border-l-4 border-l-[var(--color-risk-red)]` | high/critical risks, overdue commitments, the Settings danger zone |
-| Attention | `border-l-4 border-l-[var(--color-signal-amber)]` | high-priority tasks, urgent decisions |
+| Danger | `border-inline-start: var(--border-rail) solid var(--color-risk-red)` | critical risk, failed action, destructive confirmation |
+| Attention | `border-inline-start: var(--border-rail) solid var(--color-signal-amber)` | overdue, waiting, high priority, review needed |
 | Calm | *(no rail)* | everything routine |
 
 Pair rails with **ranking** (§4.3): railed items lead so a digest reads in priority order.
@@ -1503,6 +1500,40 @@ Every Lumi surface must know which operating job it serves:
 | Chase and verify | status, owner, next action, and follow-up age visible |
 
 Design from the operating question inward, then reveal the data needed to answer it.
+Sections 11.1–11.10 are companion examples, not a screen backlog for Lumi Agents.
+
+For Lumi Agents, apply the same compositions to the existing runtime contracts:
+
+| User job | Required visible context |
+|---|---|
+| Delegate | goal, desired output, active Project/environment, scope and constraints |
+| Supervise | observed phase, milestones, affected system, budget, next meaningful event |
+| Approve | exact business effect, account/target/destination, material value, expiry, safe rejection |
+| Recover | what happened, known vs unknown effects, preserved work, owner, safe next choice |
+| Review result | artifact/change set, evidence, validation status, unresolved items, next action |
+
+Keep planned, attempted, executed, and verified distinct. A source-backed claim is
+not automatically verified; human approval is not execution; execution is not
+verification. Draft, saved, published, and sent are separate states. Use existing
+neutral/info/warning/danger/success families with explicit labels. Only mark the
+requested job complete when its required verification passes.
+
+## Shared state contract
+
+| State | What the user needs |
+|---|---|
+| First use / empty | what belongs here and one real setup action; never fake records |
+| Loading | stable space and the observed activity; no fabricated progress percentage |
+| Waiting for approval | action summary and approve/reject; no silent timeout approval |
+| Partial / stale / offline | visible limit or timestamp, preserved result/input, safe continuation |
+| Failed / denied | specific cause and remedy; retry only when policy and effect state permit |
+| Ambiguous effect | explain that the action may have happened; verify before offering replay |
+| Cancelled | distinguish stopped work from already completed or in-flight effects |
+| Verified result | inspectable evidence, useful output, and any remaining exceptions |
+
+Implement these through existing primitives, not a new status framework. Preserve
+focus, selection, scroll, and unsaved input across refresh and recovery. Notifications
+are for meaningful completion, approval, exception, failure, or budget changes.
 
 ## 11.1 CEO Brief Page
 
@@ -1661,7 +1692,7 @@ is more premium than a polished hallucination.
 
 Use charts sparingly; Lumi is not a dashboard.
 
-Allowed charts:
+Companion chart examples (choose only when they answer the current user’s question):
 
 * Small weekly pulse completion trend
 * Overdue tasks by team
@@ -1689,6 +1720,11 @@ Default chart colors:
 ```
 
 ---
+
+Chart integrity: show units, time window, timezone where material, denominator,
+source, and missing/stale data. Unknown is not zero. Label series directly or use
+patterns as well as color; provide a text/table equivalent. Do not imply causation,
+precision, or improvement the data cannot establish.
 
 # 13. Illustration and Imagery
 
@@ -1777,21 +1813,20 @@ Avoid:
 
 ## 14.1 Layout stability
 
-The calmest motion is the motion that never happens. The app scrolls at the
-document level, so the page-level scrollbar appears on long routes and vanishes on
-short ones — and a scrollbar that takes layout space drags the whole column sideways
-by its width as you navigate. Reserve the gutter once so it can't:
+Reserve space for fonts, async content, and validation messages. Apply
+`scrollbar-gutter: stable` to the actual scrolling container when needed; the Tauri
+shell may scroll a pane rather than `html`. Verify route changes and long lists;
+this technique alone does not prove zero layout shift.
 
-```css
-html {
-  scrollbar-gutter: stable;
-}
-```
+Honor `prefers-reduced-motion` and native reduced-motion settings: remove decorative
+translation, scaling, shimmer, and smooth scrolling while preserving immediate
+state feedback. Animate opacity/transform where useful; do not make task completion
+depend on an animation. A static progress label must remain meaningful.
 
-`stable` reserves the inline-end edge only, so it tracks LTR→RTL automatically, and
-is inert under overlay scrollbars (macOS) — a fix where the scrollbar takes space, a
-no-op where it doesn't. No content jump between routes; CLS stays at zero from this
-source.
+Use the existing 120/180/260ms timings. Never animate every row of a long queue,
+steal focus for progress updates, or continuously announce logs to a screen reader.
+
+When the runtime actually observes these phases, example copy is:
 
 When Lumi generates a brief, use language:
 
@@ -1898,51 +1933,44 @@ Lumi must feel premium because it is usable.
 * Avoid pale gray text
 * Do not use color alone to communicate risk
 
-**Verified + guarded.** Every shipped text pair clears AA (≥4.5:1), measured across all
-three surface tones (paper / card / muted+accent), the filled controls, and the badge
-quads: body text (soft-slate/paper 5.07, civic-navy/paper 12.88, lumi-blue/paper 7.70,
-muted-foreground on the muted surface ~4.8 — the tightest), the **primary button**
-(white on lumi-blue) and **danger button** (white on risk-red), the accent/count-chip
-(lumi-blue on lumi-blue-soft), and all five badge-quad text colours. This is enforced by
-`src/test/contrast.test.ts` (17 pairs), which fails CI the moment a colour decision drops
-a real text pair below AA, so the warm-paper depth (and any future tuning) can never
-silently regress contrast. (Hairline `border-base` is intentionally subtle — cards/
-inputs are identified by surface tone + lit shadow + the focus ring, §16.5, not the
-border alone, so 1.4.11 non-text contrast is met by those affordances.)
+Require measured evidence, not a blanket compliance claim. Normal text needs at
+least 4.5:1 and qualifying large text at least 3:1. Essential control/state indicators
+need 3:1 against adjacent colors where applicable. Test actual composed colors,
+including alpha, gradients, hover, selected, and focus states. Pale borders, shadows,
+or a focus-only ring do not automatically identify a resting input accessibly.
+
+Keep the palette intact: use an existing stronger ink/blue token for required
+boundaries and text. Signal Amber remains the warning accent, not small text on
+white; use the existing warning text treatment from §10.5. Color never replaces a
+label, icon meaning, or error message. Do not cite a companion test path as passing
+CI here; attach the actual contrast results and test scope to the implementation PR.
+
+Reference: [WCAG 2.2](https://www.w3.org/TR/WCAG22/) and
+[non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html).
 
 ## 16.2 Font Size
 
-Minimum body text:
+Use 16px minimum body/input text and 12px minimum metadata at default scale.
+The compact §19 token ramp remains unchanged; clamp its use upward for these roles.
+Never shrink trust-bearing copy, clip Vietnamese diacritics, or disable platform
+text scaling to preserve a layout. Let controls grow beyond their nominal heights.
 
-```css
-16px
-```
-
-Minimum metadata:
-
-```css
-12px
-```
-
-Daily pulse textareas should use:
-
-```css
-16px or 17px
-```
+Test 200% text resizing and 320 CSS-pixel equivalent reflow; contain genuinely
+two-dimensional tables/code in their own labelled region. Keep approvals and error
+recovery usable with long names, large text, and the keyboard open.
+See [WCAG reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
 
 ## 16.3 Click Targets
 
-Minimum tap/click target:
+Default desktop controls retain their 40px visual size; compact 32px variants are
+for pointer-dense tools. Target size concerns the full hit area, not just the glyph.
+Prefer 44px web touch areas, 44pt on iOS, and 48dp on Android. Compact controls need
+adequate non-overlapping hit areas and spacing; never compress a mobile approval
+or destructive action to fit more controls.
 
-```css
-40px height
-```
-
-Prefer:
-
-```css
-44px
-```
+These are Lumi usability targets. WCAG 2.2 AA has a 24×24 CSS-pixel minimum with
+specified exceptions; do not mislabel the brand preference as that standard.
+See [target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html).
 
 ## 16.4 Keyboard Navigation
 
@@ -1955,15 +1983,22 @@ All app controls must be reachable by keyboard:
 * dropdowns
 * chat input
 
+Use semantic buttons/links and programmatic labels. Associate hints/errors with
+inputs; give icon actions accessible names and meaningful tables headers. Dialogs
+need a name, deliberate initial focus, contained tab order, and return focus to
+the trigger on close. Escape closes a dismissible layer, never silently approves
+or cancels a consequential operation. Keep focus visible beneath sticky bars and
+announce important status changes without streaming every intermediate update.
+
 ## 16.5 Focus States
 
 Focus states must be visible — and the brand blue is sourced from the token layer
-(`--lumi-blue`), never a hardcoded literal, so the focus ring and the text-selection
+(`--color-lumi-blue`), never a hardcoded literal, so the focus ring and the text-selection
 highlight track one colour:
 
 ```css
 :focus-visible {
-  outline: 2px solid color-mix(in oklch, var(--color-lumi-blue) 45%, transparent);
+  outline: 2px solid var(--color-lumi-blue);
   outline-offset: 2px;
 }
 ```
@@ -1978,7 +2013,9 @@ body {
 }
 ```
 
-`:active` / `:focus-visible` still carry the considered states on top.
+`:active` / `:focus-visible` still carry the considered states on top. Test forced-colors
+and high-contrast modes; allow system colors when needed. This accessibility behavior
+is not a new Lumi theme. Never suppress the browser focus indicator without a tested replacement.
 
 ---
 
@@ -2065,6 +2102,11 @@ This is more convincing than any AI illustration.
 ---
 
 # 18. App Layout
+
+The navigation and home routes below describe the companion SME workspace. Lumi
+Agents follows its existing Project/Task surfaces and Spec 23; reuse the calm shell
+and hierarchy without importing this menu wholesale. Navigation exposes supported
+jobs only, preserves active context, and does not silently retarget a running task.
 
 ## 18.1 Default App Layout
 
@@ -2243,7 +2285,7 @@ Use this base token file.
   --shadow-overlay: inset 0 1px 0 0 color-mix(in oklch, white 75%, transparent), 0 16px 40px -8px color-mix(in oklch, var(--color-civic-navy) 14%, transparent), 0 4px 10px -4px color-mix(in oklch, var(--color-civic-navy) 8%, transparent);
   --shadow-modal: inset 0 1px 0 0 color-mix(in oklch, white 80%, transparent), 0 28px 60px -12px color-mix(in oklch, var(--color-civic-navy) 20%, transparent), 0 8px 18px -6px color-mix(in oklch, var(--color-civic-navy) 10%, transparent);
 
-  /* The one allowed gradient — the primary-button sheen (§10.1) */
+  /* Approved control lighting — the primary-button sheen (§10.1) */
   --gradient-primary: linear-gradient(180deg, color-mix(in oklch, white 10%, var(--color-lumi-blue)) 0%, var(--color-lumi-blue) 52%, var(--color-lumi-blue-hover) 100%);
 
   /* Canvas atmosphere — a fixed, very soft top-down light under the paper grain so
@@ -2258,7 +2300,7 @@ Use this base token file.
 }
 ```
 
-> Web also defines the full OKLCH ramps (`--blue-50…950`, etc.) and a
+> Companion web implementations may define full OKLCH ramps (`--blue-50…950`, etc.) and a
 > `@media (color-gamut: p3)` enrichment block — see §5.3 and
 > `frontend/src/index.css`. Those are the *generator*; the hexes above are the
 > *contract* every platform mirrors.
@@ -2268,7 +2310,9 @@ Use this base token file.
 The values above are canonical. Each native platform keeps a hand-mirrored copy;
 they must match this table exactly — a drift here is a defect (it is how Mac/Watch
 once shipped `#0B3397`/`#667085` after web had moved on). When a token changes,
-it changes in **every** column in the same PR.
+coordinate every affected project/platform before release and record each adoption.
+Separate repositories may require linked PRs; do not claim cross-project parity
+from a change in this file alone. Palette changes require explicit brand approval.
 
 | Token | Web (`index.css`) | iOS / Mac / Watch (`Color`) | Android (`Color.kt`) |
 |-------|-------------------|-----------------------------|----------------------|
@@ -2321,14 +2365,15 @@ variant inert (pinned to a never-applied `.dark` class).
 
 # 20. Tailwind Theme Guidance
 
-> **Banned: stock Tailwind palette classes.** In `frontend/src`, never use
-> `gray/indigo/slate/blue-NNN` (or raw `green/amber/red-NNN` for status). They make
-> the product look like a generic SaaS template instead of wearing the Lumi system.
-> Map every color to a semantic token — `bg-card`, `text-foreground`,
-> `text-muted-foreground`, `border-border`, `text-primary`, and the `*-soft` status
-> tokens (§5.2 / §19). This is merge-blocking (CLAUDE.md Rule 4); the guard
-> `node frontend/scripts/check-design-tokens.mjs` enforces it. Full mapping table:
-> frontend/AGENTS.md → "Color Tokens — Never Hardcode Colors."
+Use the host's existing styling system. Lumi Agents currently uses plain desktop
+CSS; this section is an adapter example for companion projects using Tailwind, not
+an instruction to install it. Map component colors to §19 semantic tokens. Do not
+add stock palette classes or duplicate hex values inside feature components.
+
+A companion may have `frontend/scripts/check-design-tokens.mjs`; locate and run the
+actual host check before claiming enforcement. Framework syntax varies by installed
+version. The example below preserves the brand values; a real adapter should refer
+to the canonical token layer where supported instead of maintaining another palette.
 
 Example Tailwind extension:
 
@@ -2461,10 +2506,12 @@ Lumi will use those updates to prepare your first operating brief.
 ## Error state
 
 ```text
-Lumi does not have enough information yet.
-
-Try adding a daily pulse, task, or commitment.
+The report could not be saved.
+Your draft is still available. Choose a writable folder and save again.
 ```
+
+Use this only when the draft is actually preserved and no save effect is ambiguous.
+Missing information is an empty/incomplete state, not a system error.
 
 ## Low confidence state
 
@@ -2477,38 +2524,30 @@ Please confirm before acting.
 
 # 24. Design QA Checklist
 
-Before shipping any page, check:
+Review the changed journey, not every screen in the product. Attach before/after
+captures at the same viewport, the exercised states, and check results to the PR.
+A documentation-only edit checks contracts and examples; it does not certify UI.
 
-```text
-[ ] Is the page calm?
-[ ] Is the main action obvious?
-[ ] Is there one clear message per section?
-[ ] Is the text readable at 16px+?
-[ ] Is the layout using enough whitespace?
-[ ] Are colors restrained?
-[ ] Are warnings not over-red?
-[ ] Are Lumi-generated insights source-backed?
-[ ] Is the logo used respectfully?
-[ ] Does this feel like a serious operating assistant, not a toy?
-[ ] Would a CEO understand the page in 5 seconds?
-[ ] Would a designer see restraint and consistency?
-[ ] Does the first viewport answer the user's role-specific question?
-[ ] Are important items ranked before they are decorated?
-[ ] Is every AI claim visibly source-backed or clearly marked low confidence?
-[ ] Are amber and red used only for real attention or danger?
-[ ] Does the screen work in Vietnamese without awkward wrapping?
-[ ] Does mobile have a purpose-built layout, not a squeezed desktop layout?
-[ ] Are loading, empty, error, stale, permission, and low-confidence states designed?
-[ ] Could this screen be used in a real operating meeting without losing trust?
-[ ] Does every visible object use one of the §8.0 material recipes?
-[ ] Are card/control/popover/modal radii role-correct?
-[ ] Are borders limited to 1px hairlines, 2px focus rings, and 3px severity rails?
-[ ] Are shadows using `--shadow-*` tokens, never raw or black shadows?
-[ ] Is the only product gradient the primary-button lighting sheen?
-[ ] Does any lifted surface have a real reason: interaction, sticky state, or overlay?
-```
+- [ ] Existing palette values, Geist hierarchy, light-only paper, logo, and material language are preserved.
+- [ ] The page has one clear job and next action; every control supports a real capability.
+- [ ] Shared primitives/tokens are reused; no new variant or setting without demonstrated need.
+- [ ] Small-laptop and narrow layouts keep context and important actions visible without nested panel clutter.
+- [ ] Loading, empty, denied, error, stale/partial, approval, cancellation, and completion states are covered where applicable.
+- [ ] Planned, executed, verified, draft, and published labels match actual evidence; uncertain effects cannot invite unsafe replay.
+- [ ] Keyboard-only operation, focus return, labels, screen-reader status, and target sizes work.
+- [ ] Text/control contrast is measured on actual backgrounds; color is not the only signal.
+- [ ] Large text, reflow, Vietnamese/long labels, supported RTL, and reduced-motion settings are checked.
+- [ ] User input, scroll, and focus survive refresh/recovery; overlays do not hide the active control.
+- [ ] Materials follow §8, severity rails use the 3px token, and only approved lighting treatments appear.
+- [ ] No new dependency, visual feature, or runtime-readiness claim is hidden in a polish change.
+
+If a required check fails, fix or explicitly block the affected scope; do not mark
+it complete because the happy-path screenshot looks finished. Keep existing brand
+values stable when fixing a pairing, hierarchy, or interaction defect.
 
 ---
+
+
 
 # 25. Final Design Statement
 
