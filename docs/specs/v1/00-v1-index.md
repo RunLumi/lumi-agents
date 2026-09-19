@@ -2,7 +2,7 @@
 
 Status: **Normative baseline for v1 implementation**  
 Version: **1.0**  
-Date: **2026-09-18**
+Date: **2026-09-19**
 
 ## 0.1 Purpose
 
@@ -25,6 +25,8 @@ The terms **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are no
 V1 covers one trusted runtime supporting:
 
 - Work mode for substantial knowledge work;
+- durable Folder-as-Project workspaces for repository/document work;
+- safe project-scoped file editing, search, shell/code, Git, task history, and resume;
 - Workflow mode for hardened repeatable operations;
 - provider-neutral model routing;
 - connector/API execution;
@@ -43,6 +45,8 @@ V1 covers one trusted runtime supporting:
 V1 does **not** require:
 
 - a public marketplace;
+- a full IDE replacement;
+- whole-disk indexing;
 - autonomous financial/legal execution without approval;
 - Linux desktop parity;
 - first-party replacements for all upstream computer-use engines;
@@ -78,6 +82,7 @@ V1 does **not** require:
 | 23 | user-experience-handoff | task delegation, approval, progress, takeover |
 | 24 | skills-subagents | reusable skills and bounded subagent orchestration |
 | 25 | v1-implementation-order | implementation dependency graph and sequencing |
+| 26 | project-workspace-folder-as-project | durable Project, folder roots, files, Git, shell, indexing, task binding |
 
 ## 0.5 Global invariants
 
@@ -98,6 +103,10 @@ All v1 components MUST preserve these invariants:
 13. Audit/evidence MUST be minimized enough to avoid becoming employee surveillance.
 14. A v1 workflow MUST be measurable at the workflow outcome level.
 15. The runtime MUST support cancellation.
+16. A Project root is a default filesystem authority boundary, not permission to access sibling/home/system paths.
+17. Project/repository content may guide work but MUST NOT widen policy, secrets, filesystem, network, provider, or external-action authority.
+18. Active Tasks MUST remain bound to their durable Project/ExecutionEnvironment identity across resume and remote supervision.
+19. Pre-existing user changes MUST NOT be silently overwritten or claimed as agent-generated work.
 
 ## 0.6 Conformance
 

@@ -14,15 +14,16 @@ The repository contains substantial implementation, but integration and business
 - Desktop, handoff, versioning and release-check code landed in PRs #36–#38. The previous readiness report incorrectly marked these as absent.
 - The shipped CLI is a dry-run smoke path. Tauri commands return sample data, and its stop button only changes a boolean at this baseline.
 - Workflow evaluation pre-seeds expected records/artifacts and uses fixture executors. Repeating it 100 times is engineering evidence only.
+- Spec 26 now makes Folder-as-Project a V1 Work-mode requirement. Existing workspace primitives are useful substrate, but durable Project identity, Open Folder/Recent, Project-bound task resume, change-set ownership, Git semantics and external-edit conflict handling are not yet proven end to end.
 
 ## Spec 22 gates
 
 | Gate | Current evidence | Remaining requirement |
 |---|---|---|
-| 22.2 platform | Policy, state, audit, verifier, execution/model contracts, workspace operations, scheduler and extension admission have code/tests | Integrate them into a durable environment service and a real bounded workflow |
+| 22.2 platform | Policy, state, audit, verifier, execution/model contracts, task-scoped workspace operations, scheduler and extension admission have code/tests | Integrate them into a durable environment service; implement Spec 26 Project identity/Open Folder/root policy/Git/change sets; prove a real bounded workflow |
 | 22.3 safety | Adversarial and approval fixtures pass | Fix ignored durable-intent errors/direct replay risks; validate integrated device revocation, stop, evidence controls and real executor behavior |
 | 22.4 workflows | Three synthetic pack examples | Each release-certified pack needs >=100 representative real-system canary runs, >=95% verified completion, zero unauthorized effects, measured baseline/residual work and a certified matrix |
-| 22.5 Work mode | Component and fixture loops | Live representative tasks with inspected artifacts and recovery; horizontal feature parity is not a pilot prerequisite |
+| 22.5 Work mode | Component and fixture loops; safe workspace primitives exist | Open a dirty real repository as a durable Project; multi-file edit; preserve unrelated user work; run validation; inspect Lumi-only change set; restart/reopen/resume; plus live representative browser/artifact/connector work |
 | 22.6 providers | Four provider adapter families pass hermetic contracts | Same workflow on two live providers, inside the same privacy envelope |
 | 22.7 recovery | State/journal/resume fixtures | Storage failure, direct replay and restart must fail closed at actual execution entrypoints |
 | 22.8 distribution | Signing/update configuration checker | Actual signed/notarized macOS and signed Windows artifacts, validated update/rollback, provenance and SBOM |
