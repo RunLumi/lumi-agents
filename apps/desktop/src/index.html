@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumi Agents</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <nav class="sidebar">
+      <div class="logo">Lumi</div>
+      <button class="nav-btn active" data-view="dashboard" onclick="showView('dashboard')">Dashboard</button>
+      <button class="nav-btn" data-view="approvals" onclick="showView('approvals')">
+        Approvals <span id="approval-badge" class="badge hidden">0</span>
+      </button>
+      <button class="nav-btn" data-view="exceptions" onclick="showView('exceptions')">
+        Exceptions <span id="exception-badge" class="badge hidden">0</span>
+      </button>
+      <button class="nav-btn" data-view="evidence" onclick="showView('evidence')">Evidence</button>
+      <button class="nav-btn" data-view="permissions" onclick="showView('permissions')">Permissions</button>
+      <div class="spacer"></div>
+      <button id="kill-switch" class="kill-switch" onclick="emergencyStop()">
+        ⏹ STOP ALL
+      </button>
+      <div id="connection-status" class="connection-status">● Connected</div>
+    </nav>
+
+    <main class="main">
+      <!-- Dashboard -->
+      <section id="view-dashboard" class="view active">
+        <h1>Dashboard</h1>
+        <div id="task-cards" class="task-cards"></div>
+      </section>
+
+      <!-- Approvals -->
+      <section id="view-approvals" class="view">
+        <h1>Approvals</h1>
+        <p class="subtitle">Actions requiring your explicit approval before execution.</p>
+        <div id="approval-cards" class="cards"></div>
+      </section>
+
+      <!-- Exceptions -->
+      <section id="view-exceptions" class="view">
+        <h1>Exceptions</h1>
+        <p class="subtitle">Blocked steps that need your attention.</p>
+        <div id="exception-cards" class="cards"></div>
+      </section>
+
+      <!-- Evidence -->
+      <section id="view-evidence" class="view">
+        <h1>Evidence</h1>
+        <p class="subtitle">Trust-labeled action history. "Attempted" is not "done".</p>
+        <div id="evidence-list" class="evidence-list"></div>
+      </section>
+
+      <!-- Permissions -->
+      <section id="view-permissions" class="view">
+        <h1>Permissions</h1>
+        <p class="subtitle">OS permissions required for native execution.</p>
+        <div id="permission-list" class="permission-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
