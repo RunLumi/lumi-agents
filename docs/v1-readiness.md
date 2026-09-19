@@ -1,7 +1,7 @@
 # Lumi Agents V1 Readiness Report
 
-Date: 2026-09-19
-Baseline: main @ 16009c8 (PRs #17–#30)
+Date: 2026-09-19 (updated)
+Baseline: main @ PRs #17–#34
 Verdict: **NO-GO for V1 release** — large portions of the platform are implemented and certified at the fixture level; the gaps below are honest and specific.
 
 ---
@@ -32,8 +32,8 @@ Legend: ✅ implemented + tested · 🟡 partially implemented (honest gap noted
 | Provider-neutral model router | `lumi-models` routing order + RouteSnapshot resume re-validation | routing contract tests | ✅ |
 | OpenAI + Anthropic + Gemini + local path | 4 drivers; OpenAI-compatible as distinct driver | shared contract suite (13 scenarios × 4 drivers, hermetic) | ✅ contracts; live-network calls untested (no credentials) |
 | Context/memory separation | `lumi-memory` (WorkingContext / MemoryStore / RetrievalIndex / compaction; workflow state = lumi-state; evidence = lumi-audit) | §10.14 test set | ✅ |
-| Background schedule/event support | — | — | ❌ |
-| Extension/connector manifest | — | — | ❌ |
+| Background schedule/event support | `lumi-scheduler` (TriggerRequest normalization, DeduplicationLedger, UnattendedLease registry with mid-run recheck, Scheduler with quiet hours / catch-up policies / device availability) | `crates/lumi-scheduler/tests/scheduler_certification.rs` (6): duplicate webhook dropped pre-task, missed-window policies, device offline, lease revoked mid-run, budget exhaustion, approval delay parks task, local-only cannot cloud fail over, kill switch | ✅ |
+| Extension/connector manifest | `lumi-connectors` (ConnectorManifest, ExtensionRegistry with capability-growth review, OrgPolicyCeiling, ScopedSecretBackend) | `crates/lumi-connectors/tests/connector_certification.rs` (7): policy-shape side effects, unrelated secret refused, growth requires review, network target denied, ceiling blocks project ext, crash isolation, cross-tenant | ✅ |
 | Employee desktop shell | — | — | ❌ (issue #10) |
 | Signed update path | — | — | ❌ (issue #11) |
 | Device registration/revocation | Device trust states + policy denial (revoked ⇒ deny) | policy tests | 🟡 in-process model only; no fleet/control-plane revocation |
@@ -47,7 +47,7 @@ Legend: ✅ implemented + tested · 🟡 partially implemented (honest gap noted
 | Action mutation invalidates approval | Digest mismatch test | ✅ |
 | Cross-tenant isolation | Policy grants tenant-scoped; audit/evidence/memory/index all tenant-scoped + tested | ✅ in-process |
 | Local-only provider policy enforced | Routing eligibility filter; fallback drawn only from filtered set; tested | ✅ |
-| Prompt-injection suite | Browser worker injection containment test; agent-loop untrusted-observation contract; retrieved-content untrusted typing | 🟡 passable corpus exists; dedicated adversarial corpus (spec 17) not built |
+| Prompt-injection suite | `lumi-adversarial` durable corpus: injection in tool results inert, policy-override arguments inert, cross-tenant refused, secret redaction, approval forgery, hostile planner output, revoked device/auth principal | ✅ |
 | Secret isolation | SecretValue zeroize/redact/serialize-proof; broker audit without values; shell env-leak probe | ✅ |
 | Crash/double-submit recovery | SideEffectJournal + resume ReverifySideEffect plan; no-re-execution after ConfirmedApplied | ✅ |
 | Local emergency stop | CancelToken end-to-end (orchestrator, shell, browser kill) | 🟡 runtime-level; no desktop-app UI switch |
@@ -84,13 +84,12 @@ Three packs exist (invoice-reconciliation, quote-followup, expense-report-audit 
 
 ## 3. Remaining distance to V1 (ordered)
 
-1. **Spec 13 scheduler/background** (bounded, kill-switchable, budgeted) — not started.
-2. **Spec 14 extension/connector manifests** — not started.
-3. **Spec 15 + issue #10 desktop app** (Tauri shell, approvals/exceptions UX, emergency stop UI, privacy indicators) — not started.
-4. **Spec 17 adversarial/security corpus + spec 21/issue #11 release certification** (signing, notarization, updater/rollback, SBOM) — not started.
-5. **Spec 19/20 control-plane + migrations** — not started (in-process revocation exists).
-6. **Live-system workflow canaries** — blocked on credentials + customer baselines.
-7. **Readiness report refresh** after each of the above.
+1. **Spec 15 + issue #10 desktop app** (Tauri shell, approvals/exceptions UX, emergency stop UI, privacy indicators) — the largest remaining surface.
+2. **Spec 21 + issue #11 release certification** (signing, notarization, updater/rollback, SBOM) — requires Apple Developer / Windows code-signing credentials (STOP: external credentials needed).
+3. **Spec 19/20 control-plane + migrations** — in-process revocation exists; fleet surface remains.
+4. **Spec 23 UX contracts + spec 24 skills/subagents (only if measured value)**.
+5. **Live-system workflow canaries** — blocked on credentials + customer baselines (STOP: external input needed).
+6. **Readiness report refresh** after each of the above.
 
 ## 4. Go/No-Go
 
