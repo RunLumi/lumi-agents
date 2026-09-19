@@ -3,6 +3,7 @@
 use crate::budget::{Budget, ConsumedBudget};
 use crate::ids::{TaskId, TenantId};
 use crate::principal::Principal;
+use crate::project::ProjectTaskBinding;
 use crate::timestamp::Timestamp;
 use serde::{Deserialize, Serialize};
 
@@ -94,6 +95,11 @@ pub struct Task {
     /// Requested output descriptions (artifact kinds/paths).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requested_outputs: Vec<String>,
+    /// Durable project/workspace binding when the task works on local
+    /// project resources (spec 26 §26.6–26.7). `None` for tasks without
+    /// project scope. Resume restores the same binding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_binding: Option<ProjectTaskBinding>,
 }
 
 /// Runtime bookkeeping attached to a task's current/last run.

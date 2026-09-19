@@ -30,6 +30,7 @@ pub mod ids;
 pub mod observation;
 pub mod postcondition;
 pub mod principal;
+pub mod project;
 pub mod redaction;
 pub mod resource;
 pub mod result;
@@ -52,15 +53,16 @@ pub use device::{Device, Platform, TrustState, UpdateRing};
 pub use error::{ErrorEnvelope, FailureCategory, RecoveryAction, RetryClass};
 pub use evidence::{EvidenceRef, EvidenceRequirement};
 pub use ids::{
-    ActionId, ApprovalId, ArtifactId, ConnectorInstanceId, DeviceId, EvidenceId, OrganizationId,
-    PrincipalId, ProviderRequestId, RunId, StepId, TaskId, TenantId, UserId, WorkflowId,
-    WorkflowVersion,
+    ActionId, ApprovalId, ArtifactId, ConnectorInstanceId, DeviceId, EnvironmentId, EvidenceId,
+    OrganizationId, PrincipalId, ProjectId, ProviderRequestId, RunId, StepId, TaskId, TenantId,
+    UserId, WorkflowId, WorkflowVersion,
 };
 pub use observation::{
     Confidence, ConfidenceKind, Observation, ObservationKind, ObservationSource,
 };
 pub use postcondition::{Postcondition, PostconditionCheck, PostconditionId};
 pub use principal::{AuthenticationStrength, Principal, PrincipalKind};
+pub use project::{ProjectTaskBinding, WorkspaceKind};
 pub use redaction::{redact_value, RedactionRule, SecretRef, REDACTED_MARKER};
 pub use resource::Capability;
 pub use resource::{capabilities, Resource, ResourceRef, ResourceType, SensitivityLabel};

@@ -133,8 +133,18 @@ opaque_id!(
     ProviderRequestId
 );
 opaque_id!(
-    /// A registered connector instance.
+    /// Registered connector instance.
     ConnectorInstanceId
+);
+opaque_id!(
+    /// Durable project identity (spec 26 §26.3): stable across restarts
+    /// and independent of display name and filesystem path.
+    ProjectId
+);
+opaque_id!(
+    /// Execution environment identity (spec 01 §1.16): the local host
+    /// that owns filesystem, sessions, and credentials for a project.
+    EnvironmentId
 );
 
 #[cfg(test)]
