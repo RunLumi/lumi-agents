@@ -17,6 +17,7 @@
 //! platforms; tests use an in-memory backend with the same semantics.
 
 pub mod broker;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub mod keyring_backend;
 pub mod memory_backend;
 pub mod value;
