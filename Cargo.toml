@@ -9,6 +9,7 @@ members = [
     "crates/lumi-models",
     "crates/lumi-browser",
     "crates/lumi-evals",
+    "crates/lumi-packs",
     "crates/lumi-runtime",
 ]
 
