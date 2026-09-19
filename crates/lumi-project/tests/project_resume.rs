@@ -6,7 +6,7 @@
 
 use lumi_project::{
     ChangeEntry, ChangeKind, ChangeSetStore, ChangeSource, FileOpsError, OpenFolderRequest,
-    ProjectFiles, ProjectStore, SearchMode,
+    ProjectError, ProjectFiles, ProjectStore, SearchMode,
 };
 use lumi_protocol::ids::{EnvironmentId, PrincipalId, TaskId, TenantId};
 use lumi_protocol::principal::{AuthenticationStrength, Principal, PrincipalKind};
@@ -288,4 +288,87 @@ fn search_stays_current_across_a_restart_boundary() {
     assert_eq!(hits[0].path.replace('\\', "/"), "notes.md");
     std::fs::remove_dir_all(&state_dir).ok();
     std::fs::remove_dir_all(&repo).ok();
+}
+
+#[test]
+fn resume_against_the_wrong_project_or_environment_is_refused() {
+    // spec 26 26.34 "resume against wrong Project": the durable binding
+    // is the source of truth. A resume request naming another project,
+    // or another environment, must fail closed instead of redirecting
+    // the task's authority.
+    let home = unique_dir("wrong-resume-state");
+    let repo_a = unique_dir("wrong-repo-a");
+    let repo_b = unique_dir("wrong-repo-b");
+    std::fs::write(repo_a.join("a.txt"), b"a").unwrap();
+    std::fs::write(repo_b.join("b.txt"), b"b").unwrap();
+
+    let mut projects = ProjectStore::new(home.join("projects.json"));
+    let id_a = open(&mut projects, &repo_a, 10);
+    let id_b = open(&mut projects, &repo_b, 11);
+
+    let env_a = lumi_protocol::EnvironmentId::parse("env-device-1").unwrap();
+    let binding = lumi_protocol::ProjectTaskBinding {
+        project_id: ProjectId::parse(&id_a).unwrap(),
+        execution_environment_id: env_a.clone(),
+        workspace_root: repo_a.display().to_string(),
+        workspace_kind: lumi_protocol::WorkspaceKind::ProjectRoot,
+    };
+
+    // Wrong project: refused even though project B exists and is healthy.
+    let err =
+        lumi_project::assert_resume_target(&binding, &ProjectId::parse(&id_b).unwrap(), &env_a)
+            .unwrap_err();
+    assert!(matches!(err, ProjectError::InvalidRecord(_)), "{err}");
+
+    // Wrong environment: refused (the task may not hop devices).
+    let err = lumi_project::assert_resume_target(
+        &binding,
+        &ProjectId::parse(&id_a).unwrap(),
+        &lumi_protocol::EnvironmentId::parse("env-other").unwrap(),
+    )
+    .unwrap_err();
+    assert!(matches!(err, ProjectError::InvalidRecord(_)), "{err}");
+
+    // The correct project + environment resumes.
+    lumi_project::assert_resume_target(&binding, &ProjectId::parse(&id_a).unwrap(), &env_a)
+        .unwrap();
+    std::fs::remove_dir_all(&home).ok();
+    std::fs::remove_dir_all(&repo_a).ok();
+    std::fs::remove_dir_all(&repo_b).ok();
+}
+
+#[cfg(windows)]
+#[test]
+fn junction_escape_is_refused_like_symlinks() {
+    // Windows junctions are reparse points; canonicalize resolves them,
+    // so the same fail-closed rule must hold (spec 26 26.34).
+    let home = unique_dir("junc-state");
+    let repo = unique_dir("junc-repo");
+    let outside = unique_dir("junc-outside");
+    let mut projects = ProjectStore::new(home.join("projects.json"));
+    let project_id = open(&mut projects, &repo, 10);
+    let record = projects
+        .get(&ProjectId::parse(&project_id).unwrap())
+        .unwrap();
+
+    let status = std::process::Command::new("cmd")
+        .args(["/C", "mklink", "/J"])
+        .arg(repo.join("junction"))
+        .arg(&outside)
+        .status()
+        .expect("mklink available");
+    assert!(status.success(), "junction creation failed");
+
+    let err = lumi_project::resolve_in_project(&record, Path::new("junction/secret.txt"));
+    assert!(
+        matches!(err, Err(ProjectError::OutsideProjectRoots { .. })),
+        "{err:?}"
+    );
+    let files = ProjectFiles::new(&record);
+    assert!(files
+        .create_file(Path::new("junction/weaponized.txt"), b"no")
+        .is_err());
+    std::fs::remove_dir_all(&home).ok();
+    std::fs::remove_dir_all(&repo).ok();
+    std::fs::remove_dir_all(&outside).ok();
 }

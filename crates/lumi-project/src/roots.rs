@@ -230,3 +230,32 @@ mod tests {
         std::fs::remove_dir_all(&docs).ok();
     }
 }
+
+/// Resume-target guard (spec 26 §26.28, §26.34 "resume against wrong
+/// Project"): a durable task binding must name EXACTLY the project and
+/// environment the resume request targets. A mismatch is a fail-closed
+/// refusal — the task's authority never travels to another project, and
+/// a remote/client-supplied project id can never substitute for the
+/// binding recorded at task creation.
+///
+/// # Errors
+/// [`crate::ProjectError::InvalidRecord`] on any mismatch.
+pub fn assert_resume_target(
+    binding: &lumi_protocol::ProjectTaskBinding,
+    project_id: &lumi_protocol::ProjectId,
+    environment_id: &lumi_protocol::EnvironmentId,
+) -> Result<(), crate::ProjectError> {
+    if binding.project_id != *project_id {
+        return Err(crate::ProjectError::InvalidRecord(format!(
+            "task is bound to project {}, not {}",
+            binding.project_id, project_id
+        )));
+    }
+    if binding.execution_environment_id != *environment_id {
+        return Err(crate::ProjectError::InvalidRecord(format!(
+            "task is bound to environment {}, not {}",
+            binding.execution_environment_id, environment_id
+        )));
+    }
+    Ok(())
+}
