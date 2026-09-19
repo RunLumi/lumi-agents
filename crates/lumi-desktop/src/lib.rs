@@ -18,5 +18,7 @@ pub use api::{
     IssuedApproval, KillSwitchState, OperationsSnapshot, PendingApproval,
 };
 pub use permissions::{PermissionCheckResult, PermissionState, PermissionStatus};
-pub use projects::{FileContent, OpenedProject, ProjectOverview, ProjectService, ProjectSummary};
+pub use projects::{
+    FileContent, MemorySubmission, OpenedProject, ProjectOverview, ProjectService, ProjectSummary,
+};
 pub use runtime::DesktopRuntime;

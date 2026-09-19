@@ -9,9 +9,9 @@
 
 use crate::runtime::DesktopRuntime;
 use lumi_project::{
-    discover, run_validation, ChangeSet, ChangeSetStore, GitError, GitRepo, OpenFolderRequest,
-    ProjectDiscovery, ProjectFiles, ProjectStore, RootHealth, SearchHit, SearchMode,
-    ValidationRecord,
+    clone_repository, discover, run_validation, ChangeSet, ChangeSetStore, GitError, GitRepo,
+    MemoryKind, MemoryProvenance, MemoryRecord, OpenFolderRequest, ProjectDiscovery, ProjectFiles,
+    ProjectMemoryStore, ProjectStore, RootHealth, SearchHit, SearchMode, ValidationRecord,
 };
 use lumi_protocol::ids::{EnvironmentId, PrincipalId, ProjectId, TaskId, TenantId};
 use lumi_protocol::principal::{AuthenticationStrength, Principal, PrincipalKind};
@@ -27,6 +27,7 @@ pub const MANUAL_TASK_ID: &str = "task-manual-local";
 pub struct ProjectService {
     store: ProjectStore,
     changes: ChangeSetStore,
+    memory: ProjectMemoryStore,
     state_dir: PathBuf,
     environment_id: EnvironmentId,
     tenant_id: TenantId,
@@ -46,6 +47,7 @@ impl ProjectService {
         Ok(Self {
             store: ProjectStore::new(state_dir.join("projects.json")),
             changes: ChangeSetStore::new(state_dir.join("changes")),
+            memory: ProjectMemoryStore::new(state_dir.join("memory")),
             state_dir: state_dir.to_path_buf(),
             environment_id,
             tenant_id: TenantId::parse(DesktopRuntime::LOCAL_TENANT)
@@ -164,6 +166,99 @@ impl ProjectService {
     pub fn remove(&mut self, project_id: &str) -> Result<(), String> {
         let id = ProjectId::parse(project_id).map_err(|e| e.to_string())?;
         self.store.remove(&id).map_err(|e| e.to_string())
+    }
+
+    /// Clones a repository into a NEW directory under `destination_parent`
+    /// and opens the result as a durable project (spec 26 §26.27). The
+    /// clone never executes repository code; hooks and scripts stay
+    /// policy-gated. The destination must not already exist.
+    ///
+    /// # Errors
+    /// Existing destination, clone failure, or registry failure.
+    pub fn clone_repository(
+        &mut self,
+        source: &str,
+        destination_parent: &str,
+        display_name: Option<String>,
+    ) -> Result<OpenedProject, String> {
+        let parent = Path::new(destination_parent);
+        if !parent.is_dir() {
+            return Err(format!(
+                "destination parent is not a directory: {destination_parent}"
+            ));
+        }
+        let repo = clone_repository(source, parent).map_err(|e| e.to_string())?;
+        self.open_folder(&repo.root().display().to_string(), display_name)
+    }
+
+    /// Records durable project memory with mandatory provenance
+    /// (§26.22): guesses and unattributed claims are refused.
+    pub fn memory_remember(
+        &self,
+        project_id: &str,
+        submission: &MemorySubmission,
+    ) -> Result<(), String> {
+        let kind = match submission.kind.as_str() {
+            "validated_command" => MemoryKind::ValidatedCommand,
+            "convention" => MemoryKind::Convention,
+            "environment_requirement" => MemoryKind::EnvironmentRequirement,
+            "recovery_procedure" => MemoryKind::RecoveryProcedure,
+            other => return Err(format!("unknown memory kind: {other}")),
+        };
+        let record = self.record(project_id)?;
+        let head = git_repo_if_available(&record)
+            .map(|repo| repo.head_hash())
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .flatten();
+        let memory = MemoryRecord::new(
+            submission.memory_id.clone(),
+            kind,
+            &submission.content,
+            MemoryProvenance {
+                task_id: TaskId::parse(&submission.task_id).map_err(|e| e.to_string())?,
+                command: submission.command.clone(),
+                git_head: head,
+                evidence: submission.evidence.clone(),
+            },
+            None,
+            Timestamp::now(),
+        )
+        .map_err(|e| e.to_string())?;
+        self.memory
+            .remember(project_id, memory)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Project memory with trustworthiness evaluated against the
+    /// project's current Git HEAD (when it has one).
+    pub fn memory_list(&self, project_id: &str) -> Result<Vec<(MemoryRecord, bool)>, String> {
+        let record = self.record(project_id)?;
+        let head = git_repo_if_available(&record)
+            .map(|repo| repo.head_hash())
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .flatten();
+        let records = self.memory.load(project_id).map_err(|e| e.to_string())?;
+        Ok(records
+            .into_iter()
+            .map(|r| {
+                let trusted = r.is_trustworthy(head.as_deref());
+                (r, trusted)
+            })
+            .collect())
+    }
+
+    /// Invalidates one memory record with a reason (audit-retained).
+    pub fn memory_invalidate(
+        &self,
+        project_id: &str,
+        memory_id: &str,
+        reason: &str,
+    ) -> Result<(), String> {
+        self.memory
+            .invalidate(project_id, memory_id, reason, Timestamp::now())
+            .map_err(|e| e.to_string())
     }
 
     fn record(&self, project_id: &str) -> Result<lumi_project::ProjectRecord, String> {
@@ -498,6 +593,18 @@ pub struct FileContent {
     pub sha256: String,
 }
 
+/// One memory submission from the UI (kind is the wire vocabulary of
+/// [`MemoryKind`]).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct MemorySubmission {
+    pub memory_id: String,
+    pub kind: String,
+    pub content: String,
+    pub task_id: String,
+    pub command: Option<String>,
+    pub evidence: Option<String>,
+}
+
 const fn kind_of(outcome: &lumi_project::MutationOutcome) -> lumi_project::ChangeKind {
     use lumi_project::ChangeKind;
     if outcome.from_path.is_some() {
@@ -745,6 +852,156 @@ mod tests {
         assert_eq!(record.status, lumi_project::ValidationStatus::Passed);
         let set = service.change_set(&project, task.task_id.as_str()).unwrap();
         assert_eq!(set.all_validations_passed(), Some(true));
+        std::fs::remove_dir_all(&state).ok();
+        std::fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn clone_local_repository_opens_durable_project() {
+        let state = temp_dir("clone-state");
+        let source_repo = temp_dir("clone-source");
+        std::fs::write(source_repo.join("seed.txt"), b"seed\n").unwrap();
+        for args in [
+            vec!["init", "--quiet"],
+            vec!["add", "."],
+            vec![
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.com",
+                "commit",
+                "--no-verify",
+                "--quiet",
+                "-m",
+                "seed",
+            ],
+        ] {
+            std::process::Command::new("git")
+                .args(&args)
+                .current_dir(&source_repo)
+                .output()
+                .expect("git available");
+        }
+
+        let mut service = ProjectService::open(&state).unwrap();
+        let parent = temp_dir("clone-parent");
+        let opened = service
+            .clone_repository(
+                &source_repo.display().to_string(),
+                &parent.display().to_string(),
+                Some("Cloned Demo".to_owned()),
+            )
+            .unwrap();
+        assert!(opened.created);
+        assert_eq!(opened.project.display_name, "Cloned Demo");
+        assert_eq!(opened.project.health, "available");
+        assert!(opened.project.is_repository);
+
+        // The cloned folder is the project root; the marker proves it.
+        // The service derives the folder name from the source's last
+        // segment — the same rule the test applies here.
+        let cloned_dir = parent.join(source_repo.file_name().unwrap());
+        assert!(cloned_dir.join("seed.txt").is_file());
+        assert!(cloned_dir.join(".lumi").is_dir());
+
+        // Cloning onto an existing directory refuses.
+        let err = service
+            .clone_repository(
+                &source_repo.display().to_string(),
+                &parent.display().to_string(),
+                None,
+            )
+            .unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+        std::fs::remove_dir_all(&state).ok();
+        std::fs::remove_dir_all(&parent).ok();
+        std::fs::remove_dir_all(&source_repo).ok();
+    }
+
+    #[test]
+    fn project_memory_requires_provenance_and_tracks_head() {
+        let state = temp_dir("mem-state");
+        let repo = temp_dir("mem-repo");
+        std::fs::write(repo.join("README.md"), b"# demo\n").unwrap();
+        for args in [
+            vec!["init", "--quiet"],
+            vec!["add", "."],
+            vec![
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.com",
+                "commit",
+                "--no-verify",
+                "--quiet",
+                "-m",
+                "initial",
+            ],
+        ] {
+            std::process::Command::new("git")
+                .args(&args)
+                .current_dir(&repo)
+                .output()
+                .expect("git available");
+        }
+        let mut service = ProjectService::open(&state).unwrap();
+        let project = service
+            .open_folder(repo.to_str().unwrap(), None)
+            .unwrap()
+            .project
+            .project_id
+            .clone();
+
+        // A validated-command memory without the command provenance is a
+        // guess and is refused.
+        let err = service
+            .memory_remember(
+                &project,
+                &MemorySubmission {
+                    memory_id: "mem-1".to_owned(),
+                    kind: "validated_command".to_owned(),
+                    content: "npm test validates everything".to_owned(),
+                    task_id: "task-manual-local".to_owned(),
+                    command: None,
+                    evidence: None,
+                },
+            )
+            .unwrap_err();
+        assert!(
+            err.contains("provenance") || err.contains("command"),
+            "{err}"
+        );
+
+        // With provenance it is remembered and trustworthy at the
+        // current HEAD.
+        service
+            .memory_remember(
+                &project,
+                &MemorySubmission {
+                    memory_id: "mem-1".to_owned(),
+                    kind: "validated_command".to_owned(),
+                    content: "npm test validates the sync module".to_owned(),
+                    task_id: "task-manual-local".to_owned(),
+                    command: Some("npm test".to_owned()),
+                    evidence: Some("validation:passed".to_owned()),
+                },
+            )
+            .unwrap();
+        let listed = service.memory_list(&project).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert!(listed[0].1, "fresh record at current head is trustworthy");
+        assert!(
+            listed[0].0.provenance.git_head.is_some(),
+            "provenance captured the head"
+        );
+
+        // Invalidation is deliberate, reasoned, and audit-retained.
+        service
+            .memory_invalidate(&project, "mem-1", "command removed from CI")
+            .unwrap();
+        let listed = service.memory_list(&project).unwrap();
+        assert_eq!(listed.len(), 1, "invalidation keeps the record");
+        assert!(!listed[0].1);
         std::fs::remove_dir_all(&state).ok();
         std::fs::remove_dir_all(&repo).ok();
     }
