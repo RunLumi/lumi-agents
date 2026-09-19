@@ -20,16 +20,24 @@
 //! - Project instruction files are recorded as provenance only; they do
 //!   not and cannot widen authority (§26.8).
 
+pub mod changeset;
 pub mod error;
+pub mod files;
 pub mod record;
 pub mod roots;
+pub mod search;
 pub mod store;
 
+pub use changeset::{
+    checksum, text_patch, ChangeEntry, ChangeKind, ChangeSet, ChangeSetStore, ChangeSource,
+};
 pub use error::ProjectError;
+pub use files::{FileOpsError, MutationOutcome, ProjectFiles, MAX_PATCH_BYTES, MAX_READ_BYTES};
 pub use record::{
     capability_snapshot, detect_git, detect_source, scan_instructions, AuthorizedRoot,
     DetectedSource, GitMetadata, IndexingState, InstructionKind, InstructionSource,
     OpenFolderRequest, OpenOutcome, ProjectRecord, RootAccess, INSTRUCTION_SCAN_LIMIT_BYTES,
 };
 pub use roots::{resolve_in_project, ResolvedInProject};
+pub use search::{list_dir, search, ListedEntry, SearchError, SearchHit, SearchMode, MAX_RESULTS};
 pub use store::{PersistedProjects, ProjectStore, RootHealth, PROJECTS_SCHEMA_VERSION};
