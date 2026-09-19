@@ -50,6 +50,15 @@ function icon(name, cls = "") {
   const body = ICONS[name] || ICONS.file;
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
+// Window-control glyphs, injected once (hover-revealed traffic lights).
+function injectWindowGlyphs() {
+  const close = document.getElementById("win-close");
+  const min = document.getElementById("win-min");
+  const max = document.getElementById("win-max");
+  if (close) close.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+  if (min) min.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/></svg>`;
+  if (max) max.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 5h14v14H5z"/></svg>`;
+}
 // ================= IPC =================
 function hasTauri() {
   return typeof window.__TAURI__ !== "undefined" && window.__TAURI__.core;
@@ -1626,6 +1635,7 @@ async function refresh() {
 }
 window.addEventListener("hashchange", refresh);
 function boot() {
+  injectWindowGlyphs();
   refresh();
   setInterval(loadSnapshot, 5000);
 
@@ -1674,6 +1684,22 @@ function boot() {
   document.getElementById("palette-ask-send").addEventListener("click", () => {
     toast("Model delegation arrives with a wired runtime. File and project actions work today.");
   });
+
+  // Window controls (tauri-ui style borderless chrome). Inert in a plain
+  // browser; fully functional in the packaged app.
+  const currentWindow = () =>
+    hasTauri() && window.__TAURI__.window ? window.__TAURI__.window.getCurrent() : null;
+  const winClose = document.getElementById("win-close");
+  const winMin = document.getElementById("win-min");
+  const winMax = document.getElementById("win-max");
+  if (winClose) winClose.addEventListener("click", () => currentWindow()?.close());
+  if (winMin) winMin.addEventListener("click", () => currentWindow()?.minimize());
+  if (winMax)
+    winMax.addEventListener("click", () => {
+      const win = currentWindow();
+      // Double-click on the titlebar maximizes too; the green light toggles.
+      win?.toggleMaximize();
+    });
 }
 if (document.readyState === "loading") {
   window.addEventListener("DOMContentLoaded", boot);
