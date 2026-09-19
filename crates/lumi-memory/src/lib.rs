@@ -26,8 +26,8 @@ pub mod working;
 
 pub use compaction::compact;
 pub use memory::{
-    MemoryDeletion, MemoryId, MemoryProvenance, MemoryRecord, MemoryScope, MemoryStore,
-    RetentionDuration,
+    MemoryDeletion, MemoryError, MemoryId, MemoryProvenance, MemoryRecord, MemoryScope,
+    MemoryStore, RetentionDuration,
 };
 pub use retrieval::{IndexEntry, RetrievalIndex, RetrievalResult};
 pub use working::WorkingContext;
