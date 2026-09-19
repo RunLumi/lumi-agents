@@ -1,200 +1,33 @@
-# V1 Completion Plan
+# Execution plan: verified digital labor
 
-This plan takes Lumi Agents from its current state (23 crates, 392 tests, NO-GO) to
-spec-22 GO. It is written for the team — human or agent — that will execute the
-remaining work.
+Reviewed 2026-09-19. Start from [implementation truth](implementation-truth.md) and [readiness](v1-readiness.md), not a list of implemented interfaces.
 
-**Baseline**: main @ PRs #17–#38 merged · 23 crates · 392 tests · 60 suites ·
-0 clippy warnings · specs 01–14, 16–20, 23 implemented · issues #10, #11 open.
+The next outcome is one measured operational responsibility in real software. The constraint is trustworthy integration and customer evidence; no estimate substitutes for access or elapsed operation.
 
-**Readiness report**: `docs/v1-readiness.md` (updated after each phase below).
+| Order | Work | Exit condition | Tracking |
+|---|---|---|---|
+| P0 | Repair durable-intent/replay defects | Failed storage never dispatches; uncertain/applied effects never replay blindly | #43 |
+| P0 | Reconcile truth and issue graph | Every readiness claim names its proof layer and remaining gap | readiness |
+| P0 | Choose lighthouse and obtain access | Named process/system, supervisor, scope, queue and measured baseline | #40 |
+| P1 | Minimal Role Pack and scorecard | Compose packs with narrower authority; separate unknown/fixture/staging/production evidence | #41 |
+| P1 | Smallest real connector/browser bridge | Permitted action produces independently verified real-system result | #40 |
+| P1 | Operations console | Work, approvals, exceptions, evidence and human/cost measurements read actual state; empty means empty | #10 |
+| P1 | Canary distribution | Actual artifact-bound signing/update/rollback proof; stop/onboarding tested | #11 |
+| P2 | Operate and harden | >=100 representative runs, >=95% verified, <5% unexpected rescue, zero unauthorized effects, measured costs | #40 |
+| P2 | Sustained role and reuse | Four live weeks; three independent deployments; measured customization/support | #41/#42 |
 
----
+Safety, measurement and console truth can progress while access is pending. Native/Cua work is conditional on a real workflow needing it. Do not put API pilots behind native wiring or broad cloud control-plane implementation.
 
-## Phase 1 — Desktop shell (spec 15 + issue #10)
+Compare Finance Ops with the owner's suggested Facebook Ads Ops, HR Ops and Legal Ops. Existing Finance packs provide implementation leverage, not demand evidence. Keep selection provisional until access, baseline, a willing supervisor and a buying reason are observed.
 
-The backend API (`lumi-desktop`) and Tauri scaffold (`apps/desktop`) are done.
-This phase builds the frontend UI and wires it to live orchestrator state.
+## Human authority and recovery
 
-### 1.1 Tauri IPC → orchestrator wiring
+An approval command issues approval for a pending normalized action and trusted human. The executor gate validates and consumes it immediately before dispatch. The UI must not consume it and pretend the action has executed.
 
-Replace the stub commands in `apps/desktop/src-tauri/src/lib.rs` with a real
-`AppState` that holds an `Orchestrator`, `ApprovalLedger`, `SideEffectJournal`,
-and `CancelToken`. Each IPC command delegates to the existing crate APIs.
+Read/report/draft work is the preferred pilot boundary. Payments, transfers, ad spending changes, legal commitments and consequential personnel decisions are outside the initial autonomous scope. A crash never authorizes retry.
 
-| Task | Acceptance |
-|---|---|
-| Hold `Orchestrator<InMemoryStateStore>` in Tauri managed state | `execute_step` callable from IPC |
-| `get_pending_approvals` reads from `ApprovalLedger` | Returns real approval cards with digests |
-| `approve_action` calls `ledger.validate_and_consume` | Single-use approvals consumed; digest mismatch fails |
-| `emergency_stop` calls `CancelToken.cancel()` | All subsequent `execute_step` calls return `Stopped` |
-| `get_evidence` reads from `lumi-audit` ledger + evidence store | Trust-labeled entries (§23.9) |
+Every blocker records why, the smallest external input, prepared artifacts and useful independent work. Stop or narrow after approximately 100 live runs if rescue exceeds 15%, ambiguity remains material or support destroys savings.
 
-Effort: ~2 days. Tests: Tauri command tests using the existing
-`InMemoryStateStore` + fixture executors.
+## Delivery
 
-### 1.2 Frontend views
-
-Build the HTML/CSS/JS views against the real IPC data.
-
-| View | Spec | Acceptance |
-|---|---|---|
-| Dashboard | §23.3 | Shows phase, milestones, cost, budget bar |
-| Approvals | §23.4 | Business effect, not gesture; approve/reject wired to ledger |
-| Exceptions | §23.5 | What blocked, safe choices, evidence refs, next step |
-| Evidence | §23.9 | Trust labels distinct; attempted ≠ done |
-| Kill switch | §23.10 | One click stops everything; state reflects immediately |
-
-Effort: ~3 days. Tests: Playwright browser tests against the Tauri dev server
-(optional — manual testing acceptable for alpha).
-
-### 1.3 Packaging
-
-| Task | Acceptance |
-|---|---|
-| `cargo tauri build` produces installable app | `cargo tauri build` exits 0 on macOS |
-| App launches and shows the dashboard | Manual smoke test |
-| Icon + branding | Placeholder replaced with real icon |
-
-Effort: ~1 day.
-
----
-
-## Phase 2 — Secrets broker → Cua wire client (spec 07 completion)
-
-Connect the `lumi-native` DesktopDriver to the actual Cua Driver binary.
-
-### 2.1 CuaDriverAdapter wire protocol
-
-| Task | Acceptance |
-|---|---|
-| Implement `DesktopDriver::execute` in `CuaDriverAdapter` | Calls the Cua Driver process via its stdio/HTTP protocol |
-| Resolve auth via `SecretBroker` at the call boundary | Credentials never stored in the adapter |
-| Map Cua output to `NativeOutcome` with effect oracle | OS success ≠ DELIVERED; oracle must observe |
-| Integration test with a scripted Cua process | Hermetic; same pattern as `lumi-browser` fake worker |
-
-Effort: ~3 days. Blocked on: Cua Driver binary availability (not credentials).
-
----
-
-## Phase 3 — Spec 19 control-plane + spec 20 migrations (fill remaining gaps)
-
-The `lumi-handoff` and `lumi-versioning` crates have the contract types. This
-phase adds the runtime enforcement.
-
-### 3.1 Control-plane policy distribution
-
-| Task | Acceptance |
-|---|---|
-| Load signed org policy from file/endpoint | Invalid signature → reject, keep current policy |
-| Org ceiling enforced at connector admission | Denied origin/license blocked |
-| Offline: control-plane unreachable → local policy continues unchanged | No expansion |
-
-Effort: ~2 days.
-
-### 3.2 Schema migration pipeline
-
-| Task | Acceptance |
-|---|---|
-| Wire `MigrationChain` to the JSON state store | Old-version state files upgraded on load |
-| Pack manifest version checked at admission | Incompatible pack refused |
-| RouteSnapshot schema version checked at resume | Incompatible snapshot re-evaluated |
-
-Effort: ~1 day.
-
----
-
-## Phase 4 — Real-system workflow canaries (spec 22.4)
-
-**STOP: Requires external credentials and customer baselines.**
-
-### 4.1 Prerequisites (human input needed)
-
-| Item | Who provides | Notes |
-|---|---|---|
-| ERP API endpoint + credentials | Customer/ops | Read-only for fixture phase |
-| CRM API endpoint + credentials | Customer/ops | Read + write for canary phase |
-| SMTP/email API endpoint + credentials | Customer/ops | Send required |
-| Baseline manual-minutes measurement | Customer/ops | Time 5–10 manual runs |
-| Residual human-minutes measurement | Customer/ops | Time human involvement during automated runs |
-
-### 4.2 Execution plan
-
-| Step | Gate |
-|---|---|
-| Wire pack executors to live connectors via secrets broker | Health probe passes |
-| 30-run Alpha: ≥90% verified completion, 0 unauthorized | Alpha SLO gate |
-| 100-run Canary: ≥95% verified completion, <5% rescue, 0 bypass | Canary SLO gate |
-| Record economics: gross/net value, payback | Readiness report updated |
-
-Effort: ~1 week per workflow (including fix iterations).
-
----
-
-## Phase 5 — Release certification (spec 21 + issue #11)
-
-**STOP: Requires Apple Developer + Windows code-signing credentials.**
-
-| Task | Acceptance |
-|---|---|
-| Apple Developer account + App Store Connect | Certificate available in keychain |
-| macOS code signing + notarization | `codesign --verify` + `spctl --assess` pass |
-| Windows code signing (EV cert or Azure Trusted Signing) | `signtool verify` passes |
-| Updater manifest + rollback test | Update → rollback → verify |
-| SBOM generated (cargo auditable or syft) | SBOM file in release artifacts |
-| Release pipeline CI job runs all certification checks | `lumi-certification` green in CI |
-
-Effort: ~3 days (after credentials obtained).
-
----
-
-## Phase 6 — Spec 24 skills/subagents
-
-Only if measured value appears from Work-mode usage. Do not build speculatively.
-
----
-
-## Dependency graph
-
-```
-Phase 1 (Desktop shell)
-    ↓
-Phase 2 (Cua wire client)     ← no external blocker
-    ↓
-Phase 3 (Control plane)       ← no external blocker
-    ↓
-Phase 4 (Real canaries)       ← BLOCKED: credentials + baselines
-    ↓
-Phase 5 (Release cert)        ← BLOCKED: signing credentials
-    ↓
-Readiness report → GO
-```
-
-Phases 1–3 are buildable now. Phase 4 and 5 require human input.
-
----
-
-## Milestone summary
-
-| Milestone | Effort | Blocked? |
-|---|---|---|
-| Phase 1: Desktop shell | ~6 days | No |
-| Phase 2: Cua wire client | ~3 days | No (Cua binary needed for integration test) |
-| Phase 3: Control plane + migrations | ~3 days | No |
-| Phase 4: Real-system canaries | ~1 week/workflow | YES: credentials |
-| Phase 5: Release certification | ~3 days | YES: signing credentials |
-| Readiness refresh | ~1 day | No |
-| **Total buildable now** | **~12 days** | |
-| **Total blocked on credentials** | **~1–3 weeks** | |
-
----
-
-## Non-goals (spec 22 §22.11)
-
-- Public marketplace
-- Full Linux desktop
-- First-party replacement for Cua
-- Enterprise control-plane feature completeness
-- Autonomous financial/legal execution without approval
-- Dozens of providers
-- Agent swarm architecture
+Use small reviewed PRs, failure regressions, appropriate local checks and exact-commit CI. Refresh readiness when behavior changes. Documentation must drive admission, evaluation, a pilot or a decision. Keep ecosystem breadth and horizontal polish behind repeatable paid value.
