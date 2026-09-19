@@ -7,9 +7,8 @@
 
 use lumi_protocol::FailureCategory;
 use lumi_workspaces::{
-    resolve_in_workspace, ArtifactLifecycle, ArtifactProvenance, ArtifactStore, BuiltInValidator,
-    CleanupPolicy, FileOp, IsolationClass, NetworkPolicy, ShellSpec, ShellStatus, Workspace,
-    WorkspaceFiles,
+    ArtifactLifecycle, ArtifactProvenance, ArtifactStore, BuiltInValidator, CleanupPolicy, FileOp,
+    IsolationClass, NetworkPolicy, ShellSpec, ShellStatus, Workspace, WorkspaceFiles,
 };
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -77,6 +76,7 @@ fn symlink_escape_is_refused() {
     let (depot, ws) = workspace("symlink");
     #[cfg(unix)]
     {
+        use lumi_workspaces::resolve_in_workspace;
         std::os::unix::fs::symlink("/etc", ws.root().join("escape")).unwrap();
         let err =
             resolve_in_workspace(ws.root(), std::path::Path::new("escape/passwd")).unwrap_err();
@@ -87,6 +87,8 @@ fn symlink_escape_is_refused() {
         let resolved = resolve_in_workspace(ws.root(), std::path::Path::new("alias")).unwrap();
         assert!(resolved.starts_with(ws.root().canonicalize().unwrap()));
     }
+    // Cross-platform: the workspace itself stays usable on all platforms.
+    assert!(ws.root().is_dir());
     std::fs::remove_dir_all(&depot).ok();
 }
 

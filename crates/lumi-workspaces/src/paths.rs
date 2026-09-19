@@ -55,16 +55,15 @@ pub fn resolve_in_workspace(root: &Path, requested: &Path) -> Result<PathBuf, Pa
     let base = std::fs::canonicalize(root)
         .map_err(|e| PathError::Io(format!("canonicalizing root: {e}")))?;
 
-    // Absolute requests are RE-ANCHORED under the root: "/etc/passwd"
-    // means "<root>/etc/passwd", never the real /etc/passwd.
-    let relative: PathBuf = if requested.is_absolute() {
-        requested
-            .components()
-            .skip_while(|c| !matches!(c, Component::Normal(_)))
-            .collect()
-    } else {
-        requested.to_path_buf()
-    };
+    // Anchored requests are RE-ANCHORED under the root: "/etc/passwd"
+    // means "<root>/etc/passwd", never the real /etc/passwd. Strip ONLY
+    // the anchor components (drive prefix + leading root) — on Windows a
+    // leading "/" is NOT `is_absolute()`, and `..` must survive the strip
+    // so lexical traversal above the root is still refused.
+    let relative: PathBuf = requested
+        .components()
+        .filter(|c| !matches!(c, Component::Prefix(_) | Component::RootDir))
+        .collect();
 
     // 1. Lexical normalization: build from the canonical root, refusing
     // any `..` that would climb above it.
