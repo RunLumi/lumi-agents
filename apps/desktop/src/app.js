@@ -1,36 +1,90 @@
 "use strict";
-/* Lumi Agents desktop app (Folder-as-Project Work mode).
-   All state is runtime-derived: empty means empty. No sample data. */
+/* Lumi Agents desktop app — Folder-as-Project Work mode.
+   Built on the Lumi Design System (DESIGN.md). All state is
+   runtime-derived: empty means empty. No sample data in production. */
 
-// ---------- IPC ----------
+// ================= icons (line, 1.75px stroke — DESIGN.md §9) =================
+const ICON_PATHS = {
+  folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z',
+  folderOpen: 'M3 7a2 2 0 0 1 2-2h4l2 2h6M3 7v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2l1.5-6H5L3 17z',
+  file: 'M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM13 2v5h5',
+  fileText: 'M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM13 2v5h5M8 12h8M8 16h6',
+  branch: 'M6 3v12M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 3a3 3 0 1 0 0 0zM18 6a3 3 0 1 0-6 0 3 3 0 0 0 6 0zM12 9c0 3-6 2-6 6',
+  commit: 'M12 3v6M12 15v6M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  check: 'M4 12l5 5L20 7',
+  checkCircle: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0zM8 12l3 3 5-6',
+  clock: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0zM12 6v6l4 2',
+  search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5',
+  x: 'M18 6L6 18M6 6l12 12',
+  plus: 'M12 5v14M5 12h14',
+  arrowRight: 'M5 12h14M13 6l6 6-6 6',
+  external: 'M14 3h7v7M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5',
+  shield: 'M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  box: 'M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8',
+  message: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z',
+  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.06-.4.1-.8.1-1.2z',
+  play: 'M6 4l14 8-14 8V4z',
+  stop: 'M6 6h12v12H6z',
+  refresh: 'M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6',
+  chevronRight: 'M9 6l6 6-6 6',
+  chevronDown: 'M6 9l6 6 6-6',
+  alert: 'M12 2L1 21h22L12 2zM12 9v5M12 17.5v.5',
+  edit: 'M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z',
+  trash: 'M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6',
+  copy: 'M9 9h11v11H9zM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1',
+  home: 'M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10zM9 22V12h6v10',
+  layers: 'M12 2l10 5-10 5L2 7l10-5zM2 12l10 5 10-5M2 17l10 5 10-5',
+  activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
+  zap: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
+  star: 'M12 2l3 6.5 7 .8-5 4.8 1.2 7L12 17.8 5.8 21l1.2-7-5-4.8 7-.8L12 2z',
+  diff: 'M12 3v18M5 7h5M7.5 4.5v5M17 17h-5M3 12h18',
+  hash: 'M4 9h16M4 15h16M10 3L8 21M16 3l-2 18',
+  eye: 'M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7zM12 12a3 3 0 1 0 0 0z',
+  download: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3',
+  history: 'M3 3v6h6M3.5 9A9 9 0 1 0 6 5.3L3 9M12 7v5l4 2',
+  bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z',
+  inbox: 'M22 12h-6l-2 3h-4l-2-3H2M5 5h14l3 7v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7l3-7z',
+};
+function icon(name, cls = "") {
+  const d = ICON_PATHS[name] || ICON_PATHS.file;
+  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
+// ================= IPC =================
 function hasTauri() {
   return typeof window.__TAURI__ !== "undefined" && window.__TAURI__.core;
 }
 async function invoke(cmd, args = {}) {
-  if (!hasTauri()) {
-    return { __unavailable: true };
-  }
+  if (!hasTauri()) return { __unavailable: true };
   return window.__TAURI__.core.invoke(cmd, args);
 }
 
-// ---------- state ----------
+// ================= state =================
 const S = {
   route: { view: "projects" },
   projects: [],
-  project: null,      // ProjectOverview for the open project
-  summary: null,      // ProjectSummary of the open project
+  project: null,
+  summary: null,
   git: null,
   tasks: [],
+  changeSets: [],
+  artifacts: [],
   snapshot: null,
-  file: null,         // { path, content, sha256 } currently open file
-  tree: null,         // root listing cache: { [path]: ListedEntry[] }
+  openFiles: [],      // [{path, content, sha256}]
+  activeFile: null,
   editing: false,
+  diffMode: "unified",
+  changesView: "entries",
+  taskSubTab: "overview",
   paletteOpen: false,
+  paletteSection: "all",
 };
 
-// ---------- utils ----------
-function esc(value) {
-  return String(value == null ? "" : value)
+// ================= utils =================
+function esc(v) {
+  return String(v == null ? "" : v)
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
@@ -54,48 +108,40 @@ function toast(message, kind = "") {
   setTimeout(() => el.remove(), 4200);
 }
 function setRoute(hash) { location.hash = hash; }
-function parseRoute() {
-  const hash = location.hash.replace(/^#\/?/, "");
-  const parts = hash.split("/").filter(Boolean);
-  if (parts[0] === "p" && parts[1]) {
-    S.route = { view: "project", projectId: decodeURIComponent(parts[1]), tab: parts[2] || "home", taskId: parts[3] ? decodeURIComponent(parts[3]) : null };
-  } else {
-    S.route = { view: parts[0] || "projects" };
-  }
+function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+function fmtSize(bytes) {
+  if (bytes == null) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
 }
-function statusPill(health) {
-  if (health === "available") return '<span class="pill pill-green">● Available</span>';
-  if (health === "missing") return '<span class="pill pill-gray">● Not Available</span>';
-  return '<span class="pill pill-amber">● Moved — relink needed</span>';
+function gitChanged(git) {
+  if (!git) return 0;
+  return git.staged.length + git.unstaged.length + git.untracked.length;
 }
-function taskStatusPill(status) {
-  const map = {
-    CREATED: ["pill-blue", "Created"], QUEUED: ["pill-blue", "Queued"],
-    RUNNING: ["pill-green", "Running"], WAITING_APPROVAL: ["pill-amber", "Waiting approval"],
-    WAITING_USER: ["pill-amber", "Waiting for you"], WAITING_EXTERNAL: ["pill-amber", "Waiting external"],
-    PAUSED: ["pill-amber", "Paused"], COMPLETED: ["pill-green", "Completed"],
-    FAILED: ["pill-red", "Failed"], AMBIGUOUS: ["pill-amber", "Ambiguous"],
-    CANCELLED: ["pill-gray", "Cancelled"],
-  };
-  const [cls, label] = map[status] || ["pill-gray", status || "Unknown"];
-  return `<span class="pill ${cls}">${esc(label)}</span>`;
+function gitIsClean(git) {
+  return !!git && gitChanged(git) === 0;
 }
-const UNAVAILABLE = `<div class="empty-state"><span class="big">◌</span>
-  Runtime unavailable. Open the Lumi desktop app to load real project state.</div>`;
+function langOf(path) {
+  const ext = path.split(".").pop().toLowerCase();
+  const map = { ts: "TypeScript", tsx: "TypeScript", js: "JavaScript", rs: "Rust", py: "Python", go: "Go", json: "JSON", md: "Markdown", toml: "TOML", yml: "YAML", yaml: "YAML", html: "HTML", css: "CSS", sh: "Shell" };
+  return map[ext] || "Text";
+}
 
-// ---------- data loading ----------
+// ================= data =================
 async function loadProjects() {
   const result = await invoke("project_list_recent");
-  if (result && result.__unavailable) { S.projects = null; return; }
-  S.projects = result || [];
+  S.projects = result && result.__unavailable ? null : (result || []);
 }
 async function loadProject(projectId) {
   const overview = await invoke("project_overview", { projectId });
   if (overview && overview.__unavailable) { S.project = null; return; }
   S.project = overview;
   S.git = await invoke("git_status", { projectId });
+  if (S.git && S.git.__unavailable) S.git = null;
   S.tasks = (await invoke("task_list", { projectId })) || [];
   S.changeSets = (await invoke("change_sets", { projectId })) || [];
+  S.artifacts = (await invoke("artifacts_list", { projectId })) || [];
 }
 async function loadSnapshot() {
   const snapshot = await invoke("get_operations_snapshot");
@@ -111,93 +157,114 @@ async function loadSnapshot() {
   }
 }
 
-// ---------- rendering ----------
-function render() {
-  parseRoute();
-  const nav = S.route.view === "project" ? (S.route.tab === "task" ? "tasks" : S.route.tab) : S.route.view;
-  document.querySelectorAll(".nav-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.nav === nav);
-  });
-  if (S.route.view === "projects") {
-    setBreadcrumb([{ label: "Projects" }]);
-    content.innerHTML = "";
-    content.append(projectsHomeView());
-  } else if (S.route.view === "project") {
-    renderProject(content).catch((error) => {
-      content.innerHTML = `<div class="empty-state unavailable-note"><b>View failed to render.</b><br>${esc(String(error))}</div>`;
-    });
+// ================= routing =================
+function parseRoute() {
+  const hash = location.hash.replace(/^#\/?/, "");
+  const parts = hash.split("/").filter(Boolean);
+  if (parts[0] === "p" && parts[1]) {
+    S.route = { view: "project", projectId: decodeURIComponent(parts[1]), tab: parts[2] || "home", taskId: parts[3] ? decodeURIComponent(parts[3]) : null };
   } else {
-    setBreadcrumb([{ label: cap(S.route.view) }]);
-    content.innerHTML = "";
-    content.append(projectRequiredNotice(cap(S.route.view)));
+    S.route = { view: parts[0] || "projects" };
   }
-  updateBadges();
 }
-function cap(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
-
 function setBreadcrumb(parts) {
   const el = document.getElementById("breadcrumb");
   el.innerHTML = parts
     .map((p, i) =>
       i === parts.length - 1
         ? `<span class="crumb current">${esc(p.label)}</span>`
-        : `<span class="crumb" data-go="${esc(p.go || "#/projects")}">${esc(p.label)}</span><span class="crumb-sep">›</span>`
-    )
-    .join("");
+        : `<button class="crumb" data-go="${esc(p.go || "#/projects")}">${esc(p.label)}</button><span class="crumb-sep">›</span>`
+    ).join("");
   el.querySelectorAll("[data-go]").forEach((c) =>
-    c.addEventListener("click", () => setRoute(c.dataset.go))
-  );
+    c.addEventListener("click", () => setRoute(c.dataset.go)));
 }
 function updateBadges() {
   const taskBadge = document.getElementById("nav-task-badge");
   const approvalBadge = document.getElementById("nav-approval-badge");
   const exceptions = S.snapshot && S.snapshot.exceptions ? S.snapshot.exceptions.length : 0;
   const pending = S.snapshot && S.snapshot.pending_approvals ? S.snapshot.pending_approvals.length : 0;
-  const active = S.tasks ? S.tasks.filter((t) => !["COMPLETED", "FAILED", "CANCELLED"].includes(t.status)).length : 0;
+  const active = S.tasks && S.route.view === "project"
+    ? S.tasks.filter((t) => !["COMPLETED", "FAILED", "CANCELLED"].includes(t.status)).length
+    : 0;
   taskBadge.classList.toggle("hidden", !active);
   if (active) taskBadge.textContent = active;
   approvalBadge.classList.toggle("hidden", !pending && !exceptions);
   if (pending || exceptions) approvalBadge.textContent = pending + exceptions;
 }
 
-// ----- projects home -----
+function render() {
+  parseRoute();
+  const navKey = S.route.view === "project" ? (["task"].includes(S.route.tab) ? "tasks" : S.route.tab) : S.route.view;
+  document.querySelectorAll(".nav-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.nav === navKey);
+  });
+  const content = document.getElementById("content");
+  if (S.route.view === "projects") {
+    setBreadcrumb([{ label: "Projects" }]);
+    content.replaceChildren(projectsHomeView());
+  } else if (S.route.view === "project") {
+    setBreadcrumb([
+      { label: "Projects", go: "#/projects" },
+      ...(S.project ? [{ label: S.project.display_name }] : []),
+      ...(S.route.tab === "task"
+        ? [{ label: "Tasks", go: `#/p/${S.route.projectId}/tasks` }, { label: "Task" }]
+        : [{ label: cap(S.route.tab) }]),
+    ]);
+    renderProject(content);
+  } else {
+    setBreadcrumb([{ label: cap(S.route.view) }]);
+    content.replaceChildren(projectRequiredNotice(cap(S.route.view)));
+  }
+  updateBadges();
+}
+
+// ================= projects home =================
 function projectsHomeView() {
   const wrap = document.createElement("div");
   wrap.innerHTML = `
     <section class="hero">
       <h1>Open a project, start building with Lumi</h1>
-      <p>Lumi Agents works with your code directly, in the folder you choose.
-         Open a folder, clone a repository, or pick up where you left off.</p>
+      <p>Lumi works with your code directly, in the folder you choose.
+         Open a folder, clone a repository, or pick up where you left off —
+         with every change inspected, validated, and yours.</p>
     </section>
     <div class="action-cards">
       <button class="action-card" id="action-open-folder">
-        <span class="action-ico">📁</span>
+        <span class="action-ico">${icon("folderOpen")}</span>
         <span class="action-title">Open Folder</span>
         <span class="action-desc">Work with an existing codebase on your machine.</span>
       </button>
       <button class="action-card" id="action-clone">
-        <span class="action-ico">⑂</span>
+        <span class="action-ico">${icon("branch")}</span>
         <span class="action-title">Clone Repository</span>
         <span class="action-desc">Start a new project by cloning a repository.</span>
       </button>
       <button class="action-card" id="action-recent">
-        <span class="action-ico">🕐</span>
+        <span class="action-ico">${icon("history")}</span>
         <span class="action-title">Open Recent</span>
         <span class="action-desc">Quickly reopen a recent project and continue working.</span>
       </button>
     </div>
     <div class="project-layout">
       <div>
-        <div class="section-head"><h2>Recent Projects</h2></div>
+        <div class="section-head">
+          <h2>Recent Projects</h2>
+          <div class="section-tools">
+            <div class="view-toggle">
+              <button id="view-grid" class="active" title="Grid">${icon("layers")}</button>
+              <button id="view-list" title="List">${icon("list")}</button>
+            </div>
+          </div>
+        </div>
         <p class="section-sub">Your recently opened projects. Click to open and continue with Lumi.</p>
         <div id="recents"></div>
         <button class="dropzone" id="dropzone">
-          <span>📂</span><span><b>Drag and drop a folder here</b> — or click to browse</span>
+          ${icon("folder")}<span><b>Drag and drop a folder here</b> — or click to browse</span>
         </button>
       </div>
       <aside class="context-panel">
         <div class="card context-card">
-          <h4>🛡 Project Access &amp; Security</h4>
+          <h4>${icon("shield")} Project Access &amp; Security</h4>
           <p class="card-sub">You're in control</p>
           <ul class="check-list">
             <li><span class="check-yes">✓</span> Opening a project gives Lumi access only to the folder you choose</li>
@@ -208,7 +275,7 @@ function projectsHomeView() {
           </ul>
         </div>
         <div class="note-card">
-          <h4>★ A more focused way to work</h4>
+          <h4>${icon("star")} A more focused way to work</h4>
           Folder-as-project keeps things simple, secure, and productive.
         </div>
       </aside>
@@ -216,49 +283,88 @@ function projectsHomeView() {
 
   wrap.querySelector("#action-open-folder").addEventListener("click", pickAndOpenFolder);
   wrap.querySelector("#dropzone").addEventListener("click", pickAndOpenFolder);
-  wrap.querySelector("#action-recent").addEventListener("click", () => {
-    wrap.querySelector("#recents").scrollIntoView({ behavior: "smooth" });
-  });
+  wrap.querySelector("#action-recent").addEventListener("click", () =>
+    wrap.querySelector("#recents").scrollIntoView({ behavior: "smooth" }));
   wrap.querySelector("#action-clone").addEventListener("click", cloneRepositoryFlow);
+  wrap.querySelector("#view-grid").addEventListener("click", () => setRecentsView(wrap, "grid"));
+  wrap.querySelector("#view-list").addEventListener("click", () => setRecentsView(wrap, "list"));
 
   const recents = wrap.querySelector("#recents");
+  recents.dataset.mode = "grid";
   if (S.projects === null) {
     recents.innerHTML = UNAVAILABLE;
   } else if (!S.projects.length) {
-    recents.innerHTML = `<div class="empty-state"><span class="big">📁</span>
-      No projects yet. Open a folder to create your first project.</div>`;
+    recents.innerHTML = `<div class="empty-state"><span class="big">${icon("folder")}</span>No projects yet. Open a folder to create your first project.</div>`;
   } else {
-    const grid = document.createElement("div");
-    grid.className = "recent-grid";
-    for (const project of S.projects) {
-      grid.append(recentCard(project));
-    }
-    recents.append(grid);
+    renderRecentsInto(recents);
   }
   return wrap;
 }
-function recentCard(project) {
+function setRecentsView(wrap, mode) {
+  const recents = wrap.querySelector("#recents");
+  recents.dataset.mode = mode;
+  wrap.querySelector("#view-grid").classList.toggle("active", mode === "grid");
+  wrap.querySelector("#view-list").classList.toggle("active", mode === "list");
+  renderRecentsInto(recents);
+}
+function renderRecentsInto(recents) {
+  const mode = recents.dataset.mode || "grid";
+  recents.innerHTML = "";
+  const container = document.createElement("div");
+  container.className = mode === "grid" ? "recent-grid" : "recent-list";
+  for (const project of S.projects) container.append(recentCard(project, mode));
+  recents.append(container);
+  // Lazy branch chips: real git data per available project.
+  for (const project of S.projects.filter((p) => p.health === "available")) {
+    invoke("git_status", { projectId: project.project_id }).then((git) => {
+      if (!git || git.__unavailable || !git.branch) return;
+      const chip = container.querySelector(`[data-branch-for="${CSS.escape(project.project_id)}"]`);
+      if (chip) chip.innerHTML = `${icon("branch")} ${esc(git.branch)}`;
+    }).catch(() => {});
+  }
+}
+function recentCard(project, mode) {
   const card = document.createElement("button");
   card.className = "recent-card";
+  const isList = mode === "list";
+  if (isList) card.classList.add("card-hover");
   card.innerHTML = `
     <div class="recent-top">
-      <span class="recent-ico">🗂</span>
-      <span style="flex:1">
+      <span class="recent-ico">${icon("folder")}</span>
+      <span style="flex:1;min-width:0">
         <div class="recent-name">${esc(project.display_name)}</div>
-        <div class="recent-desc">${esc(project.detected_source)} project</div>
+        <div class="recent-desc">${esc(project.detected_source)} project · ${esc(timeAgo(project.last_opened_at))}</div>
       </span>
       ${statusPill(project.health)}
     </div>
+    ${isList ? "" : `
     <div class="recent-meta">
-      <span class="chip">⑂ ${esc(project.primary_root.split(/[\\/]/).pop())}</span>
-      <span class="chip">🕒 ${esc(timeAgo(project.last_opened_at))}</span>
-      <span class="chip mono">${esc(project.primary_root)}</span>
-    </div>`;
+      <span class="chip" data-branch-for="${esc(project.project_id)}">${icon("branch")} …</span>
+      <span class="chip">${icon("clock")} ${esc(timeAgo(project.last_opened_at))}</span>
+      <span class="chip">${esc(project.primary_root)}</span>
+    </div>`}`;
   card.addEventListener("click", () => {
     if (project.health !== "available") { openProjectMenu(project); return; }
     setRoute(`#/p/${encodeURIComponent(project.project_id)}/home`);
   });
   return card;
+}
+function statusPill(health) {
+  if (health === "available") return `<span class="pill pill-green">${icon("checkCircle")} Available</span>`;
+  if (health === "missing") return `<span class="pill pill-gray">${icon("alert")} Not Available</span>`;
+  return `<span class="pill pill-amber">${icon("alert")} Moved — relink needed</span>`;
+}
+function taskStatusPill(status) {
+  const map = {
+    CREATED: ["pill-blue", "Created"], QUEUED: ["pill-blue", "Queued"],
+    RUNNING: ["pill-green", "Running"], WAITING_APPROVAL: ["pill-amber", "Waiting approval"],
+    WAITING_USER: ["pill-amber", "Waiting for you"], WAITING_EXTERNAL: ["pill-amber", "Waiting external"],
+    PAUSED: ["pill-amber", "Paused"], COMPLETED: ["pill-green", "Completed"],
+    FAILED: ["pill-red", "Failed"], AMBIGUOUS: ["pill-amber", "Ambiguous"],
+    CANCELLED: ["pill-gray", "Cancelled"],
+  };
+  const [cls, label] = map[status] || ["pill-gray", status || "Unknown"];
+  return `<span class="pill ${cls}">${esc(label)}</span>`;
 }
 function openProjectMenu(project) {
   if (project.health === "missing") {
@@ -273,29 +379,6 @@ function openProjectMenu(project) {
     }
   }
 }
-async function cloneRepositoryFlow() {
-  const source = prompt("Repository URL or local path to clone:");
-  if (!source) return;
-  if (!hasTauri()) { toast("Folder picking needs the desktop app.", "error"); return; }
-  try {
-    const parent = await window.__TAURI__.dialog.open({
-      directory: true, multiple: false, title: "Choose the parent folder for the clone",
-    });
-    if (!parent) return;
-    const name = prompt("Display name for the new project (optional):");
-    const opened = await invoke("project_clone", {
-      source: source.trim(),
-      destinationParent: parent,
-      displayName: name || null,
-    });
-    toast("Repository cloned and opened as a project.", "success");
-    refresh();
-    setRoute(`#/p/${encodeURIComponent(opened.project.project_id)}/home`);
-  } catch (error) {
-    toast(String(error), "error");
-  }
-}
-
 async function pickAndOpenFolder() {
   if (!hasTauri()) { toast("Folder picking needs the desktop app.", "error"); return; }
   try {
@@ -309,8 +392,28 @@ async function pickAndOpenFolder() {
     toast(String(error), "error");
   }
 }
+async function cloneRepositoryFlow() {
+  const source = prompt("Repository URL or local path to clone:");
+  if (!source) return;
+  if (!hasTauri()) { toast("Folder picking needs the desktop app.", "error"); return; }
+  try {
+    const parent = await window.__TAURI__.dialog.open({
+      directory: true, multiple: false, title: "Choose the parent folder for the clone",
+    });
+    if (!parent) return;
+    const name = prompt("Display name for the new project (optional):");
+    const opened = await invoke("project_clone", {
+      source: source.trim(), destinationParent: parent, displayName: name || null,
+    });
+    toast("Repository cloned and opened as a project.", "success");
+    refresh();
+    setRoute(`#/p/${encodeURIComponent(opened.project.project_id)}/home`);
+  } catch (error) {
+    toast(String(error), "error");
+  }
+}
 
-// ----- project shell -----
+// ================= project shell =================
 async function renderProject(content) {
   const projectId = S.route.projectId;
   try {
@@ -319,23 +422,38 @@ async function renderProject(content) {
     content.innerHTML = `<div class="empty-state unavailable-note"><b>Project failed to load.</b><br>${esc(String(error))}</div>`;
     return;
   }
-  if (!S.project) {
-    content.innerHTML = UNAVAILABLE;
-    return;
-  }
+  if (!S.project) { content.innerHTML = UNAVAILABLE; return; }
   setBreadcrumb([
     { label: "Projects", go: "#/projects" },
     { label: S.project.display_name },
-    ...(S.route.tab === "task" ? [{ label: "Tasks", go: `#/p/${projectId}/tasks` }, { label: "Task" }] : [{ label: cap(S.route.tab) }]),
+    ...(S.route.tab === "task"
+      ? [{ label: "Tasks", go: `#/p/${S.route.projectId}/tasks` }, { label: "Task" }]
+      : [{ label: cap(S.route.tab) }]),
   ]);
-  content.innerHTML = "";
+  content.replaceChildren();
   content.append(projectHeaderView());
   content.append(tabsView());
   const layout = document.createElement("div");
   layout.className = "project-layout";
   const main = document.createElement("div");
   main.style.minWidth = "0";
-  main.append(tabContent());
+  const view = tabContent();
+  if (view instanceof Promise) {
+    const skeleton = document.createElement("div");
+    skeleton.className = "skeleton";
+    main.append(skeleton);
+    const atTab = S.route.tab;
+    const atTask = S.route.taskId;
+    view.then((el) => {
+      // Drop stale renders if the user navigated while loading.
+      if (S.route.tab !== atTab || S.route.taskId !== atTask) return;
+      main.replaceChildren(el);
+    }).catch((error) => {
+      main.innerHTML = `<div class="empty-state unavailable-note"><b>View failed to render.</b><br>${esc(String(error))}</div>`;
+    });
+  } else {
+    main.append(view);
+  }
   layout.append(main, contextPanel());
   content.append(layout);
 }
@@ -344,19 +462,22 @@ function projectHeaderView() {
   head.className = "project-head";
   const branch = S.git ? S.git.branch : null;
   head.innerHTML = `
-    <div class="project-ico">🗂</div>
-    <div style="flex:1">
+    <div class="project-ico">${icon("folder")}</div>
+    <div style="flex:1;min-width:0">
       <h1 class="project-title">${esc(S.project.display_name)}</h1>
       <p class="project-desc">${esc(S.project.detected_source)} project</p>
       <div class="project-chips">
-        <span class="chip">📁 ${esc(S.project.primary_root)}</span>
-        ${branch ? `<span class="chip">⑂ ${esc(branch)}</span>` : ""}
-        <span class="pill pill-green">● Local • Safe</span>
+        <span class="chip">${icon("folder")} ${esc(S.project.primary_root)}</span>
+        ${branch ? `<span class="chip">${icon("branch")} ${esc(branch)}</span>` : ""}
+        <span class="pill pill-green">${icon("lock")} Local • Safe</span>
       </div>
     </div>
     <div class="project-head-right">
-      <button class="btn btn-sm" id="open-in-finder">📂 Open in Finder</button>
-      <button class="btn btn-primary btn-sm" id="new-task-btn">＋ New Task</button>
+      <span class="sync-note">${icon("clock")} Opened ${esc(timeAgo(S.project.last_opened_at || new Date().toISOString()))}</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" id="open-in-finder">${icon("external")} Open in Finder</button>
+        <button class="btn btn-primary btn-sm" id="new-task-btn">${icon("plus")} New Task</button>
+      </div>
     </div>`;
   head.querySelector("#open-in-finder").addEventListener("click", async () => {
     if (hasTauri() && window.__TAURI__.opener) {
@@ -369,15 +490,21 @@ function projectHeaderView() {
 function tabsView() {
   const tabs = document.createElement("div");
   tabs.className = "tabs";
+  const counts = {
+    tasks: (S.tasks || []).length,
+    changes: (S.changeSets || []).length,
+    artifacts: (S.artifacts || []).length,
+  };
   const defs = [
-    ["home", "Home"], ["tasks", "Tasks"], ["files", "Files"], ["changes", "Changes"],
-    ["git", "Git"], ["artifacts", "Artifacts"], ["evidence", "Evidence"],
+    ["home", "Home"], ["tasks", "Tasks", counts.tasks], ["files", "Files"],
+    ["changes", "Changes", counts.changes], ["git", "Git"],
+    ["artifacts", "Artifacts", counts.artifacts], ["evidence", "Evidence"],
     ["approvals", "Approvals"], ["settings", "Settings"],
   ];
-  for (const [key, label] of defs) {
+  for (const [key, label, count] of defs) {
     const b = document.createElement("button");
-    b.className = `tab ${S.route.tab === key ? "active" : ""}`;
-    b.textContent = label;
+    b.className = `tab ${S.route.tab === key || (key === "tasks" && S.route.tab === "task") ? "active" : ""}`;
+    b.innerHTML = `${esc(label)}${count != null ? ` <span class="count">${count}</span>` : ""}`;
     b.addEventListener("click", () => setRoute(`#/p/${S.route.projectId}/${key}`));
     tabs.append(b);
   }
@@ -397,132 +524,227 @@ function tabContent() {
     default: return homeTabView();
   }
 }
+function contextPanel() {
+  const panel = document.createElement("aside");
+  panel.className = "context-panel";
+  const p = S.project;
+  const git = S.git;
+  panel.innerHTML = `
+    <div class="card context-card">
+      <h4>${icon("folder")} Project Context</h4>
+      <div class="kv"><span class="kv-key">Project Root</span></div>
+      <div class="chip mono" style="width:100%;justify-content:space-between">${esc(p.primary_root)}</div>
+      <div class="kv" style="margin-top:8px"><span class="kv-key">Environment</span><span class="kv-val mono">${esc(p.environment_id)}</span></div>
+      <div class="kv"><span class="kv-key">Branch</span><span class="kv-val mono">${esc((git && git.branch) || "—")}</span></div>
+      <div class="kv"><span class="kv-key">Permissions Boundary</span><span class="pill pill-green">Strict (Project Only)</span></div>
+      <p class="card-sub" style="margin:8px 0 0">Lumi can only access files within this project's authorized roots. No access to your home directory or other projects.</p>
+    </div>
+    <div class="card context-card">
+      <h4>${icon("checkCircle")} What Lumi can access</h4>
+      <ul class="check-list">
+        <li><span class="check-yes">✓</span> Read and edit files in this project</li>
+        <li><span class="check-yes">✓</span> Run project commands (via bounded shell)</li>
+        <li><span class="check-yes">✓</span> Read git history and create local branches</li>
+        <li><span class="check-no">✕</span> No access to personal files or external networks</li>
+      </ul>
+    </div>
+    <div class="note-card">
+      <h4>${icon("lock")} Working in a safe, local environment</h4>
+      Your code stays on your machine. Capabilities shown are exactly what the runtime provides — nothing more.
+    </div>`;
+  return panel;
+}
+function projectRequiredNotice(label) {
+  const el = document.createElement("div");
+  if (S.projects && S.projects.length) {
+    el.innerHTML = `<div class="empty-state"><span class="big">${icon("folder")}</span>Open a project first to use ${esc(label)}.<div style="margin-top:10px">
+      <button class="btn btn-primary" id="go-projects">Go to Projects</button></div></div>`;
+    el.querySelector("#go-projects").addEventListener("click", () => setRoute("#/projects"));
+  } else {
+    el.innerHTML = UNAVAILABLE;
+  }
+  return el;
+}
 
-// ----- home tab -----
+// ================= home tab =================
 function homeTabView() {
   const wrap = document.createElement("div");
-  wrap.append(workingTreeCard(), validationCard(), recentChangesCard(), taskHistoryCard());
-  wrap.querySelector(".stat-cards") || wrap.classList.add("card-grid");
+  const activeTask = (S.tasks || []).find((t) => t.status === "RUNNING" || t.status === "WAITING_APPROVAL" || t.status === "WAITING_USER");
+  if (activeTask) wrap.append(activeTaskCard(activeTask));
+  const stats = document.createElement("div");
+  stats.className = "stat-cards";
+  stats.append(workingTreeCard(), validationCard(), recentArtifactsCard());
+  wrap.append(stats);
+  const two = document.createElement("div");
+  two.className = "two-cards";
+  two.append(recentChangesCard(), taskHistoryCard());
+  wrap.append(two);
   return wrap;
+}
+function activeTaskCard(task) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.style.marginBottom = "13px";
+  const steps = [
+    ["Understand", task.status !== "CREATED"],
+    ["Work", ["RUNNING", "WAITING_APPROVAL", "WAITING_USER", "PAUSED"].includes(task.status)],
+    ["Validate", true], ["Review", ["COMPLETED"].includes(task.status)],
+  ];
+  const doneCount = steps.filter(([, d]) => d).length;
+  const pct = Math.round((doneCount / steps.length) * 100);
+  card.innerHTML = `
+    <h3>${icon("activity")} Active Task
+      <span class="pill pill-blue">${icon("zap")} Agent registered</span>
+      <span style="margin-left:auto"><button class="card-link" data-go-task="${esc(task.task_id)}">Open task ${icon("arrowRight")}</button></span>
+    </h3>
+    <p style="margin:4px 0 0;font-weight:600;color:var(--color-civic-navy)">${esc(task.goal)}</p>
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="muted small tabular">${doneCount} of ${steps.length} stages · ${pct}%</div>
+    <div class="stepper">
+      ${steps.map(([label, done]) => `
+        <div class="step ${done ? "done" : ""}">
+          <div class="step-dot">${done ? icon("check") : ""}</div>
+          <div class="step-label">${esc(label)}</div>
+        </div>`).join("")}
+    </div>`;
+  card.querySelector("[data-go-task]").addEventListener("click", () =>
+    setRoute(`#/p/${S.route.projectId}/task/${task.task_id}`));
+  return card;
 }
 function workingTreeCard() {
   const card = document.createElement("div");
   card.className = "card";
-  card.style.marginBottom = "14px";
   const git = S.git;
-  const clean = git && git.is_clean;
+  const clean = gitIsClean(git);
   card.innerHTML = `
-    <h3>⑂ Working Tree Status
+    <h3>${icon("branch")} Working Tree Status
       ${git ? (clean ? '<span class="pill pill-green">Clean</span>' : '<span class="pill pill-amber">Dirty</span>') : '<span class="pill pill-gray">No Git</span>'}
     </h3>
     ${git ? `
       <div class="kv"><span class="kv-key">Branch</span><span class="kv-val mono">${esc(git.branch || "detached")}</span></div>
-      <div class="kv"><span class="kv-key">Staged files</span><span class="kv-val">${git.staged.length}</span></div>
-      <div class="kv"><span class="kv-key">Modified files</span><span class="kv-val">${git.unstaged.length}</span></div>
-      <div class="kv"><span class="kv-key">Untracked files</span><span class="kv-val">${git.untracked.length}</span></div>` :
-      '<p class="card-sub">This project has no Git repository, so working-tree state is unavailable.</p>'}
-    <button class="card-link" id="wt-link">View in Git →</button>`;
+      <div class="kv"><span class="kv-key">Staged files</span><span class="kv-val tabular">${git.staged.length}</span></div>
+      <div class="kv"><span class="kv-key">Modified files</span><span class="kv-val tabular">${git.unstaged.length}</span></div>
+      <div class="kv"><span class="kv-key">Untracked files</span><span class="kv-val tabular">${git.untracked.length}</span></div>`
+      : '<p class="card-sub">This project has no Git repository, so working-tree state is unavailable.</p>'}
+    <button class="card-link" id="wt-link">View in Git ${icon("arrowRight")}</button>`;
   card.querySelector("#wt-link").addEventListener("click", () => setRoute(`#/p/${S.route.projectId}/git`));
   return card;
+}
+function allValidations() {
+  return (S.changeSets || []).flatMap((set) => set.validations || []);
 }
 function validationCard() {
   const card = document.createElement("div");
   card.className = "card";
-  card.style.marginBottom = "14px";
   const proposals = (S.project.discovery && S.project.discovery.proposed_commands) || [];
-  const latest = latestValidations();
-  const rows = latest.length
-    ? latest.map((v) => `
+  const latest = allValidations().slice(0, 4);
+  const allPass = latest.length && latest.every((v) => v.status === "passed");
+  card.innerHTML = `
+    <h3>${icon("zap")} Validation Status
+      ${latest.length ? `<span class="pill ${allPass ? "pill-green" : "pill-red"}">${allPass ? icon("checkCircle") : ""} All passing</span>` : ""}</h3>
+    <p class="card-sub">Run the project's real checks. "Files edited" is never "done".</p>
+    <div class="mini-list">
+      ${latest.length ? latest.map((v) => `
         <div class="mini-row">
           <span class="${v.status === "passed" ? "check-yes" : "check-no"}">${v.status === "passed" ? "✓" : "✗"}</span>
           <span style="flex:1"><b>${esc(v.role)}</b> · <span class="mono">${esc(v.command)}</span></span>
           <span class="pill ${v.status === "passed" ? "pill-green" : v.status === "failed" ? "pill-red" : "pill-amber"}">${esc(v.status)}</span>
-        </div>`).join("")
-    : `<div class="empty-state">No validations recorded yet.</div>`;
-  card.innerHTML = `
-    <h3>🧪 Validation Status ${latest.length ? `<span class="pill ${allPassed(latest) ? "pill-green" : "pill-red"}">${allPassed(latest) ? "All passing" : "Attention needed"}</span>` : ""}</h3>
-    <p class="card-sub">Run the project's real checks. "Files edited" is never "done".</p>
-    ${rows}
+        </div>`).join("") : '<div class="empty-state">No validations recorded yet.</div>'}
+    </div>
     <div class="inline-form" style="margin-top:10px">
       <input class="input" id="val-command" list="val-proposals" placeholder="${esc(proposals[0] ? proposals[0].command : "cargo test / npm test …")}">
       <datalist id="val-proposals">${proposals.map((p) => `<option value="${esc(p.command)}">${esc(p.role)}</option>`).join("")}</datalist>
-      <button class="btn btn-primary btn-sm" id="val-run">Run</button>
+      <button class="btn btn-primary btn-sm" id="val-run">${icon("play")} Run</button>
     </div>`;
   card.querySelector("#val-run").addEventListener("click", async () => {
     const command = card.querySelector("#val-command").value.trim()
       || (proposals[0] ? proposals[0].command : "");
     if (!command) { toast("Nothing to run.", "error"); return; }
-    const task = await ensureManualTask();
     try {
-      const record = await invoke("validation_run", { projectId: S.route.projectId, taskId: task, command });
+      const record = await invoke("validation_run", {
+        projectId: S.route.projectId, taskId: "task-manual-local", command,
+      });
       toast(`Validation ${record.status}.`, record.status === "passed" ? "success" : "error");
       refresh();
     } catch (e) { toast(String(e), "error"); }
   });
   return card;
 }
-function latestValidations() {
-  // Validations from the manual + project task sets, newest task set first.
-  if (!S.changeSets) return [];
-  return S.changeSets.flatMap((set) => set.validations || []);
-}
-function allPassed(validations) {
-  return validations.length && validations.every((v) => v.status === "passed");
-}
-async function ensureManualTask() {
-  // Validations not tied to a runtime task are recorded on the reserved
-  // manual task set so history stays attributable.
-  return "task-manual-local";
+function recentArtifactsCard() {
+  const card = document.createElement("div");
+  card.className = "card";
+  const artifacts = (S.artifacts || []).slice(0, 4);
+  card.innerHTML = `
+    <h3>${icon("box")} Recent Artifacts
+      ${(S.artifacts || []).length ? `<span class="pill pill-blue tabular">${S.artifacts.length} new</span>` : ""}</h3>
+    <div class="mini-list">
+      ${artifacts.length ? artifacts.map((a) => `
+        <div class="mini-row">
+          ${icon("fileText")}
+          <span style="flex:1" class="mono">${esc(a.name)}</span>
+          <span class="muted small">${esc(fmtSize(a.size))}</span>
+        </div>`).join("") : '<div class="empty-state">No artifacts yet.</div>'}
+    </div>
+    <button class="card-link" id="see-artifacts">View All Artifacts ${icon("arrowRight")}</button>`;
+  card.querySelector("#see-artifacts").addEventListener("click", () =>
+    setRoute(`#/p/${S.route.projectId}/artifacts`));
+  return card;
 }
 function recentChangesCard() {
   const card = document.createElement("div");
   card.className = "card";
-  const sets = S.changeSets || [];
-  const entries = sets.flatMap((set) => set.entries || []).slice(0, 6);
+  const entries = (S.changeSets || []).flatMap((set) => set.entries || []).slice(0, 6);
   card.innerHTML = `
-    <h3>📝 Recent Lumi Changes <button class="card-link" id="see-changes" style="margin-left:auto">View in Changes →</button></h3>
+    <h3>${icon("edit")} Recent Lumi Changes
+      <button class="card-link" id="see-changes" style="margin-left:auto">View in Changes ${icon("arrowRight")}</button></h3>
     <div class="mini-list">
       ${entries.length ? entries.map((e) => `
         <div class="mini-row">
-          <span>📄</span>
+          ${icon("file")}
           <span style="flex:1" class="mono">${esc(e.path)}</span>
-          <span class="pill pill-blue">${esc(e.kind)}${e.source === "external_conflict" ? " · external" : ""}</span>
+          <span class="pill pill-blue">${esc(e.kind)}</span>
           <span class="muted small">${esc(timeAgo(e.recorded_at))}</span>
-        </div>`).join("") : `<div class="empty-state">Lumi has not changed anything in this project yet.</div>`}
+        </div>`).join("") : '<div class="empty-state">Lumi has not changed anything in this project yet.</div>'}
     </div>`;
-  card.querySelector("#see-changes").addEventListener("click", () => setRoute(`#/p/${S.route.projectId}/changes`));
+  card.querySelector("#see-changes").addEventListener("click", () =>
+    setRoute(`#/p/${S.route.projectId}/changes`));
   return card;
 }
 function taskHistoryCard() {
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <h3>🧭 Task History <button class="card-link" id="see-tasks" style="margin-left:auto">View All →</button></h3>
-    ${S.tasks && S.tasks.length ? `<div class="mini-list">
+    <h3>${icon("list")} Task History
+      <button class="card-link" id="see-tasks" style="margin-left:auto">View All ${icon("arrowRight")}</button></h3>
+    ${(S.tasks || []).length ? `<div class="mini-list">
       ${S.tasks.slice(0, 6).map((t) => `
         <div class="task-row" data-task="${esc(t.task_id)}">
           <span class="task-row-goal" style="flex:1">${esc(t.goal)}</span>
           ${taskStatusPill(t.status)}
           <span class="muted small">${esc(timeAgo(t.created_at))}</span>
         </div>`).join("")}
-    </div>` : `<div class="empty-state">No tasks yet. Create one to delegate real work.</div>`}`;
-  card.querySelector("#see-tasks").addEventListener("click", () => setRoute(`#/p/${S.route.projectId}/tasks`));
+    </div>` : '<div class="empty-state">No tasks yet. Create one to delegate real work.</div>'}`;
+  card.querySelector("#see-tasks").addEventListener("click", () =>
+    setRoute(`#/p/${S.route.projectId}/tasks`));
   card.querySelectorAll("[data-task]").forEach((row) =>
     row.addEventListener("click", () => setRoute(`#/p/${S.route.projectId}/task/${row.dataset.task}`)));
   return card;
 }
 
-// ----- tasks -----
+// ================= tasks =================
 function tasksView() {
   const wrap = document.createElement("div");
-  wrap.className = "card";
   wrap.innerHTML = `
-    <h3>New Task</h3>
-    <p class="card-sub">Give Lumi a goal for this project. The task is durable and resumes after restart.</p>
-    <div class="field"><textarea class="textarea" id="task-goal" placeholder="e.g. Implement OAuth login and make all tests pass"></textarea></div>
-    <button class="btn btn-primary" id="task-create">Create Task</button>
-    <h3 style="margin-top:18px">Tasks</h3>
-    <div id="task-rows"></div>`;
+    <div class="card">
+      <h3>${icon("zap")} New Task</h3>
+      <p class="card-sub">Give Lumi a goal for this project. The task is durable and resumes after restart.</p>
+      <div class="field"><textarea class="textarea" id="task-goal" placeholder="e.g. Implement OAuth login and make all tests pass"></textarea></div>
+      <button class="btn btn-primary" id="task-create">${icon("plus")} Create Task</button>
+    </div>
+    <div class="card" style="margin-top:13px">
+      <h3>${icon("list")} Tasks</h3>
+      <div id="task-rows"></div>
+    </div>`;
   wrap.querySelector("#task-create").addEventListener("click", async () => {
     const goal = wrap.querySelector("#task-goal").value.trim();
     if (!goal) { toast("Describe the goal first.", "error"); return; }
@@ -534,7 +756,7 @@ function tasksView() {
   });
   const rows = wrap.querySelector("#task-rows");
   if (!S.tasks || !S.tasks.length) {
-    rows.innerHTML = `<div class="empty-state">No tasks yet.</div>`;
+    rows.innerHTML = `<div class="empty-state">${icon("inbox") && ""}No tasks yet.</div>`;
   } else {
     for (const t of S.tasks) {
       const row = document.createElement("div");
@@ -551,58 +773,132 @@ function tasksView() {
 }
 async function taskDetailView(taskId) {
   let task = (S.tasks || []).find((t) => t.task_id === taskId);
-  let changeSet;
+  let changeSet = null;
   try {
     changeSet = await invoke("change_set", { projectId: S.route.projectId, taskId });
     if (changeSet && changeSet.__unavailable) changeSet = null;
-  } catch { changeSet = null; }
+  } catch { /* no change set yet */ }
+
   const wrap = document.createElement("div");
-  const steps = task
-    ? [["Create", task.status !== "CREATED"], ["Work", ["RUNNING", "COMPLETED", "WAITING_APPROVAL", "WAITING_USER", "PAUSED"].includes(task.status)], ["Validate", changeSet && changeSet.validations && changeSet.validations.length], ["Review", task.status === "COMPLETED"]]
-    : [];
-  wrap.className = "card";
+  if (!task) {
+    wrap.className = "card";
+    wrap.innerHTML = `<div class="empty-state">Task not found in this project's durable state.</div>`;
+    return wrap;
+  }
+  const stageDefs = [
+    ["Understand", task.status !== "CREATED"],
+    ["Work", ["RUNNING", "WAITING_APPROVAL", "WAITING_USER", "PAUSED", "COMPLETED"].includes(task.status)],
+    ["Validate", !!(changeSet && changeSet.validations && changeSet.validations.length)],
+    ["Review", task.status === "COMPLETED"],
+  ];
+  const doneCount = stageDefs.filter(([, d]) => d).length;
+  const pct = Math.round((doneCount / stageDefs.length) * 100);
+  const entries = (changeSet && changeSet.entries) || [];
+  const validations = (changeSet && changeSet.validations) || [];
+  const commands = (changeSet && changeSet.commands) || [];
+
   wrap.innerHTML = `
-    ${!task ? '<div class="empty-state">Task not found in this project\'s durable state.</div>' : `
-      <div class="project-head" style="margin-bottom:8px">
+    <div class="card" style="margin-bottom:13px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
         <div style="flex:1">
-          <h1 class="project-title" style="font-size:18px">${esc(task.goal)}</h1>
+          <h1 class="project-title" style="font-size:17px">${esc(task.goal)}</h1>
           <div class="project-chips" style="margin-top:8px">
             ${taskStatusPill(task.status)}
-            <span class="chip">${esc((task.project_binding && task.project_binding.workspace_kind) || "")}</span>
-            <span class="chip mono">${esc((task.project_binding && task.project_binding.workspace_root) || "")}</span>
+            <span class="chip">${icon("layers")} ${esc((task.project_binding && task.project_binding.workspace_kind) || "")}</span>
+            <span class="chip">${icon("clock")} ${esc(timeAgo(task.created_at))}</span>
           </div>
+        </div>
+        <div class="context-card" style="min-width:130px">
+          <div class="muted small tabular" style="text-align:right">${doneCount} of ${stageDefs.length} · <b style="font-size:16px;color:var(--color-civic-navy)">${pct}%</b></div>
+          <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
         </div>
       </div>
       <div class="stepper">
-        ${steps.map(([label, done]) => `
+        ${stageDefs.map(([label, done]) => `
           <div class="step ${done ? "done" : ""}">
-            <div class="step-dot">${done ? "✓" : ""}</div>
+            <div class="step-dot">${done ? icon("check") : ""}</div>
             <div class="step-label">${esc(label)}</div>
           </div>`).join("")}
       </div>
-      <h3 style="margin:16px 0 6px">Validations</h3>
-      ${changeSet && changeSet.validations && changeSet.validations.length ? changeSet.validations.map((v) => `
+    </div>
+    <div class="card">
+      <div class="subtabs">
+        <button class="subtab active" data-sub="timeline">Timeline</button>
+        <button class="subtab" data-sub="files">Changed Files <span class="tabular">${entries.length}</span></button>
+        <button class="subtab" data-sub="validations">Validations <span class="tabular">${validations.length}</span></button>
+        <button class="subtab" data-sub="commands">Commands <span class="tabular">${commands.length}</span></button>
+      </div>
+      <div id="task-sub-content"></div>
+    </div>`;
+
+  const subContent = wrap.querySelector("#task-sub-content");
+  const renderSub = (sub) => {
+    wrap.querySelectorAll(".subtab").forEach((b) => b.classList.toggle("active", b.dataset.sub === sub));
+    if (sub === "files") {
+      subContent.innerHTML = entries.length ? `<div class="mini-list">${entries.map((e) => `
+        <div class="mini-row">${icon("file")}
+          <span style="flex:1" class="mono">${esc(e.path)}</span>
+          <span class="pill pill-blue">${esc(e.kind)}</span>
+          <span class="muted small">${esc(timeAgo(e.recorded_at))}</span>
+        </div>`).join("")}</div>` : '<div class="empty-state">No file changes recorded.</div>';
+    } else if (sub === "validations") {
+      subContent.innerHTML = validations.length ? `<div class="mini-list">${validations.map((v) => `
         <div class="mini-row">
           <span class="${v.status === "passed" ? "check-yes" : "check-no"}">${v.status === "passed" ? "✓" : "✗"}</span>
           <span style="flex:1" class="mono">${esc(v.command)}</span>
           <span class="pill ${v.status === "passed" ? "pill-green" : v.status === "failed" ? "pill-red" : "pill-amber"}">${esc(v.status)}</span>
-        </div>`).join("") : '<div class="empty-state">No validations run for this task yet.</div>'}
-    `}`;
+        </div>`).join("")}</div>` : '<div class="empty-state">No validations run for this task yet.</div>';
+    } else if (sub === "commands") {
+      subContent.innerHTML = commands.length ? `<div class="mini-list">${commands.map((c) => `
+        <div class="mini-row">${icon("play")}
+          <span style="flex:1" class="mono">${esc(c.command)}</span>
+          <span class="muted small">${esc(c.purpose || "")}</span>
+        </div>`).join("")}</div>` : '<div class="empty-state">No commands recorded.</div>';
+    } else {
+      subContent.innerHTML = `<div class="terminal" id="task-console">
+        ${consoleTimeline(task, entries, validations, commands)}
+      </div>`;
+    }
+  };
+  wrap.querySelectorAll(".subtab").forEach((b) =>
+    b.addEventListener("click", () => renderSub(b.dataset.sub)));
+  renderSub("timeline");
   return wrap;
 }
+function consoleTimeline(task, entries, validations, commands) {
+  const t = task.created_at || TimestampNow();
+  const line = (time, cls, text) =>
+    `<div class="t-line"><span class="t-time">${esc((time || "").slice(11, 19) || "--:--:--")}</span><span class="${cls}">${esc(text)}</span></div>`;
+  let html = "";
+  html += line(t, "t-info", `> Task registered: ${task.goal}`);
+  html += line(t, "t-dim", `> Workspace: ${(task.project_binding && task.project_binding.workspace_kind) || "unbound"}`);
+  for (const e of entries) {
+    html += line(e.recorded_at, "t-ok", `✓ ${cap(e.kind)}: ${e.path}${e.source === "external_conflict" ? " (external conflict preserved)" : ""}`);
+  }
+  for (const c of commands) {
+    html += line(c.recorded_at, "t-cmd", `$ ${c.command}`);
+  }
+  for (const v of validations) {
+    const cls = v.status === "passed" ? "t-ok" : v.status === "failed" ? "t-err" : "t-info";
+    html += line(v.recorded_at, cls, `${v.status === "passed" ? "✓" : "✗"} ${v.command} → ${v.status}`);
+  }
+  html += line(task.created_at, "t-dim", "> Progress is durable — this task survives restart and resumes here.");
+  return html;
+}
+function TimestampNow() { return new Date().toISOString(); }
 
-// ----- files -----
+// ================= files =================
 async function filesView() {
   const wrap = document.createElement("div");
   wrap.className = "files-layout";
   const treePanel = document.createElement("div");
   treePanel.className = "card tree-panel";
-  treePanel.innerHTML = `<h3>Files</h3><div id="tree"></div>`;
+  treePanel.innerHTML = `<h3>${icon("layers")} Files</h3><div id="tree"></div>`;
   const viewer = document.createElement("div");
   viewer.className = "file-viewer";
   const context = document.createElement("div");
   context.className = "card context-card";
-  context.innerHTML = `<h4>📄 File Context</h4><div class="empty-state">Select a file.</div>`;
+  context.innerHTML = `<h4>${icon("file")} File Context</h4><div class="empty-state">Select a file.</div>`;
   wrap.append(treePanel, viewer, context);
   await loadTreeNode(S.route.projectId, ".", treePanel.querySelector("#tree"), viewer, context);
   return wrap;
@@ -618,7 +914,7 @@ async function loadTreeNode(projectId, relPath, container, viewer, context) {
   for (const entry of entries) {
     const item = document.createElement("button");
     item.className = "tree-item";
-    item.innerHTML = `<span>${entry.is_dir ? "📁" : "📄"}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(entry.name)}</span>`;
+    item.innerHTML = `${entry.is_dir ? icon("folder") : icon("file")}<span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(entry.name)}</span>`;
     item.addEventListener("click", async () => {
       if (entry.is_dir) {
         const sub = document.createElement("div");
@@ -636,6 +932,28 @@ async function loadTreeNode(projectId, relPath, container, viewer, context) {
     container.append(item);
   }
 }
+function highlight(content, lang) {
+  const kw = {
+    JavaScript: "const|let|var|function|return|if|else|for|while|import|export|from|class|new|await|async|try|catch|throw",
+    TypeScript: "const|let|var|function|return|if|else|for|while|import|export|from|class|new|await|async|try|catch|throw|interface|type|implements|extends",
+    Rust: "fn|let|mut|pub|struct|enum|impl|match|if|else|for|while|loop|return|use|mod|crate|self|Self|where|async|await|trait",
+    Python: "def|class|return|if|elif|else|for|while|import|from|as|with|try|except|raise|lambda|pass|yield|global|assert",
+    Go: "func|package|import|return|if|else|for|range|go|defer|var|const|type|struct|interface|map|chan",
+  }[lang];
+  let html = esc(content);
+  if (kw) {
+    html = html
+      .replace(/(&quot;[^&]*?&quot;|'[^']*?'|`[^`]*?`)/g, '<span class="tok-str">$1</span>')
+      .replace(/(^|\n)(\s*)(\/\/[^\n]*|#(?![0-9])[^*\n]*)/g, '$1$2<span class="tok-com">$3</span>')
+      .replace(new RegExp(`\\b(${kw})\\b`, "g"), '<span class="tok-kw">$1</span>')
+      .replace(/\b(\d+(\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
+  } else if (lang === "Markdown") {
+    html = html
+      .replace(/^(#{1,6} .*)$/gm, '<span class="tok-kw">$1</span>')
+      .replace(/(\*\*[^*]+\*\*)/g, '<span class="tok-kw">$1</span>');
+  }
+  return html;
+}
 async function openFile(projectId, path, viewer, context) {
   let file;
   try {
@@ -645,81 +963,188 @@ async function openFile(projectId, path, viewer, context) {
     viewer.innerHTML = `<div class="empty-state" style="margin:14px">${esc(String(error))}</div>`;
     return;
   }
-  S.file = file;
+  // Tab registry: keep open files, activate the clicked one.
+  const existing = S.openFiles.find((f) => f.path === path);
+  if (existing) { existing.content = file.content; existing.sha256 = file.sha256; }
+  else S.openFiles.push({ path, content: file.content, sha256: file.sha256 });
+  S.activeFile = path;
   S.editing = false;
+  renderFileArea(projectId, viewer, context);
+}
+function renderFileArea(projectId, viewer, context) {
+  const file = S.openFiles.find((f) => f.path === S.activeFile);
+  if (!file) return;
   const lines = file.content.split("\n");
+  const lang = langOf(file.path);
+  const segments = file.path.split("/");
+  const crumbs = segments
+    .map((s, i) => (i === segments.length - 1
+      ? `<b style="color:var(--color-civic-navy)">${esc(s)}</b>`
+      : `<span>${esc(s)}</span><span>›</span>`))
+    .join("");
+
   viewer.innerHTML = `
-    <div class="file-viewer-head">
-      <span>📄</span><b>${esc(path)}</b>
-      <span style="flex:1"></span>
-      <button class="btn btn-sm" id="file-edit-toggle">Edit</button>
-      <button class="btn btn-primary btn-sm" id="file-save" disabled>Save</button>
+    <div class="file-tabs" id="file-tabs">
+      ${S.openFiles.map((f) => `
+        <button class="file-tab ${f.path === S.activeFile ? "active" : ""}" data-tab-path="${esc(f.path)}">
+          ${icon("file")} ${esc(f.path.split("/").pop())}
+          <span class="ft-close" data-close="${esc(f.path)}">×</span>
+        </button>`).join("")}
     </div>
-    <div class="code-body">
-      <div class="code-lines">${lines.map((_, i) => `${i + 1}`).join("<br>")}</div>
-      <div class="code-content" id="code-content">${esc(file.content)}</div>
+    <div class="file-viewer-head">
+      <span class="crumbs">${icon("folder")} ${crumbs}</span>
+      <span style="flex:1"></span>
+      <button class="btn btn-sm" id="file-copy">${icon("copy")} Copy path</button>
+      <button class="btn btn-sm" id="file-edit-toggle">${S.editing ? "Cancel" : icon("edit") + " Edit"}</button>
+      <button class="btn btn-primary btn-sm" id="file-save" disabled>${icon("check")} Save</button>
+    </div>
+    <div id="file-body">
+      ${S.editing
+        ? `<textarea class="editor-area" id="editor" spellcheck="false">${esc(file.content)}</textarea>`
+        : `<div class="code-body">
+            <div class="code-lines">${lines.map((_, i) => i + 1).join("<br>")}</div>
+            <div class="code-content">${highlight(file.content, lang)}</div>
+          </div>`}
+    </div>
+    <div class="status-bar">
+      <span>${esc(file.path.split("/").pop())}</span>
+      <span class="sb-right">
+        <span class="tabular">${lines.length} lines</span>
+        <span>${esc(fmtSize(new Blob([file.content]).size))}</span>
+        <span>${esc(lang)}</span><span>UTF-8</span><span>LF</span>
+      </span>
     </div>`;
+
+  const related = (S.changeSets || [])
+    .flatMap((set) => (set.entries || []))
+    .filter((e) => e.path === file.path)
+    .slice(0, 4);
   context.innerHTML = `
-    <h4>📄 File Context</h4>
-    <div class="kv"><span class="kv-key">Path</span><span class="kv-val mono">${esc(path)}</span></div>
-    <div class="kv"><span class="kv-key">Lines</span><span class="kv-val">${lines.length}</span></div>
-    <div class="kv"><span class="kv-key">Size</span><span class="kv-val">${new Blob([file.content]).size} B</span></div>
-    <div class="kv"><span class="kv-key">SHA-256</span><span class="kv-val mono small">${esc(file.sha256.slice(0, 16))}…</span></div>
+    <h4>${icon("file")} File Context</h4>
+    <button class="card-link" id="ctx-editor" style="margin-bottom:8px">${icon("external")} Open in Editor</button>
+    <div class="kv"><span class="kv-key">Lines</span><span class="kv-val tabular">${lines.length}</span></div>
+    <div class="kv"><span class="kv-key">Size</span><span class="kv-val tabular">${esc(fmtSize(new Blob([file.content]).size))}</span></div>
+    <div class="kv"><span class="kv-key">Language</span><span class="kv-val">${esc(lang)}</span></div>
+    <div class="kv"><span class="kv-key">SHA-256</span><span class="kv-val mono">${esc(file.sha256.slice(0, 12))}…</span></div>
+    <h4 style="margin-top:12px">${icon("history")} Recent changes to this file</h4>
+    ${related.length ? `<div class="mini-list">${related.map((e) => `
+      <div class="mini-row"><span class="pill pill-blue">${esc(e.kind)}</span>
+      <span class="muted small">${esc(timeAgo(e.recorded_at))}</span></div>`).join("")}</div>`
+      : '<div class="muted small">No Lumi changes recorded for this file.</div>'}
     <p class="card-sub" style="margin-top:10px">Edits are checksum-guarded: if the file changes on disk before you save, Lumi refuses and preserves the newer version.</p>`;
+
+  viewer.querySelector("#file-copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(file.path); toast("Path copied.", "success"); }
+    catch { toast("Copy failed.", "error"); }
+  });
+  viewer.querySelector("#ctx-editor").addEventListener("click", () => {
+    if (hasTauri() && window.__TAURI__.opener) {
+      window.__TAURI__.opener.revealItemInDir(`${S.project.primary_root}/${file.path}`);
+    } else toast("Available in the desktop app.");
+  });
   viewer.querySelector("#file-edit-toggle").addEventListener("click", () => {
     S.editing = !S.editing;
-    const body = viewer.querySelector(".code-body");
-    if (S.editing) {
-      const editor = document.createElement("textarea");
-      editor.className = "editor-area";
-      editor.value = file.content;
-      editor.id = "editor";
-      body.replaceWith(editor);
-      viewer.querySelector("#file-edit-toggle").textContent = "Cancel";
-      viewer.querySelector("#file-save").disabled = false;
-    } else {
-      refresh();
-    }
+    renderFileArea(projectId, viewer, context);
   });
-  viewer.querySelector("#file-save").addEventListener("click", async () => {
-    const editor = viewer.querySelector("#editor");
-    try {
-      await invoke("file_edit", { projectId, path, expectedSha256: file.sha256, content: editor.value });
-      toast("Saved.", "success");
-      await openFile(projectId, path, viewer, context);
-    } catch (error) {
-      toast(String(error), "error");
-    }
+  const saveBtn = viewer.querySelector("#file-save");
+  if (saveBtn) {
+    saveBtn.disabled = !S.editing;
+    saveBtn.addEventListener("click", async () => {
+      const editor = viewer.querySelector("#editor");
+      try {
+        await invoke("file_edit", {
+          projectId, path: file.path, expectedSha256: file.sha256, content: editor.value,
+        });
+        toast("Saved.", "success");
+        S.editing = false;
+        const fresh = await invoke("file_read", { projectId, path: file.path });
+        const at = S.openFiles.findIndex((f) => f.path === file.path);
+        if (at >= 0 && fresh && !fresh.__unavailable) S.openFiles[at] = { path: file.path, ...fresh };
+        renderFileArea(projectId, viewer, context);
+      } catch (error) {
+        toast(String(error), "error");
+      }
+    });
+  }
+  viewer.querySelectorAll("[data-tab-path]").forEach((tab) => {
+    tab.addEventListener("click", (e) => {
+      if (e.target.dataset.close !== undefined) {
+        S.openFiles = S.openFiles.filter((f) => f.path !== e.target.dataset.close);
+        if (S.activeFile === e.target.dataset.close) {
+          S.activeFile = S.openFiles.length ? S.openFiles[S.openFiles.length - 1].path : null;
+        }
+        if (!S.activeFile) { refresh(); return; }
+      } else {
+        S.activeFile = e.currentTarget.dataset.tabPath;
+      }
+      S.editing = false;
+      renderFileArea(projectId, viewer, context);
+    });
   });
 }
 
-// ----- changes -----
+// ================= changes =================
 async function changesView() {
   const sets = await invoke("change_sets", { projectId: S.route.projectId });
   const wrap = document.createElement("div");
-  wrap.innerHTML = `
-    <div class="card">
-      <h3>⇄ Lumi Change Sets</h3>
-      <p class="card-sub">Exactly what Lumi changed — never raw tool-call telemetry. Pre-existing edits in your working tree are shown in Git, not here.</p>
-      <div id="sets"></div>
-    </div>`;
-  const container = wrap.querySelector("#sets");
-  if (!sets || sets.__unavailable) { container.innerHTML = UNAVAILABLE; return wrap; }
+  wrap.innerHTML = `<div id="changes-body"></div>`;
+  const body = wrap.querySelector("#changes-body");
+  if (!sets || sets.__unavailable) { body.innerHTML = UNAVAILABLE; return wrap; }
   if (!sets.length) {
-    container.innerHTML = `<div class="empty-state"><span class="big">✎</span>No changes yet. Changes appear here as tasks and edits modify project files.</div>`;
+    body.innerHTML = `<div class="card"><div class="empty-state"><span class="big">${icon("edit")}</span>
+      No changes yet. Changes appear here as tasks and edits modify project files —
+      with checksums, patches, and validations attached.</div></div>`;
     return wrap;
   }
-  for (const set of sets) {
+  const totals = { created: 0, modified: 0, moved: 0, deleted: 0 };
+  for (const set of sets) for (const e of set.entries || []) {
+    if (totals[e.kind] != null) totals[e.kind] += 1;
+  }
+  body.innerHTML = `
+    <div class="stats-row">
+      <div class="stat-tile"><span class="tone-green">${icon("plus")}</span><div><div class="num">${totals.created}</div><div class="lbl">Files created</div></div></div>
+      <div class="stat-tile"><span class="tone-blue">${icon("edit")}</span><div><div class="num">${totals.modified}</div><div class="lbl">Files modified</div></div></div>
+      <div class="stat-tile"><span class="tone-amber">${icon("arrowRight")}</span><div><div class="num">${totals.moved}</div><div class="lbl">Files moved</div></div></div>
+      <div class="stat-tile"><span class="tone-red">${icon("trash")}</span><div><div class="num">${totals.deleted}</div><div class="lbl">Files deleted</div></div></div>
+    </div>
+    <div class="diff-toolbar">
+      <div class="diff-toggle">
+        <button id="diff-unified" class="active">Unified</button>
+        <button id="diff-split">Side by Side</button>
+      </div>
+      <span class="muted small">Pre-existing user edits live in Git, never here. Lumi's change set answers: what did Lumi change, and is it correct?</span>
+    </div>
+    <div id="sets"></div>`;
+  const container = body.querySelector("#sets");
+  const renderSets = () => {
+    container.innerHTML = "";
+    for (const set of sets) container.append(changeSetCard(set));
+  };
+  body.querySelector("#diff-unified").addEventListener("click", () => {
+    S.diffMode = "unified";
+    body.querySelector("#diff-unified").classList.add("active");
+    body.querySelector("#diff-split").classList.remove("active");
+    renderSets();
+  });
+  body.querySelector("#diff-split").addEventListener("click", () => {
+    S.diffMode = "split";
+    body.querySelector("#diff-split").classList.add("active");
+    body.querySelector("#diff-unified").classList.remove("active");
+    renderSets();
+  });
+
+  const changeSetCard = (set) => {
     const card = document.createElement("div");
     card.className = "card";
     card.style.marginBottom = "12px";
     const validations = set.validations || [];
+    const allPass = validations.length && validations.every((v) => v.status === "passed");
     card.innerHTML = `
       <h3>Task <span class="mono">${esc(set.task_id)}</span>
-        ${allPassed(validations) ? '<span class="pill pill-green">Validated</span>' : validations.length ? '<span class="pill pill-red">Validation failed</span>' : ""}
+        ${allPass ? '<span class="pill pill-green">Validated</span>' : validations.length ? '<span class="pill pill-red">Validation failed</span>' : ""}
       </h3>
-      <p class="card-sub">${(set.entries || []).length} file change(s) · ${validations.length} validation(s) · updated ${esc(timeAgo(set.updated_at))}</p>
-      ${(set.entries || []).map((e) => renderChangeEntry(e)).join("")}
+      <p class="card-sub tabular">${(set.entries || []).length} file change(s) · ${validations.length} validation(s) · updated ${esc(timeAgo(set.updated_at))}</p>
+      ${(set.entries || []).map((e) => renderChangeEntry(e, S.diffMode)).join("")}
       ${validations.map((v) => `
         <div class="mini-row">
           <span class="${v.status === "passed" ? "check-yes" : "check-no"}">${v.status === "passed" ? "✓" : "✗"}</span>
@@ -727,57 +1152,112 @@ async function changesView() {
           <span class="pill ${v.status === "passed" ? "pill-green" : v.status === "failed" ? "pill-red" : "pill-amber"}">${esc(v.status)}</span>
         </div>`).join("")}
     `;
-    container.append(card);
-  }
+    return card;
+  };
+  renderSets();
+  container.querySelectorAll("[data-toggle-diff]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const block = document.getElementById(b.dataset.toggleDiff);
+      if (block) block.hidden = !block.hidden;
+    }));
   return wrap;
 }
-function renderChangeEntry(entry) {
-  let html = `
+function renderChangeEntry(entry, mode) {
+  const anchor = `patch-${entry.path.replace(/[^a-z0-9]/gi, "")}`;
+  const hasPatch = !!entry.patch;
+  return `
     <div class="mini-row">
-      <span>📄</span>
+      ${icon("file")}
       <span style="flex:1" class="mono">${esc(entry.path)}</span>
       <span class="pill pill-blue">${esc(entry.kind)}</span>
-      ${entry.sha256_before && entry.sha256_after && entry.sha256_before !== entry.sha256_after
-        ? `<button class="card-link" data-patch="${esc(entry.path)}">View diff</button>` : ""}
+      ${hasPatch ? `<button class="card-link" data-toggle-diff="${anchor}">${icon("eye")} Diff</button>` : ""}
     </div>
-    <div id="patch-${esc(entry.path).replace(/[^a-z0-9]/gi, "")}"></div>`;
-  return html;
+    <div id="${anchor}" class="diff-block" ${entry === visiblePatchEntry ? "" : "hidden"}>${hasPatch ? renderPatch(entry.patch, S.diffMode) : ""}</div>`;
+}
+function renderPatch(patch, mode) {
+  const lines = patch.split("\n");
+  if (mode === "split") {
+    const rows = [];
+    let pendingDel = [];
+    for (const line of lines) {
+      if (line.startsWith("@@")) {
+        flushPair();
+        rows.push(`<div class="line meta">${esc(line)}</div>`);
+      } else if (line.startsWith("-")) pendingDel.push(line);
+      else if (line.startsWith("+")) {
+        flushPair();
+        rows.push(splitRow("", `<div class="line add">${esc(line)}</div>`));
+      } else {
+        flushPair();
+        rows.push(splitRow(line, line));
+      }
+    }
+    function flushPair() {
+      if (pendingDel.length) {
+        for (const d of pendingDel) rows.push(splitRow(`<div class="line del">${esc(d)}</div>`, ""));
+        pendingDel = [];
+      }
+    }
+    function splitRow(before, after) {
+      return `<div style="display:contents">
+        <div class="pane"><div class="line ${before ? "del" : "ghost"}">${typeof before === "string" && before.startsWith("<") ? before : esc(before || " ")}</div></div>
+        <div class="pane">${after || '<div class="line ghost"> </div>'}</div>
+      </div>`;
+    }
+    return `<div class="diff-split">
+      <div class="pane"><div class="line meta">Before</div></div>
+      <div class="pane"><div class="line meta">After (Lumi changes)</div></div>
+      ${rows.join("")}
+    </div>`;
+  }
+  return lines.map((line) => {
+    const cls = line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : "meta";
+    return `<div class="line ${cls}">${esc(line)}</div>`;
+  }).join("");
 }
 
-// ----- git -----
+// ================= git =================
 async function gitView() {
   const wrap = document.createElement("div");
   wrap.innerHTML = `
-    <h2 style="margin:0 0 4px">Git Workspace</h2>
+    <div class="section-head"><h2>Git Workspace</h2></div>
     <p class="section-sub">Manage branches, review changes, and collaborate with confidence.</p>
     <div id="git-body"></div>
-    <div class="project-layout" style="margin-top:14px">
+    <div class="project-layout" style="margin-top:13px">
       <div class="card">
-        <h3>🔒 Git Policy &amp; Safety</h3>
+        <h3>${icon("shield")} Git Policy &amp; Safety</h3>
         <p class="card-sub"><b>Auto-approved (safe):</b> view history, create branches, read diffs, switch branches.</p>
         <p class="card-sub" style="margin:0"><b>Approval required:</b> push to remote, force push, history rewrite, remote branch deletion. These never run without explicit authority — they are not exposed to the local runtime at all.</p>
       </div>
     </div>`;
   const body = wrap.querySelector("#git-body");
   if (!S.git) {
-    body.innerHTML = `<div class="empty-state"><span class="big">⑂</span>This project has no Git repository, so Git tools are unavailable.</div>`;
+    body.innerHTML = `<div class="empty-state"><span class="big">${icon("branch")}</span>This project has no Git repository, so Git tools are unavailable.</div>`;
     return wrap;
   }
   const git = S.git;
   const log = await invoke("git_log", { projectId: S.route.projectId, limit: 8 });
   const branches = await invoke("git_branches", { projectId: S.route.projectId });
+  const validations = allValidations();
+  const dirty = !gitIsClean(git);
+  const readiness = [
+    { label: "Working tree", detail: dirty ? `${gitChanged(git)} change(s)` : "clean", ok: !dirty },
+    { label: "Validations", detail: validations.length ? (validations.every((v) => v.status === "passed") ? "all passing" : "attention needed") : "none recorded", ok: validations.length && validations.every((v) => v.status === "passed") },
+    { label: "Branch", detail: git.branch || "detached", ok: !!git.branch },
+    { label: "Push", detail: "requires approval — not exposed locally", ok: null },
+  ];
   body.innerHTML = `
-    <div class="stat-cards">
+    <div class="stat-cards" style="grid-template-columns: 1fr 2fr">
       <div class="card">
-        <h3>⑂ Current Branch ${git.is_clean ? '<span class="pill pill-green">Clean</span>' : '<span class="pill pill-amber">Dirty</span>'}</h3>
-        <p style="font-size:16px;font-weight:700;margin:6px 0" class="mono">${esc(git.branch || "detached HEAD")}</p>
-        <div class="kv"><span class="kv-key">Staged</span><span class="kv-val">${git.staged.length}</span></div>
-        <div class="kv"><span class="kv-key">Unstaged</span><span class="kv-val">${git.unstaged.length}</span></div>
-        <div class="kv"><span class="kv-key">Untracked</span><span class="kv-val">${git.untracked.length}</span></div>
+        <h3>${icon("branch")} Current Branch ${gitIsClean(git) ? '<span class="pill pill-green">Clean</span>' : '<span class="pill pill-amber">Dirty</span>'}</h3>
+        <p style="font-size:15px;font-weight:700;margin:6px 0" class="mono">${esc(git.branch || "detached HEAD")}</p>
+        <div class="kv"><span class="kv-key">Staged</span><span class="kv-val tabular">${git.staged.length}</span></div>
+        <div class="kv"><span class="kv-key">Unstaged</span><span class="kv-val tabular">${git.unstaged.length}</span></div>
+        <div class="kv"><span class="kv-key">Untracked</span><span class="kv-val tabular">${git.untracked.length}</span></div>
       </div>
-      <div class="card" style="grid-column: span 2">
-        <h3>Changes in Working Directory</h3>
-        ${git.staged.length + git.unstaged.length + git.untracked.length ? `
+      <div class="card">
+        <h3>${icon("diff")} Changes in Working Directory</h3>
+        ${dirty ? `
           <table class="status-table">
             <tr><th></th><th>File</th><th>Status</th></tr>
             ${git.staged.map((f) => gitRow(f.path, f.index_state, "staged")).join("")}
@@ -786,14 +1266,25 @@ async function gitView() {
           </table>` : '<div class="empty-state">Working tree is clean.</div>'}
         <div class="inline-form" style="margin-top:12px">
           <input class="input" id="commit-msg" placeholder="Commit message (commits exactly the files you ticked)">
-          <button class="btn btn-primary btn-sm" id="commit-btn">Commit Selected</button>
+          <button class="btn btn-primary btn-sm" id="commit-btn">${icon("commit")} Commit Selected</button>
         </div>
         <p class="card-sub" style="margin-top:6px">Commits are path-scoped: Lumi never sweeps in your other staged work.</p>
       </div>
     </div>
+    <div class="card" style="margin-bottom:13px">
+      <h3>${icon("checkCircle")} Readiness</h3>
+      <div class="mini-list">
+        ${readiness.map((r) => `
+          <div class="mini-row">
+            <span class="${r.ok == null ? "check-no" : r.ok ? "check-yes" : "check-no"}">${r.ok == null ? "●" : r.ok ? "✓" : "○"}</span>
+            <span style="flex:1"><b>${esc(r.label)}</b></span>
+            <span class="muted small">${esc(r.detail)}</span>
+          </div>`).join("")}
+      </div>
+    </div>
     <div class="two-cards">
       <div class="card">
-        <h3>Branches</h3>
+        <h3>${icon("branch")} Branches</h3>
         <div class="inline-form" style="margin-bottom:10px">
           <input class="input" id="new-branch" placeholder="feature/my-branch">
           <button class="btn btn-sm" id="create-branch">Create</button>
@@ -807,7 +1298,7 @@ async function gitView() {
         </div>
       </div>
       <div class="card">
-        <h3>Recent Commits</h3>
+        <h3>${icon("commit")} Recent Commits</h3>
         <div class="mini-list">
           ${(log || []).map((c) => `
             <div class="mini-row">
@@ -855,22 +1346,39 @@ function gitRow(path, state, bucket) {
   </tr>`;
 }
 
-// ----- artifacts / evidence / approvals (honest states) -----
+// ================= artifacts =================
 function artifactsView() {
   const wrap = document.createElement("div");
-  wrap.className = "card";
+  const artifacts = S.artifacts || [];
   wrap.innerHTML = `
-    <h3>◇ Artifacts</h3>
-    <p class="card-sub">Generated outputs, reports, and exports — checksummed and provenance-linked.</p>
-    <div class="empty-state"><span class="big">◇</span>No artifacts yet. Run a task that produces reports or exports and they will appear here with SHA-256 integrity refs.</div>`;
+    <div class="section-head"><h2>Artifacts</h2></div>
+    <p class="section-sub">Generated outputs under <span class="mono">.lumi/artifacts</span> — checksummed, provenance-linked, stored locally.</p>
+    ${artifacts.length ? `
+      <div class="card">
+        <table class="status-table">
+          <tr><th>Name</th><th>Type</th><th>Lifecycle</th><th>Size</th><th>Modified</th></tr>
+          ${artifacts.map((a) => `
+            <tr>
+              <td class="mono">${icon("fileText")} ${esc(a.name)}</td>
+              <td>${a.artifact_type ? `<span class="pill pill-blue">${esc(a.artifact_type)}</span>` : '<span class="muted">—</span>'}</td>
+              <td>${a.lifecycle ? `<span class="pill ${a.lifecycle.toLowerCase() === "ready" || a.lifecycle.toLowerCase() === "published" ? "pill-green" : "pill-gray"}">${esc(a.lifecycle)}</span>` : '<span class="muted">—</span>'}</td>
+              <td class="tabular">${esc(fmtSize(a.size))}</td>
+              <td class="muted small">${esc(timeAgo(new Date(a.modified_at * 1000).toISOString()))}</td>
+            </tr>`).join("")}
+        </table>
+      </div>`
+      : `<div class="empty-state"><span class="big">${icon("box")}</span>
+          No artifacts yet. Run a task that produces reports or exports and they will appear here with SHA-256 integrity refs.</div>`}`;
   return wrap;
 }
+
+// ================= evidence / approvals =================
 function evidenceView() {
   const wrap = document.createElement("div");
   wrap.className = "card";
   const evidence = S.snapshot && S.snapshot.evidence;
   wrap.innerHTML = `
-    <h3>≡ Evidence</h3>
+    <h3>${icon("list")} Evidence</h3>
     <p class="card-sub">Trust-labeled action history. "Attempted" is not "done".</p>
     ${evidence && evidence.length ? `<div class="mini-list">
       ${evidence.map((e) => `
@@ -878,7 +1386,7 @@ function evidenceView() {
           <span style="flex:1">${esc(e.operation || e.action_id || "action")}</span>
           <span class="pill ${e.trust_label === "VERIFIED" ? "pill-green" : "pill-amber"}">${esc(e.trust_label || "unknown")}</span>
         </div>`).join("")}
-    </div>` : `<div class="empty-state">No runtime evidence recorded yet.</div>`}`;
+    </div>` : `<div class="empty-state"><span class="big">${icon("inbox")}</span>No runtime evidence recorded yet.</div>`}`;
   return wrap;
 }
 function approvalsView() {
@@ -887,13 +1395,13 @@ function approvalsView() {
   const pending = S.snapshot && S.snapshot.pending_approvals;
   wrap.innerHTML = `
     <div class="card">
-      <h3>✓ Approvals &amp; Exceptions</h3>
+      <h3>${icon("checkCircle")} Approvals &amp; Exceptions</h3>
       <p class="card-sub">Consequential actions pause here for your explicit decision.</p>
       ${pending && pending.length ? pending.map((p) => `
         <div class="card" style="margin-bottom:10px">
           <b>${esc(p.card ? p.card.business_effect : p.action_digest)}</b>
           <div class="kv"><span class="kv-key">Digest</span><span class="kv-val mono small">${esc(p.action_digest)}</span></div>
-        </div>`).join("") : `<div class="empty-state"><span class="big">✓</span>Nothing needs your approval right now.</div>`}
+        </div>`).join("") : `<div class="empty-state"><span class="big">${icon("checkCircle")}</span>Nothing needs your approval right now.</div>`}
       ${exceptions && exceptions.length ? exceptions.map((x) => `
         <div class="card" style="margin-top:10px">
           <h3><span class="pill pill-red">Exception</span> ${esc(x.what_blocked || "")}</h3>
@@ -904,15 +1412,15 @@ function approvalsView() {
   return wrap;
 }
 
-// ----- settings -----
+// ================= settings =================
 function settingsView() {
   const wrap = document.createElement("div");
   const p = S.project;
   wrap.innerHTML = `
     <div class="project-layout">
       <div>
-        <div class="card" style="margin-bottom:14px">
-          <h3>⚙ Project Settings</h3>
+        <div class="card" style="margin-bottom:13px">
+          <h3>${icon("settings")} Project Settings</h3>
           <p class="card-sub">Real configuration for this project. Org policy and provider routing are governed by policy — a project may only narrow, never widen, authority.</p>
           <div class="kv"><span class="kv-key">Project ID</span><span class="kv-val mono">${esc(p.project_id)}</span></div>
           <div class="kv"><span class="kv-key">Project root</span><span class="kv-val mono">${esc(p.primary_root)}</span></div>
@@ -920,19 +1428,21 @@ function settingsView() {
           <div class="kv"><span class="kv-key">Detected source</span><span class="kv-val">${esc(p.detected_source)}</span></div>
           <div class="kv"><span class="kv-key">Instruction sources</span><span class="kv-val">${p.instructions.length ? esc(p.instructions.join(", ")) : "none found"}</span></div>
         </div>
-        <div class="card">
-          <h3>🔐 Capabilities (negotiated)</h3>
+        <div class="card" style="margin-bottom:13px">
+          <h3>${icon("zap")} Capabilities (negotiated)</h3>
           <p class="card-sub">Only capabilities the runtime actually provides are advertised.</p>
           <div class="recent-meta">
             ${(p.capabilities || []).map((c) => `<span class="chip">${esc(c)}</span>`).join("") || '<span class="muted">none</span>'}
           </div>
-          <div class="inline-form" style="margin-top:14px">
-            <button class="btn" id="btn-relink">Relink root…</button>
-            <button class="btn btn-danger-outline" id="btn-remove">Remove project</button>
+        </div>
+        <div class="card">
+          <div class="inline-form">
+            <button class="btn" id="btn-relink">${icon("refresh")} Relink root…</button>
+            <button class="btn btn-danger-outline" id="btn-remove">${icon("trash")} Remove project</button>
           </div>
         </div>
-        <div class="card" id="memory-panel">
-          <h3>💡 Project Memory</h3>
+        <div class="card" style="margin-top:13px" id="memory-panel">
+          <h3>${icon("bulb")} Project Memory</h3>
           <p class="card-sub">Validated knowledge with provenance. Records tied to a Git HEAD go stale when HEAD moves; invalidation is reasoned and audit-retained.</p>
           <div id="memory-rows"></div>
           <div class="inline-form" style="margin-top:10px">
@@ -950,13 +1460,17 @@ function settingsView() {
       </div>
       <aside class="context-panel">
         <div class="card context-card">
-          <h4>🛡 Security &amp; Trust Posture <span class="pill pill-green">Strict</span></h4>
+          <h4>${icon("shield")} Security &amp; Trust Posture <span class="pill pill-green">Strict</span></h4>
           <ul class="check-list">
             <li><span class="check-yes">✓</span> Strict project boundary — only the authorized roots</li>
             <li><span class="check-yes">✓</span> Local execution — files stay on your machine</li>
             <li><span class="check-yes">✓</span> Identity proven by a project marker on disk</li>
-            <li><span class="check-no">○</span> Push / force-push / cleanup need external authority (not exposed)</li>
+            <li><span class="check-no">✕</span> Push / force-push / cleanup need external authority (not exposed)</li>
           </ul>
+        </div>
+        <div class="note-card">
+          <h4>${icon("star")} Your work stays with you</h4>
+          Local by design. Secure by default. In your control.
         </div>
       </aside>
     </div>`;
@@ -969,7 +1483,6 @@ function settingsView() {
       invoke("project_remove", { projectId: p.project_id }).then(() => setRoute("#/projects")).catch((e) => toast(String(e), "error"));
     }
   });
-
   const memoryRows = wrap.querySelector("#memory-rows");
   invoke("memory_list", { projectId: p.project_id }).then((records) => {
     if (!records || records.__unavailable || !records.length) {
@@ -992,7 +1505,6 @@ function settingsView() {
           .then(refresh).catch((e) => toast(String(e), "error"));
       }));
   }).catch((e) => { memoryRows.innerHTML = `<div class="empty-state">${esc(String(e))}</div>`; });
-
   wrap.querySelector("#memory-save").addEventListener("click", async () => {
     const content = wrap.querySelector("#memory-content").value.trim();
     const command = wrap.querySelector("#memory-command").value.trim() || null;
@@ -1014,53 +1526,9 @@ function settingsView() {
   return wrap;
 }
 
-function contextPanel() {
-  const panel = document.createElement("aside");
-  panel.className = "context-panel";
-  const p = S.project;
-  const git = S.git;
-  panel.innerHTML = `
-    <div class="card context-card">
-      <h4>🗂 Project Context</h4>
-      <div class="kv"><span class="kv-key">Project Root</span></div>
-      <div class="chip mono" style="width:100%;justify-content:space-between">${esc(p.primary_root)}</div>
-      <div class="kv" style="margin-top:8px"><span class="kv-key">Environment</span></div>
-      <div class="kv"><span class="kv-val mono">${esc(p.environment_id)}</span></div>
-      <div class="kv"><span class="kv-key">Branch</span><span class="kv-val mono">${esc((git && git.branch) || "—")}</span></div>
-      <div class="kv"><span class="kv-key">Permissions Boundary</span>
-        <span class="pill pill-green">Strict (Project Only)</span></div>
-      <p class="card-sub" style="margin:8px 0 0">Lumi can only access files within this project's authorized roots. No access to your home directory or other projects.</p>
-    </div>
-    <div class="card context-card">
-      <h4>✓ What Lumi can access</h4>
-      <ul class="check-list">
-        <li><span class="check-yes">✓</span> Read and edit files in this project</li>
-        <li><span class="check-yes">✓</span> Run project commands (via bounded shell)</li>
-        <li><span class="check-yes">✓</span> Read git history and create local branches</li>
-        <li><span class="check-no">✕</span> No access to personal files or external networks</li>
-      </ul>
-    </div>
-    <div class="note-card">
-      <h4>💡 Working in a safe, local environment</h4>
-      Your code stays on your machine. Capabilities shown are exactly what the runtime provides — nothing more.
-    </div>`;
-  return panel;
-}
-
-function projectRequiredNotice(label) {
-  const el = document.createElement("div");
-  if (S.projects && S.projects.length) {
-    el.innerHTML = `<div class="empty-state"><span class="big">🗂</span>Open a project first to use ${esc(label)}.<div style="margin-top:10px">
-      <button class="btn btn-primary" id="go-projects">Go to Projects</button></div></div>`;
-    el.querySelector("#go-projects").addEventListener("click", () => setRoute("#/projects"));
-  } else {
-    el.innerHTML = UNAVAILABLE;
-  }
-  return el;
-}
-
-// ----- command palette -----
+// ================= command palette =================
 let paletteProjects = [];
+let paletteSelection = 0;
 async function openPalette() {
   S.paletteOpen = true;
   document.getElementById("palette").classList.remove("hidden");
@@ -1068,6 +1536,7 @@ async function openPalette() {
   input.value = "";
   input.focus();
   paletteProjects = S.projects || [];
+  S.paletteSection = "all";
   await renderPaletteResults("");
 }
 function closePalette() {
@@ -1076,31 +1545,55 @@ function closePalette() {
 }
 async function renderPaletteResults(query) {
   const results = document.getElementById("palette-results");
-  const chips = document.getElementById("palette-chips");
+  const rail = document.getElementById("palette-rail");
   const inProject = S.route.view === "project";
-  chips.innerHTML = ["review Lumi changes", "open approval queue", "show failing tests"]
-    .map((c) => `<button class="palette-chip">${esc(c)}</button>`).join("");
-  let html = "";
   const q = query.trim().toLowerCase();
+
   const projects = paletteProjects.filter((p) => !q || p.display_name.toLowerCase().includes(q));
-  if (projects.length) {
-    html += '<div class="palette-group">Projects</div>';
-    html += projects.slice(0, 5).map((p) => `
-      <button class="palette-item" data-go="#/p/${encodeURIComponent(p.project_id)}/home">
-        <span>🗂</span><span style="flex:1">${esc(p.display_name)}</span><span class="mono">${esc(p.health)}</span>
-      </button>`).join("");
-  }
+  let files = [];
+  let tasks = [];
   if (inProject && q) {
-    const files = await invoke("file_search", { projectId: S.route.projectId, query: q, mode: "filename" });
-    if (files && files.length) {
-      html += '<div class="palette-group">Files</div>';
-      html += files.slice(0, 8).map((f) => `
-        <button class="palette-item" data-file="${esc(f.path)}">
-          <span>📄</span><span style="flex:1" class="mono">${esc(f.path)}</span>
-        </button>`).join("");
-    }
+    files = (await invoke("file_search", { projectId: S.route.projectId, query: q, mode: "filename" })) || [];
+    if (files.__unavailable) files = [];
+    tasks = (S.tasks || []).filter((t) => t.goal.toLowerCase().includes(q));
   }
-  results.innerHTML = html || '<div class="empty-state" style="margin:10px">No matches.</div>';
+  const groups = { Projects: projects, Files: files.slice(0, 6), Tasks: tasks.slice(0, 5) };
+  if (rail.childElementCount === 0 || S.paletteSection) {
+    rail.innerHTML = `
+      <button class="rail-item ${S.paletteSection === "all" ? "active" : ""}" data-section="all">${icon("search")} All results</button>
+      <div class="rail-section">Jump to</div>
+      <button class="rail-item ${S.paletteSection === "projects" ? "active" : ""}" data-section="projects">${icon("folder")} Projects <span class="rail-count tabular">${projects.length}</span></button>
+      ${inProject ? `
+      <button class="rail-item ${S.paletteSection === "files" ? "active" : ""}" data-section="files">${icon("file")} Files <span class="rail-count tabular">${files.length}</span></button>
+      <button class="rail-item ${S.paletteSection === "tasks" ? "active" : ""}" data-section="tasks">${icon("check")} Tasks <span class="rail-count tabular">${tasks.length}</span></button>` : ""}
+      <div class="rail-section">Pro tip</div>
+      <div class="muted small" style="padding:4px 9px;line-height:1.5">Type to search across ${inProject ? "files, tasks, and " : ""}projects.</div>`;
+    rail.querySelectorAll("[data-section]").forEach((b) =>
+      b.addEventListener("click", () => { S.paletteSection = b.dataset.section; renderPaletteResults(query); }));
+  }
+
+  let html = "";
+  const sections = S.paletteSection === "all" ? Object.keys(groups) : [cap(S.paletteSection)];
+  for (const key of sections) {
+    const list = key === "Projects" ? projects : key === "Files" ? files.slice(0, 6) : tasks.slice(0, 5);
+    if (!list.length) continue;
+    html += `<div class="palette-group">${key} <span class="tabular">${list.length}</span></div>`;
+    html += list.map((item) => {
+      if (key === "Projects") {
+        return `<button class="palette-item" data-go="#/p/${encodeURIComponent(item.project_id)}/home">
+          ${icon("folder")}<span style="flex:1">${esc(item.display_name)}</span><span class="p-meta">${esc(item.health)}</span></button>`;
+      }
+      if (key === "Files") {
+        return `<button class="palette-item" data-file="${esc(item.path)}">
+          ${icon("file")}<span style="flex:1" class="mono">${esc(item.path)}</span><span class="p-meta">${esc(timeAgo(new Date((item.modified_at || 0) * 1000).toISOString()))}</span></button>`;
+      }
+      return `<button class="palette-item" data-task="${esc(item.task_id)}">
+        ${icon("check")}<span style="flex:1">${esc(item.goal)}</span><span class="p-meta">${esc(item.status)}</span></button>`;
+    }).join("");
+  }
+  results.innerHTML = html || `<div class="empty-state" style="margin:10px">No matches.</div>`;
+  paletteSelection = 0;
+  markSelected();
   results.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => { closePalette(); setRoute(b.dataset.go); }));
   results.querySelectorAll("[data-file]").forEach((b) =>
     b.addEventListener("click", () => {
@@ -1112,15 +1605,25 @@ async function renderPaletteResults(query) {
         if (viewer && context) await openFile(S.route.projectId, b.dataset.file, viewer, context);
       }, 300);
     }));
+  results.querySelectorAll("[data-task]").forEach((b) =>
+    b.addEventListener("click", () => {
+      closePalette();
+      setRoute(`#/p/${S.route.projectId}/task/${encodeURIComponent(b.dataset.task)}`);
+    }));
+}
+function markSelected() {
+  const items = document.querySelectorAll(".palette-item");
+  items.forEach((el, i) => el.classList.toggle("selected", i === paletteSelection));
+  if (items[paletteSelection]) items[paletteSelection].scrollIntoView({ block: "nearest" });
 }
 
-// ---------- refresh + events ----------
+// ================= refresh + boot =================
 let refreshSeq = 0;
 async function refresh() {
   const seq = ++refreshSeq;
   await loadSnapshot();
   await loadProjects();
-  if (seq !== refreshSeq) return; // a newer refresh supersedes this one
+  if (seq !== refreshSeq) return;
   await render();
 }
 window.addEventListener("hashchange", refresh);
@@ -1133,10 +1636,10 @@ function boot() {
       const nav = b.dataset.nav;
       if (nav === "projects" || !S.route.view || S.route.view === "projects") {
         setRoute("#/projects");
-        if (nav !== "projects") render();
-        S.route = { view: nav };
-        document.getElementById("content").innerHTML = "";
-        document.getElementById("content").append(projectRequiredNotice(cap(nav)));
+        if (nav !== "projects") {
+          S.route = { view: nav };
+          document.getElementById("content").replaceChildren(projectRequiredNotice(cap(nav)));
+        }
       } else {
         setRoute(`#/p/${S.route.projectId}/${nav}`);
       }
@@ -1158,7 +1661,13 @@ function boot() {
       e.preventDefault();
       S.paletteOpen ? closePalette() : openPalette();
     }
-    if (e.key === "Escape") closePalette();
+    if (S.paletteOpen) {
+      if (e.key === "Escape") closePalette();
+      const items = document.querySelectorAll(".palette-item");
+      if (e.key === "ArrowDown") { e.preventDefault(); paletteSelection = Math.min(paletteSelection + 1, items.length - 1); markSelected(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); paletteSelection = Math.max(paletteSelection - 1, 0); markSelected(); }
+      if (e.key === "Enter" && items[paletteSelection]) items[paletteSelection].click();
+    }
   });
   document.getElementById("palette-input").addEventListener("input", (e) => renderPaletteResults(e.target.value));
   document.getElementById("palette").addEventListener("click", (e) => {

@@ -96,6 +96,11 @@
               content: "import { createClient } from '../config/api';\nimport { logger } from '../utils/logger';\n\n// Sync orders with the remote PrintUp service.\nexport async function syncOrders(options) {\n  const { since, maxRetries = 3 } = options;\n  return client.sync(since);\n}\n",
               sha256: "b".repeat(64),
             };
+          case "artifacts_list":
+            return [
+              { name: "test-results-2026-01-14T10-24.zip", path: ".lumi/artifacts/test-results/results.zip", artifact_type: "test_report", lifecycle: "READY", sha256: "a3f9", size: 12_400_000, modified_at: Math.floor(Date.now() / 1000) - 120 },
+              { name: "coverage-report.html", path: ".lumi/artifacts/coverage/report.html", artifact_type: "coverage", lifecycle: "READY", sha256: "7e1b", size: 3_100_000, modified_at: Math.floor(Date.now() / 1000) - 720 },
+            ];
           case "get_operations_snapshot":
             return { connection: "connected", execution: "unavailable", queue: [], progress: null, pending_approvals: null, exceptions: null, evidence: null, economics: null, permissions: null };
           default:
