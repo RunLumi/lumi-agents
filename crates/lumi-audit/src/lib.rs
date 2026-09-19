@@ -17,8 +17,8 @@ pub mod evidence;
 pub mod ledger;
 pub mod verify;
 
-pub use event::{AuditEvent, AuditEventKind, PolicyOutcome};
-pub use evidence::{EvidenceError, EvidenceKind, EvidenceRecord, EvidenceStore};
+pub use event::{ActionEventDetails, AuditEvent, AuditEventKind, AuditScope, PolicyOutcome};
+pub use evidence::{EvidenceError, EvidenceKind, EvidenceRecord, EvidenceRequest, EvidenceStore};
 pub use ledger::{AuditLedger, ChainVerification, JsonlAuditLog};
 pub use verify::{
     FixtureEnvironment, PostconditionVerifier, UnavailableEnvironment, VerificationEnvironment,
