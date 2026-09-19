@@ -1,1004 +1,375 @@
 # AGENTS.md
 
-## Mission
+## Mission and standard
 
-Lumi Agents exists to make computer work reliably delegable.
+Lumi Agents makes computer work reliably delegable. It is RunLumi's execution
+substrate for useful work across APIs, browsers, files, shells, and desktop apps.
 
-It is not a demo harness, a chatbot with a mouse, or a collection of model wrappers. It is the execution substrate that lets RunLumi take economically meaningful work from intent to verified outcome across APIs, browsers, local files, shells, and native desktop applications.
+A user should be able to delegate a clear outcome, understand the authority
+being granted, leave, and return to a verified result or an actionable exception.
+The product must return more time and value than setup, supervision, recovery,
+and support consume.
 
-The quality bar is simple:
+**Build for millions of businesses by making one valuable job repeatable across
+businesses.** Scale is an ambition, not evidence for adding scope. Earn breadth
+through reliable outcomes, reusable deployments, and customers choosing to return.
 
-> If a workflow is not reliable, governable, observable, reversible where possible, and measurably useful, it is not done.
+“Insanely great” means nothing necessary is missing and nothing unnecessary
+remains. This is a continuous design test, not a claim of perfection or a reason
+to delay useful delivery. Simplicity must never remove a safety boundary,
+accessibility, verification, or recovery that the job needs.
 
-"Insanely great" means exceptional simplicity, trust, leverage, and outcomes. It does not mean maximum autonomy or maximum feature count.
+## Focus: every feature earns its place
 
-## North star
+Honor the user's explicit task scope. For product-led work, follow the current
+[product thesis](docs/product-thesis.md), [lighthouse](docs/lighthouse-role.md),
+and [execution plan](docs/plan.md). Their experiments are provisional; candidate
+ideas are not active commitments. Do not silently replace the requested task
+with your preferred roadmap.
 
-Optimize for:
+Before non-trivial work, put this compact decision in the task or PR; reuse an
+existing issue or spec rather than create another planning document:
+
+- **Outcome:** which user, recurring job, or demonstrated defect does this serve?
+- **Evidence:** observed pain, failure, safety obligation, or explicit hypothesis;
+  distinguish these from customer demand and production proof.
+- **Smallest solution:** why existing behavior, configuration, an adapter, or
+  removing a step is insufficient; name what stays out of scope.
+- **Proof:** the postcondition, representative test, and outcome metric that
+  would establish improvement against the current baseline.
+- **Cost and exit:** added user decisions, permissions, dependencies, latency,
+  support, and maintenance; name the rollback and the stop/continue threshold.
+
+A bounded experiment may proceed without customer proof if it names the missing
+fact, the cheapest test, a time/budget limit, and a decision date. Missing demand
+is a reason to test demand, not to build a broader platform.
+
+Work on the current bottleneck: safety/correctness first, then completing the
+chosen job, then reliability and recovery, then setup/support economics, then
+adjacent scope. Performance, accessibility, or design work belongs earlier when
+it is the demonstrated blocker. Finish one coherent vertical slice before
+starting another; do not bundle unrelated refactors or speculative extensibility.
+
+For additions, ask **what breaks if we omit this?** For removals, ask **which
+required outcome or protection would be lost?** Keep only what has a concrete
+answer. A new abstraction needs a second real use case or a demonstrated
+security/reliability boundary. Fewer lines are not simpler if they hide coupling.
+
+## Product craft: complete the user's journey
+
+- Start with the user's job and vocabulary. Present one clear next action per
+  state; reveal advanced controls when needed. Avoid exposing provider, agent,
+  or executor machinery unless it helps a decision.
+- Reuse established components, interaction patterns, and tokens. New screens,
+  settings, dependencies, and public concepts must pass the feature test above.
+- Design setup, permission refusal, empty/loading states, partial results,
+  interruption, restart, recovery, and completion with the happy path.
+- Progress reflects observed state. Never invent completion percentages, hide
+  uncertainty, or show success while required verification is pending.
+- Approvals explain the exact effect, account, destination, material value,
+  risk, and reversibility. Preserve required judgment; reduce routine friction
+  through narrow policy, never blanket approvals or automatic consent.
+- Make cancel, local emergency stop, exception ownership, evidence, and safe
+  takeover discoverable. Distinguish stopping future work from undoing an effect.
+- Use accessible semantics, keyboard/focus behavior, readable contrast, and
+  consistent layouts. Test changed journeys at real window sizes and supported
+  platforms; screenshots alone do not prove behavior.
+- Verify that a representative user can reach the outcome without a developer
+  narrating it. Measure time to first verified result and ongoing human effort.
+
+## Read the right source
+
+This file governs contributor decisions; it is not a second specification suite.
+Read relevant sources before editing, and reconcile conflicts explicitly.
+
+| Question | Source |
+| --- | --- |
+| What do contracts mean? | [Normative v1 specifications](docs/specs/v1/00-v1-index.md) and [ADRs](docs/adr/) |
+| What exists and what is proven? | [Readiness](docs/v1-readiness.md), [truth map](docs/implementation-truth.md), current code and checks; verify dated claims |
+| What should we prove next? | [Product thesis](docs/product-thesis.md), [lighthouse](docs/lighthouse-role.md), [plan](docs/plan.md) |
+| What may ship? | [Release gates](docs/RELEASE_GATES.md) and [v1 definition of done](docs/specs/v1/22-v1-definition-of-done.md) |
+| How do we contribute and extend? | [Contributing](CONTRIBUTING.md), [extension vocabulary](docs/extension-model.md), [reference registry](docs/references/repos.yaml) |
+
+A roadmap does not prove implementation. Tests do not prove live effects. An
+instruction file does not enforce runtime policy. Fix contradictions at their
+source; do not silently weaken a normative contract to make a change pass.
+
+## Non-negotiable execution boundary
+
+**Models propose. Policy authorizes. Executors act. Verifiers determine success.
+Audit records what happened.**
 
 ```text
-cost_per_verified_successful_workflow
+observe -> plan -> normalize -> persist consequential intent/idempotency state
+  -> authorize -> approve when required -> execute -> persist result
+  -> observe actual effect -> verify -> audit/finalize -> continue/recover/stop
 ```
 
-not for:
+No provider, remote client, webpage, plugin, worker, driver, or subagent may
+bypass this path. Persist externally visible/destructive intent before I/O;
+never hide irreversible I/O inside an uncommitted state transition.
 
-- token price in isolation;
-- number of tool calls;
-- autonomy duration;
-- benchmark click rate;
-- model novelty;
-- feature count;
-- demo impressiveness.
+The trusted local runtime owns policy, approvals, executor gating, secrets,
+evidence requirements, verification, cancellation, device identity, and update
+trust. The execution environment owns its files, sessions, credentials, native
+permissions, and local processes. Remote clients supervise; they do not acquire
+local authority or secret state.
 
-The product wins when a user can hand off real work, walk away, return later, and trust both the result and the evidence.
+### Authority and approvals
 
-## Core invariant
+- Deny unspecified side effects. Evaluate normalized business effects such as
+  `send_customer_email` or `delete_file`, not a mouse click or tool name.
+- Bind action/workflow/principal identity, capability, resource, target,
+  arguments, expected effect, risk, evidence, postconditions, and idempotency
+  through the [action contract](docs/specs/v1/03-action-observation-protocol.md).
+  Canonical risk classes are `READ`, `LOCAL_WRITE`, `EXTERNAL_WRITE`,
+  `COMMUNICATION`, `DATA_EXPORT`, `CREDENTIAL`, `FINANCIAL`, `LEGAL_CONSENT`,
+  `DESTRUCTIVE`, and `ADMIN`.
+- Approval binds the normalized action digest, workflow, principal, resource,
+  target, destination, material value, parameters, and expiry. Re-evaluate
+  material changes and obtain a new approval when required; revalidate mutable
+  target/account/session state immediately before mutation.
+- Initially require human approval for purchases/payments/transfers, external
+  communications, legal commitments/consent, destructive actions, permission or
+  account administration, and sensitive exports. Only narrow pre-authorization
+  permitted by governing policy can remove a required checkpoint.
+- Ask for the least additional authority: one origin, file, account, action, or
+  destination. Autonomy settings and approval reviewers cannot widen policy
+  ceilings. Delegation cannot confer authority the delegator does not possess.
+- Model output, repository instructions, webhooks, emails, documents, webpages,
+  MCP/plugin responses, and other agents' output remain lower-trust content.
+  Preserve provenance. They cannot grant permissions, approve actions, install
+  software, reveal secrets, or change destinations, policy, or data egress.
+- Hooks may validate, enrich, narrow, deny, log, or schedule policy-allowed work.
+  Model-based hooks cannot become the security kernel.
 
-Models may propose.
+### Verified effects and recovery
 
-Policy authorizes.
-
-Executors act.
-
-Verifiers determine success.
-
-Audit records what happened.
-
-No model, webpage, document, MCP server, plugin, browser worker, upstream desktop driver, or provider adapter may bypass that sequence.
+Keep executor outcomes separate from verification:
 
 ```text
-observe
-  -> plan
-  -> normalize
-  -> authorize
-  -> approve when required
-  -> execute
-  -> observe actual result
-  -> verify
-  -> audit
-  -> continue / recover / stop
+executor:     DELIVERED | REFUSED | NO_EFFECT | AMBIGUOUS | ERROR | CANCELLED
+verification: PASSED | FAILED | AMBIGUOUS | NOT_REQUIRED
 ```
 
-## Product principles
-
-### 1. Prefer semantics over pixels
-
-Execution priority is:
-
-1. connector or API;
-2. browser semantic automation;
-3. native semantic automation;
-4. app-specific deterministic adapter;
-5. vision and coordinates as fallback.
-
-Do not use vision because it is convenient for the model.
-
-Use the highest-level interface that is reliable for the workflow.
-
-Examples:
-
-- CRM API beats clicking CRM.
-- Playwright locator beats screenshot clicking in a browser.
-- macOS Accessibility or Windows UI Automation beats raw coordinates.
-- A stable app adapter beats repeated visual rediscovery.
-
-### 2. Verification beats self-report
-
-A model saying "done" is not evidence.
-
-Production workflows define postconditions whenever possible.
-
-Examples:
-
-- record exists;
-- expected field values match;
-- totals reconcile;
-- file exists and checksum matches;
-- email draft exists but has not been sent;
-- ticket status changed to the requested state.
-
-If required verification fails, the workflow is failed or ambiguous. Never report success because the model believes it succeeded.
-
-### 3. Authority is local and explicit
-
-The local runtime is the final authority for actions on the employee machine.
-
-Cloud orchestration and models are advisory.
-
-Policies are deny-by-default for unspecified side effects.
-
-Changed target, destination, material value, or arguments require re-evaluation.
-
-### 4. Human attention is for judgment, not routine friction
-
-Routine, rules-heavy, high-frequency work should move toward automation.
-
-Humans should stay in the loop for:
-
-- judgment;
-- relationships;
-- ambiguity;
-- exceptions;
-- consequential approvals;
-- legal or financial commitments;
-- safety-critical decisions.
-
-Do not remove a human checkpoint simply to make an autonomy demo look better.
-
-### 5. Provider neutrality is architectural
-
-No business workflow may depend on one model provider's request/response schema.
-
-Core code reasons in Lumi capability contracts.
-
-Provider adapters translate.
-
-Initial capability vocabulary:
-
-- text;
-- reasoning;
-- vision;
-- tool use;
-- structured output;
-- embeddings;
-- native computer use;
-- streaming;
-- long context;
-- local execution;
-- regional/data residency constraints.
-
-Routing considers:
-
-1. tenant data policy;
-2. provider allowlist;
-3. local/cloud constraint;
-4. required capabilities;
-5. measured workflow reliability;
-6. latency budget;
-7. cost per verified success.
-
-Never silently fail over from local-only to cloud.
-
-### 6. Replaceable engines, durable contracts
-
-Cua Driver, Playwright, model providers, browser engines, and vision models are replaceable engines.
-
-Lumi protocol, policy, workflow packs, evidence, verification, and economics are durable product contracts.
-
-Do not leak provider- or Cua-specific types into workflow schemas.
-
-### 7. Small coherent core over sprawling framework
-
-Before adding an abstraction, ask:
-
-- Is there a second real use case?
-- Does it improve reliability, security, or reuse?
-- Could a simpler adapter solve this?
-- Is this customer evidence or architecture imagination?
-
-Do not build a framework for hypothetical future elegance.
-
-
-## External learning loop
-
-Lumi should learn aggressively from excellent adjacent systems without cargo-culting them.
-
-Before a major architecture, provider, remote-control, desktop, sandbox, or orchestration decision:
-
-1. check `docs/references/repos.yaml` for relevant reference projects;
-2. inspect primary code/docs at a pinned commit, not only README marketing;
-3. write down both the transferable principle and what should **not** be copied;
-4. prefer a cheap experiment before adopting the pattern;
-5. update the reviewed commit/date and learning summary when the review materially changes our model;
-6. create/update an ADR if the learning changes Lumi architecture.
-
-A reference repository is not automatically an approved dependency. Licensing, security, provenance, and fit are reviewed separately.
-
-
-
-## Research-derived runtime rules
-
-These rules are now architecture invariants, informed by the reference reviews under `docs/references/`.
-
-### Transport success is not effect success
-
-A tool call returning OK does not mean the intended business effect happened.
-
-Executors must normalize outcomes and verifiers must prove required postconditions.
-
-Prefer:
-
-- `DELIVERED`
-- `REFUSED`
-- `NO_EFFECT`
-- `AMBIGUOUS`
-- `ERROR`
-- `CANCELLED`
-
-Never convert "unsupported", "unproven", or "OS API returned success" into verified success without an effect oracle.
-
-### Refuse precisely before unsafe fallback
-
-If a safe semantic/background route is unavailable, return a structured refusal when policy does not authorize escalation.
-
-Do not silently cross:
-
-- semantic -> raw global pointer;
-- background -> foreground;
-- isolated browser -> authenticated profile;
-- sandbox -> host shell;
-- narrow network scope -> unrestricted network.
-
-### Ask for the narrowest extra permission
-
-When blocked, request the least additional authority that can solve the task.
-
-One origin beats all-network access.
-
-One file beats a directory tree.
-
-One account/action/destination beats session-wide approval.
-
-### Persist intent before consequential side effects
-
-For an externally visible or destructive action:
-
-1. normalize;
-2. persist intent/idempotency state;
-3. authorize;
-4. approve if required;
-5. execute;
-6. persist result;
-7. verify;
-8. finalize.
-
-Do not bury irreversible external I/O inside an uncommitted state transition.
-
-### Capabilities, not synchronized versions
-
-Desktop, web, mobile, provider adapters, and execution environments may upgrade independently.
-
-Feature code must ask whether a capability exists.
-
-Do not infer capability from client version alone and do not silently ignore unsupported fields.
-
-### Environment owns local work
-
-Filesystem state, app/browser sessions, local credentials, native permissions, and locally running provider/harness processes belong to the execution environment.
-
-Remote clients supervise them.
-
-Do not copy authority or secret state into a remote control surface for convenience.
-
-### Project owns durable local working context
-
-Work-mode folder/repository work follows Spec 26:
+A transport OK, OS API success, generated report, or model self-report does not
+prove the business effect. Define postconditions before execution; read back
+actual records, fields, reconciled totals, artifact checksums, or draft/send
+state. Use an independent effect oracle where possible. Required verification
+must pass; never substitute `NOT_REQUIRED` to clear a failure.
+
+Fail closed on missing/invalid policy or signature, policy errors, unknown
+risk/capability, invalid/mismatched approval, unavailable required secrets,
+verifiers or privacy controls, failed required persistence, exhausted budgets,
+or ambiguous consequential effects. Report the specific blocker and safe next
+step; do not silently fall back to broader authority.
+
+Long-running work needs durable checkpoints, scoped idempotency, deadlines,
+action/provider budgets, cancellation, bounded retries, and a human exception
+route. A timeout or crash does not prove no effect. Reconcile possible prior
+success before replay; quarantine ambiguity. Retry only proven-safe operations
+within budget. Compensation is another authorized action, not automatic undo.
+A cancelled task must not schedule further effects; report any already in flight.
+
+Classify failures with the [canonical taxonomy](docs/specs/v1/18-error-taxonomy-retry-recovery.md).
+Fix the failing layer; do not assume a smarter model solves policy, selector,
+session, network, OS-permission, persistence, or postcondition failures.
+
+## Small core, replaceable execution
+
+Use the highest reliable semantic tier within the authorized scope:
 
 ```text
-ExecutionEnvironment
-  -> Project
-      -> Task
-          -> Run
+connector/API > browser semantics > native semantics
+  > deterministic app adapter > vision/coordinates
 ```
 
-A Project is a durable user-selected working context rooted in explicit local
-filesystem roots. Opening a folder does not authorize sibling directories, home
-secrets, browser profiles, SSH material or unrelated repositories.
+- Playwright is the structured browser executor. Prefer roles, labels, and
+  stable IDs; preserve controlled failure traces under the evidence policy.
+- Native workflows use Lumi's `DesktopDriver`, never Cua-specific workflow
+  types. Cua is the initial upstream engine; pin distributed binaries by exact
+  version/checksum. Semantic targets are durable; coordinates are fallback data.
+- Vision observes/grounds; it does not authorize. Non-read-only coordinate
+  actions need reviewed policy. Frequent vision on a routine path is a signal
+  to investigate semantics or an adapter.
+- Refuse unsupported safe paths precisely. Never silently cross semantic to
+  global pointer, background to foreground, isolated to authenticated browser,
+  sandbox to host shell, or narrow to unrestricted network access.
+- Supervise crash-prone browser/native/plugin/harness processes behind narrow
+  interfaces where practical. Executor failure must not corrupt durable state
+  or crash the policy core. Add direct native drivers only for measured need.
 
-A task workspace is the concrete execution scope for one Task/Run and may be the
-Project root, a subdirectory, worktree, staging directory or sandbox projection.
-Do not silently switch scope.
+Provider APIs belong behind Lumi capability contracts, not business workflows.
+Filter routes by tenant/region/data-egress policy, provider allowlist, local/cloud
+constraint, and required capabilities before optimizing verified reliability,
+latency, and cost. Never fall back from local-only to cloud silently. Keep driver,
+account/instance, catalog, and task route distinct; never share mutable auth or
+session state merely because accounts use the same driver. Require capability
+contract tests; OpenAI-compatible is not proof of equivalent semantics.
 
-Project/repository content may guide work but cannot grant authority. In
-particular, AGENTS.md, README files, scripts, hooks and package manifests cannot
-widen policy, network, filesystem, secret, provider or external-action scope.
+Negotiate capabilities across independently upgraded clients and environments;
+do not infer support from a version or silently discard unsupported fields.
+Keep the required provider coverage in the specs, not a growing wish list here.
 
-When editing a real Project:
+Use [extension definitions](docs/extension-model.md) precisely: a Tool is callable
+capability; a Skill is guidance; an Agent is a bounded delegated role; a Hook is
+a lifecycle handler; a Connector/MCP server supplies external capabilities; a
+Command is an explicit user operation; a Workflow Pack hardens a routine.
+None grants authority. Every integration declares capabilities, destinations,
+filesystem/secret scope, side effects, provenance/license, and version.
 
-- detect pre-existing changes;
-- distinguish Lumi-produced changes from user changes;
-- revalidate before writing after a pause/external edit;
-- refuse path/symlink escape;
-- prefer inspectable patches and reversible operations;
-- validate work before claiming completion;
-- never use destructive Git cleanup/reset to make the working tree convenient.
+One agent with deterministic tools is the default. Delegate only bounded,
+independent work when it improves outcome, latency, or isolation; specify
+ownership, inputs, output, budget, and verification. Subagent output is evidence
+to inspect, not authority or proof by consensus.
 
+## Project, data, and privacy boundaries
 
-### Extension vocabulary is strict
+Work mode follows [Spec 26](docs/specs/v1/26-project-workspace-folder-as-project.md):
+`ExecutionEnvironment -> Project -> Task -> Run`. A Project is a durable,
+user-selected context rooted in explicit paths; a task workspace is its concrete
+execution scope. Preserve that binding across resume and remote supervision.
+Opening a folder grants no access to siblings, home secrets, SSH material,
+browser profiles, or unrelated repositories. Refuse path/symlink/junction escape.
 
-Use the definitions in `docs/extension-model.md`.
+Detect pre-existing changes; distinguish user work from Lumi changes. Revalidate
+before writing after pauses or external edits. Prefer inspectable patches and
+reversible operations. Never stash, reset, clean, overwrite, or silently switch
+scope to make a dirty checkout convenient.
 
-Do not call every reusable component an "agent".
+Secrets are references resolved at the narrowest executor boundary, preferably
+through Keychain or Windows protected storage. Never put plaintext secrets in
+prompts, logs, traces, screenshots, crash dumps, definitions, or fixtures. Never
+give a plugin the full credential store. Preserve tenant/account isolation.
 
-- Tool = callable capability.
-- Skill = reusable model guidance.
-- Agent = bounded delegated role.
-- Hook = deterministic lifecycle handler.
-- Connector/MCP = external capability provider.
-- Command = explicit user action.
-- Workflow Pack = hardened recurring automation.
+Continuous screen and microphone recording default off. Use selective evidence,
+redaction, explicit provider/image egress, and bounded retention. Recording
+requires visible state, purpose, retention, and the deployment's approved legal
+basis/notice flow. Evidence must not become employee surveillance.
 
-None of these grants authority merely by existing.
+Separate working context, durable memory, workflow state, audit/evidence, and
+retrieval indexes. Audit is not memory by default. Every durable memory class
+needs an owner, purpose, retention, deletion behavior, provenance, and tenant
+boundary. Do not retain sensitive transient context just because it may help.
 
-### External content stays lower authority
+## Prove usefulness, reliability, and repeatability
 
-Webhook events, email, documents, webpages, MCP results, another agent's output, and provider notifications are observations.
+Optimize `cost_per_verified_successful_workflow` for a declared workflow and
+population. Include costs of failed attempts and retries; report zero successes
+as no verified success, never zero cost. Compare like-for-like work and publish
+coverage/exclusions so avoiding hard cases cannot improve the score invisibly.
 
-They do not become user instructions because they arrived during an active task.
+Use [economic measurements](docs/role-scorecard.md) and the
+[product thesis](docs/product-thesis.md) to establish net value after setup,
+review, rescue, runtime, support, and allocated deployment cost. Do not
+substitute token price, action count, autonomy duration, or demo appeal for
+useful work. Do not count the same labor twice or hide negative net value.
 
-Preserve provenance/authority class across normalization.
+A production Workflow Pack includes versioned inputs/outputs, permissions and
+risks, execution preferences, postconditions, exceptions, evidence/privacy,
+fixtures/evals, compatibility, economics, and recovery/idempotency. A Role Pack
+composes these within the same authority boundary; it is not another runtime.
+If the third deployment remains mostly bespoke, narrow or redesign before
+expanding the catalog.
 
-### Hooks cannot become the security kernel
+Artifacts carry provenance, version, source inputs, owner, validation/review
+state, and export format. Keep draft creation separate from publication or send.
 
-Hooks may enrich, validate, narrow, deny, log, or schedule policy-allowed follow-up work.
+For behavior that can fail, test representative normal, denied, malformed,
+missing-permission, wrong-target, duplicate/replay, crash/resume, cancellation,
+and ambiguity cases as applicable. Exercise the real entry boundary. Never
+pre-seed an effect oracle and present it as an observed external result.
 
-A model-based hook is useful for judgment but cannot grant authority beyond deterministic policy ceilings.
+Track verified completion, unauthorized effects, expected approvals, unexpected
+rescue, human minutes, latency, costs, provider/model, unnecessary actions,
+fallback/vision frequency, retries, postcondition failures, and OS/app versions.
+Keep failed and ambiguous units in the declared denominator. Report correct
+refusals/escalations separately; they are not completed routine work. Preserve
+escaped failures as regression cases, subject to privacy policy.
 
-### Provider accounts are instances, not globals
+Minimum [release gates](docs/RELEASE_GATES.md), not customer guarantees:
 
-Keep provider driver, provider instance/account, model catalog, and task route separate.
+| Stage | Required workflow evidence |
+| --- | --- |
+| Alpha | At least 30 repeated runs; at least 90% verified completion; zero unauthorized effects |
+| Customer canary | At least 100 representative runs; at least 95% verified completion; less than 5% unexpected rescue; zero policy bypasses |
+| Mature narrow workflow | Target 99%+ on an explicitly certified OS/app/version matrix |
 
-Do not share mutable auth/session/catalog state across two accounts merely because they use the same provider driver.
+These floors do not override stricter workflow/risk gates. Expected approvals
+are not rescue. Reliability never removes consequential-action approvals. When
+a gate fails, restore or narrow the affected path before expanding it. Fixture,
+local test, hosted CI, live-system, signed-release, and customer-economic evidence
+are separate claims; state what remains unverified.
 
-### Risky engines should be supervised
+## Delivery discipline
 
-Prefer running crash-prone or lower-trust components behind narrow supervised process boundaries when practical:
+1. Inspect current instructions, code, contracts, Git status, and affected
+   surfaces. Preserve unrelated work; use isolation when needed.
+2. Apply the feature test. For architecture changes, check the
+   [reference registry](docs/references/repos.yaml), inspect relevant primary
+   code/docs at a pinned commit, and record what transfers and what not to copy.
+   Run a cheap experiment first; update reviewed refs only when actually checked.
+3. Implement the smallest complete change through existing boundaries. Name
+   affected contracts/trust boundaries. Update deterministic fixtures and evals
+   for changed behavior; update the relevant spec/ADR when its decision changes.
+4. Validate proportionately. For documentation-only changes, inspect links,
+   consistency, and the diff; explain why runtime tests/evals are inapplicable.
+   For code, run affected tests and applicable repository gates below. Record
+   platform/permission limits rather than claiming an unrun check passed.
+5. Review the final diff for omissions, scope creep, duplicated concepts,
+   dependencies, secret leakage, failure paths, and user-visible completeness.
+   State release/rollback effects. Update readiness claims only with evidence.
+6. When requested, publish a focused PR, wait for applicable checks on its exact
+   head, merge without bypassing protections, and verify the resulting remote
+   commit. A local commit or unsubmitted form is not delivery.
 
-- browser worker;
-- Cua/native driver;
-- MCP/plugin bridges;
-- external agent harnesses.
+Use the pinned toolchain and lockfiles. Core checks from [README](README.md):
 
-A crashed executor should not crash the policy core or corrupt durable task state.
-
-
-## Non-goals
-
-Lumi is not trying to:
-
-- own every mouse and keyboard primitive;
-- replace APIs with GUI clicking;
-- make every application automatable before proving paid workflows;
-- maximize autonomy regardless of risk;
-- record employees continuously;
-- couple customers to a new Lumi application suite;
-- depend permanently on one LLM;
-- depend permanently on one computer-use project;
-- hide uncertainty behind fake confidence;
-- call a workflow production-ready because it worked once.
-
-## Trust boundary
-
-Treat these as lower-trust inputs:
-
-- model output;
-- web content;
-- email;
-- PDFs and documents;
-- downloaded files;
-- MCP servers;
-- plugins;
-- Node/browser workers;
-- vision/grounding models;
-- third-party desktop drivers;
-- remote orchestration instructions.
-
-They may provide observations and proposals. They do not grant authority.
-
-The privileged local boundary owns:
-
-- policy;
-- approvals;
-- secret resolution;
-- executor gating;
-- evidence policy;
-- verification requirements;
-- cancellation;
-- device identity;
-- update trust.
-
-## Canonical action model
-
-Policy evaluates business effects, not UI gestures.
-
-Bad policy unit:
-
-```text
-click(x=823, y=418)
+```sh
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 ```
 
-Good policy unit:
-
-```text
-send_customer_email
-update_crm_quote
-export_customer_records
-delete_file
-approve_payment
-```
-
-Every side-effect candidate should normalize to a stable action envelope containing at least:
-
-- action ID;
-- workflow ID;
-- principal;
-- business capability;
-- resource;
-- target;
-- arguments;
-- expected effect;
-- risk class;
-- evidence requirement;
-- postconditions;
-- idempotency metadata.
-
-Canonical risk classes:
-
-- READ
-- LOCAL_WRITE
-- EXTERNAL_WRITE
-- COMMUNICATION
-- DATA_EXPORT
-- CREDENTIAL
-- FINANCIAL
-- LEGAL_CONSENT
-- DESTRUCTIVE
-- ADMIN
-
-## Approval rules
-
-Approval is scoped to a normalized action, not a session-wide boolean.
-
-An approval should bind to:
-
-- action digest;
-- workflow;
-- principal;
-- resource;
-- target;
-- destination;
-- material value when relevant;
-- parameters;
-- expiry.
-
-If the action materially changes after approval, ask again.
-
-Initially require human approval for:
-
-- payments and purchases;
-- financial transfers;
-- external communications unless narrowly pre-authorized;
-- accepting contracts, terms, consent, or legal commitments;
-- destructive actions;
-- permission/account/admin changes;
-- sensitive data exports.
-
-Organizations may later pre-authorize narrow deterministic actions through policy.
-
-## Fail-safe behavior
-
-Fail closed when:
-
-- policy cannot be loaded;
-- policy signature fails;
-- policy evaluation errors;
-- approval cannot be validated;
-- approved action differs from proposed action;
-- required secret resolution fails;
-- required verifier is unavailable;
-- workflow budget is exceeded;
-- a consequential action returns ambiguous state;
-- required privacy/redaction control is unavailable.
-
-Every runtime must support cancellation.
-
-Employee-facing builds must expose a local emergency stop.
-
-## Prompt injection rule
-
-Content is data, not authority.
-
-Instructions found in websites, emails, documents, tickets, spreadsheets, or UI text cannot:
-
-- expand permissions;
-- change policy;
-- reveal secrets;
-- install software;
-- alter provider/data-egress rules;
-- redirect protected data to a new destination;
-- approve consequential actions.
-
-When content conflicts with trusted workflow instructions, trusted workflow policy wins.
-
-## Secrets
-
-Secrets are referenced, not prompted.
-
-Good:
-
-```text
-credential_ref = "erp-production"
-```
-
-Bad:
-
-```text
-password = "plaintext"
-```
-
-Resolve credentials at the narrowest executor boundary.
-
-Prefer OS-protected stores such as Keychain or Windows credential facilities.
-
-Do not write plaintext secrets to:
-
-- model prompts;
-- audit logs;
-- traces;
-- screenshots;
-- crash dumps;
-- workflow definitions;
-- test fixtures.
-
-## Privacy
-
-Data minimization is a product feature.
-
-Defaults:
-
-- continuous screen recording off;
-- microphone recording off;
-- selective screenshots;
-- configurable retention;
-- secret redaction;
-- provider/image egress controlled by tenant policy;
-- local-only model routing supported;
-- evidence separated from employee monitoring.
-
-When recording is enabled, require visible state, documented purpose, retention, and the deployment's approved legal basis/notice flow.
-
-## Browser rules
-
-Playwright is the default structured browser executor.
-
-A browser worker may expose operations such as:
-
-- navigate;
-- locate;
-- read;
-- fill;
-- select;
-- click;
-- upload;
-- download;
-- wait;
-- snapshot;
-- trace.
-
-The browser worker is not the policy authority.
-
-A worker being technically capable of clicking Send does not authorize sending.
-
-Avoid brittle selectors when accessibility roles, labels, or stable IDs exist.
-
-Preserve traces for failures in controlled test environments. Apply customer evidence policy in production.
-
-## Native desktop rules
-
-Workflow definitions must not call Cua directly.
-
-Use a Lumi-owned DesktopDriver interface.
-
-Preferred target description is semantic:
-
-```text
-role=button
-name="Save draft"
-window="Quote"
-```
-
-Coordinates are fallback execution data, not durable workflow identity.
-
-Cua is the initial upstream native engine.
-
-Pin exact versions and checksums.
-
-Fork only for a demonstrated product/security reason after adapter/upstream paths fail.
-
-Long-term direct drivers may use:
-
-- macOS Accessibility / AXUIElement;
-- ScreenCaptureKit when pixels are required;
-- Windows UI Automation;
-- platform capture primitives where pixels are required.
-
-Build direct native drivers only when measured customer workloads justify the maintenance cost.
-
-## Vision rules
-
-Vision is a fallback observer and grounder.
-
-It may:
-
-- interpret screenshots;
-- locate elements;
-- detect visual state;
-- propose coordinates;
-- assist verification.
-
-It does not authorize.
-
-Non-read-only coordinate actions remain conservative until a reviewed workflow policy explicitly permits them.
-
-If a mature routine workflow spends a large fraction of steps in raw vision, investigate a semantic or app-specific adapter before adding more model cleverness.
-
-## Model/provider rules
-
-Core runtime must support multiple providers without provider-specific business logic.
-
-Planned adapter families:
-
-Tier 1:
-- OpenAI
-- Anthropic
-- Gemini
-
-Tier 2:
-- Azure OpenAI
-- AWS Bedrock
-- OpenRouter
-- xAI/Grok where the required contracts are supported
-- OpenAI-compatible endpoints
-- local Ollama
-- local/on-prem vLLM or validated compatible servers
-
-Each adapter must pass capability contract tests.
-
-Do not assume OpenAI-compatible means semantically identical.
-
-Provider fallback must remain inside the same privacy and data-egress envelope.
-
-## Context and memory
-
-Separate:
-
-- current-task working context;
-- durable user/org memory;
-- workflow state;
-- evidence/audit history;
-- vector/semantic retrieval indexes.
-
-Do not use audit logs as memory by default.
-
-Do not persist sensitive transient context merely because it may improve future model performance.
-
-Every durable memory class needs:
-
-- owner;
-- purpose;
-- retention;
-- deletion behavior;
-- provenance;
-- tenant boundary.
-
-## Long-running work
-
-Long-running tasks require durable state.
-
-Use:
-
-- checkpoints;
-- idempotency keys;
-- resumable steps;
-- explicit deadlines;
-- action budgets;
-- provider budgets;
-- cancellation tokens;
-- retry classes;
-- human exception queues.
-
-Never replay a side effect merely because a process crashed.
-
-Recovery must understand whether the previous action may already have succeeded.
-
-## Subagents
-
-Use subagents only when they improve measured outcome, latency, or isolation.
-
-Good reasons:
-
-- parallel independent research;
-- specialized code/test review;
-- isolated browser task;
-- independent verification;
-- bounded artifact generation.
-
-Bad reasons:
-
-- decorative "multi-agent" architecture;
-- duplicating the same context across many expensive calls;
-- using consensus as a substitute for verification.
-
-One strong agent with deterministic tools is the default.
-
-## MCP and plugins
-
-MCP servers and plugins are capability providers, not trusted authorities.
-
-Every integration must declare:
-
-- capabilities;
-- network destinations;
-- filesystem scope;
-- secret access;
-- side effects;
-- provenance/license;
-- version.
-
-Never give an MCP server the complete credential store.
-
-Side-effecting plugin calls still pass Lumi policy.
-
-## Workflow packs
-
-A workflow pack is a versioned automation product.
-
-Every production pack must include:
-
-- explicit inputs/outputs;
-- permissions;
-- risk classes;
-- execution-tier preferences;
-- postconditions;
-- exception behavior;
-- evidence policy;
-- fixtures/evals;
-- platform/app version matrix where relevant;
-- privacy classification;
-- economic baseline fields;
-- rollback/idempotency behavior where possible.
-
-Every customer deployment should produce reusable pack assets rather than one-off hidden customization.
-
-If the third deployment of the same "pack" is still mostly bespoke, the pack abstraction is not working.
-
-## Artifacts
-
-Agents may create documents, spreadsheets, presentations, code, reports, and other artifacts.
-
-Artifacts are first-class outputs with:
-
-- provenance;
-- version;
-- source inputs;
-- validation state;
-- owner;
-- export format;
-- review status.
-
-For business-critical artifacts, separate draft creation from externally visible publication/send.
-
-## Evaluation
-
-No production workflow without an eval pack.
-
-Track at minimum:
-
-- verified completion rate;
-- unauthorized side effects;
-- unexpected human rescue rate;
-- expected human approval rate;
-- action count;
-- unnecessary-action rate;
-- latency;
-- provider/model;
-- inference/tool cost;
-- cost per verified success;
-- executor fallback frequency;
-- vision frequency;
-- retry/resume behavior;
-- postcondition failures;
-- failure taxonomy;
-- OS/app/version matrix;
-- workflow economic outcome.
-
-Preserve escaped production failures as regression cases.
-
-Do not remove hard scenarios to improve a benchmark.
-
-## Reliability targets
-
-Early alpha:
-
-- at least 30 repeated runs per target workflow;
-- at least 90% verified completion in controlled scenarios;
-- zero unauthorized side effects.
-
-Customer pilot:
-
-- at least 100 representative runs per certified workflow;
-- at least 95% verified completion;
-- fewer than 5% unexpected human-rescue events on hardened routine paths;
-- zero policy bypasses in the release corpus.
-
-Long-term narrow hardened workflows should approach 99%+ verified completion on explicitly certified OS/app/version combinations.
-
-High technical reliability never removes the need for human approval on consequential actions.
-
-## Failure taxonomy
-
-Use stable failure categories so we improve the correct layer:
-
-- MODEL_REASONING
-- MODEL_FORMAT
-- POLICY_DENY_EXPECTED
-- POLICY_BUG
-- APPROVAL_TIMEOUT
-- CONNECTOR_FAILURE
-- BROWSER_SELECTOR
-- BROWSER_STATE
-- NATIVE_ELEMENT
-- VISION_GROUNDING
-- OS_PERMISSION
-- AUTH_SESSION
-- UPSTREAM_DRIVER
-- NETWORK
-- RATE_LIMIT
-- POSTCONDITION
-- AMBIGUOUS_STATE
-- CRASH
-- USER_CANCEL
-
-Do not assume a smarter model fixes every failure.
-
-## Dependency and licensing rules
-
-Before adding any dependency ask:
-
-1. What exact capability do we need?
-2. Can an existing dependency already do it?
-3. What is the license?
-4. Does it bundle binaries, models, datasets, or assets under different terms?
-5. Is it maintained?
-6. Is it security-sensitive?
-7. Can we isolate it behind a replaceable adapter?
-
-Required:
-
-- locked dependencies;
-- GitHub Actions pinned by commit SHA;
-- distributed external binaries pinned by version and checksum;
-- advisory scanning;
-- license scanning;
-- SBOM for releases;
-- third-party notices.
-
-AGPL, GPL in distributed/runtime-sensitive positions, SSPL-like, non-commercial, research-only, unknown, custom model licenses, and ambiguous assets require explicit review.
-
-The Lumi open runtime is Apache-2.0. Preserve all compatible upstream notices.
-
-## Upstream and fork policy
-
-Prefer adapter > contribution upstream > minimal fork > full replacement.
-
-Fork only when at least one is true:
-
-- required pre-action security behavior cannot be implemented externally;
-- a breaking upstream change blocks two Lumi release trains;
-- a critical security fix cannot land in time;
-- a paid workflow has a persistent reliability bug requiring internal changes;
-- upstream licensing becomes incompatible;
-- required platform support diverges materially;
-- profiling proves the material bottleneck is inside the upstream engine.
-
-If forked:
-
-- vendor the smallest possible surface;
-- preserve notices;
-- maintain an explicit patch queue;
-- continuously compare upstream;
-- plan an exit path.
-
-## Change protocol
-
-For any non-trivial change:
-
-1. state the user/business outcome;
-2. identify the trust boundary affected;
-3. name the protocol or contract changed;
-4. add/update the deterministic fixture;
-5. add/update evals;
-6. document failure and recovery behavior;
-7. check dependency/license impact;
-8. update an ADR if the architecture decision changes;
-9. verify cross-platform impact;
-10. leave a durable artifact: tests, spec, runbook, or decision record.
-
-## PR questions
-
-Every PR introducing a new side effect must answer:
-
-1. What normalized business action occurs?
-2. What risk class is it?
-3. What capability authorizes it?
-4. Does it require approval?
-5. Which secrets can it access?
-6. What evidence is recorded?
-7. How is success verified?
-8. How does it fail closed?
-9. How is retry/idempotency handled?
-10. Which OS/app/provider combinations are tested?
-11. What dependency/license risk is added?
-12. What is the rollback path?
-
-If these answers are unclear, the PR is not ready.
-
-## Definition of done
-
-A feature is done only when:
-
-- user outcome is clear;
-- architecture boundaries remain intact;
-- tests pass;
-- eval exists for behavior that can fail;
-- security/policy behavior is explicit;
-- failure modes are documented;
-- evidence/verification exists where needed;
-- dependency/license review is complete;
-- docs/ADR are updated when contracts changed;
-- observable metrics exist;
-- release/rollback implications are understood.
-
-"Works on my machine" is not done.
-
-"Model completed the demo once" is not done.
-
-## Decision heuristics
-
-When choosing between:
-
-- generality and reliability;
-- model cleverness and deterministic semantics;
-- autonomy and bounded authority;
-- feature breadth and verified economics;
-- bespoke implementation and reusable pack;
-- fast demo and safe release;
-
-prefer:
-
-- reliability;
-- semantics;
-- bounded authority;
-- verified economics;
-- reusable assets;
-- safe release.
-
-## Engineering taste
-
-Delete more than you add when possible.
-
-Make dangerous things difficult.
-
-Make safe common things simple.
-
-Keep interfaces narrow.
-
-Name business effects precisely.
-
-Treat latency as product quality.
-
-Treat approvals as UX, not bureaucracy.
-
-Treat failure recovery as a first-class feature.
-
-Treat privacy as architecture.
-
-Treat evals as product development, not QA cleanup.
-
-Treat customer workflow economics as a runtime metric.
-
-## Final standard
-
-Build the system you would trust on your own computer, logged into your own email, bank, code, files, CRM, and company systems.
-
-If you would hesitate to let it run there, it is not ready for a customer's machine.
+[CI](.github/workflows/ci.yml) also covers desktop and dependency policy;
+[browser protocol checks](.github/workflows/browser-protocol.yml) exercise the
+actual worker handler. Run the relevant surface's checks; do not equate injected
+adapters with a live browser. OS Keychain checks require host permission.
+
+Every PR adding a side effect must state the normalized action/risk, authorizing
+capability, approval, accessible secrets, evidence/verifier, fail-closed behavior,
+retry/idempotency, tested OS/app/provider scope, dependency/license impact, and
+rollback. Missing answers mean the change is not ready.
+
+Before adding a dependency, verify the exact need, existing alternatives,
+maintenance, provenance/license (including bundled assets/models/binaries),
+security exposure, and replaceable boundary. Lock dependencies; pin Actions by
+commit SHA and distributed binaries by version/checksum. Preserve advisory and
+license scans, release SBOMs, and third-party notices. The open runtime is
+Apache-2.0; copyleft in runtime/distribution, non-commercial, research-only,
+unknown, or custom/restrictive licenses require explicit review.
+
+Prefer adapter -> upstream contribution -> minimal fork -> replacement. Fork
+only for demonstrated security, release-blocking compatibility, paid-workflow
+reliability, licensing/platform divergence, or measured upstream bottlenecks.
+Keep the smallest patch queue, notices, upstream comparison, and an exit path.
+
+Done means the intended outcome is verified at the claimed level, applicable
+checks pass, failure/recovery is explicit, and docs, dependencies, compatibility,
+release, and rollback obligations are satisfied. No production workflow without
+an eval pack. No unsupported claim of readiness because a demo worked once.
+
+## Keep this guide small
+
+Keep enduring decision rules here; keep schemas, catalogs, changing plans, and
+detailed procedures in their canonical documents. Add a rule only when it
+changes a recurring decision; merge duplicates and remove obsolete guidance
+without weakening required protections.
+
+Useful external foundations: [Google SRE on simplicity](https://sre.google/sre-book/simplicity/),
+[AWS on retry-safe APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/),
+and [GOV.UK on simple, tested user journeys](https://www.gov.uk/service-manual/service-standard/point-4-make-the-service-simple-to-use).
+Apply their principles at Lumi's measured scale, not their organizational size.
+
+**Ship the smallest complete product you would trust with your own important
+work. Expand only when evidence earns the next step.**
