@@ -29,6 +29,8 @@ fn hundred_runs_per_pack_meet_alpha_gates() {
     let packs_dir = repo_packs_dir();
     for pack in &packs {
         let report = evaluate_pack(pack, &packs_dir, 100);
+        assert_eq!(report.evidence_class, "FIXTURE");
+        assert!(!report.economics_measured);
         assert_eq!(report.runs, 100, "{}", report.workflow_id);
         assert_eq!(
             report.verified_completions, 100,
@@ -52,6 +54,22 @@ fn hundred_runs_per_pack_meet_alpha_gates() {
         // Economics derivations exist for every pack (spec 22.10 seed).
         assert!(report.economics_derived.net_value_monthly_micro_usd > 0);
     }
+}
+
+#[test]
+fn fixture_implementation_cost_uses_micro_dollars_not_cents() {
+    let packs = load_v1_packs(&repo_packs_dir()).unwrap();
+    let invoice = packs
+        .iter()
+        .find(|pack| pack.manifest.pack_id == "invoice-reconciliation")
+        .unwrap();
+    let report = evaluate_pack(invoice, &repo_packs_dir(), 1);
+    // Declared 60 implementation hours at the fixture's $60/h assumption:
+    // $3,600, not the former $360,000 caused by a 100x unit conversion error.
+    assert_eq!(
+        report.economics_declared.implementation_cost_micro_usd,
+        3_600_000_000
+    );
 }
 
 #[test]

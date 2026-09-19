@@ -7,14 +7,17 @@
 //! with SLO evidence and economics derivations.
 //!
 //! The harness ships with deterministic fixture executors so the whole
-//! certification corpus is reproducible in CI. Real-connector runs use
-//! the same harness with real executors wired.
+//! certification corpus is reproducible in CI. `evaluate_pack` is fixture-only;
+//! live runs require a real adapter and independent postcondition environment.
 
 pub mod fixtures;
+pub mod roles;
 
 use lumi_evals::{DerivedEconomics, MetricStore, SloLevel, SloReport, WorkflowEconomics};
 use lumi_packs::WorkflowPack;
 use std::path::{Path, PathBuf};
+
+pub use roles::{load_role_pack, repo_roles_dir, PreparedRoleRun, ResolvedRolePack, RoleRunError};
 
 /// Loads a pack definition from a `pack.json` file.
 ///
@@ -51,6 +54,10 @@ pub fn load_v1_packs(packs_dir: &Path) -> Result<Vec<WorkflowPack>, String> {
 /// Certification evidence for one workflow pack.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CertificationReport {
+    /// This harness never produces live-system certification evidence.
+    pub evidence_class: &'static str,
+    /// Baselines below are declared hypotheses, never measured customer ROI.
+    pub economics_measured: bool,
     pub workflow_id: String,
     pub runs: u32,
     pub verified_completions: u32,
@@ -89,11 +96,13 @@ pub fn evaluate_pack(pack: &WorkflowPack, packs_dir: &Path, runs: u32) -> Certif
             .runtime_variable_cost_per_run_micro_usd,
         support_cost_monthly_micro_usd: 0,
         implementation_cost_micro_usd: u64::from(pack.manifest.economics.implementation_hours)
-            * 6_000_000_000, // $60/h loaded
+            * 60_000_000, // Fixture hypothesis: $60/h implementation labor.
         cycle_time_before_minutes: pack.manifest.economics.manual_minutes_per_run,
         cycle_time_after_minutes: pack.manifest.economics.residual_human_minutes_per_run,
     };
     CertificationReport {
+        evidence_class: "FIXTURE",
+        economics_measured: false,
         workflow_id: pack.manifest.pack_id.clone(),
         runs: aggregate.runs,
         verified_completions: aggregate.verified_completions,

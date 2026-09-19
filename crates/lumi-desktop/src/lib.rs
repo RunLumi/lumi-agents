@@ -10,6 +10,11 @@
 
 pub mod api;
 pub mod permissions;
+pub mod runtime;
 
-pub use api::DesktopBackend;
+pub use api::{
+    ConnectionState, DesktopBackend, EconomicsSummary, EvidenceSummaryEntry, ExecutionState,
+    IssuedApproval, KillSwitchState, OperationsSnapshot, PendingApproval,
+};
 pub use permissions::{PermissionCheckResult, PermissionState, PermissionStatus};
+pub use runtime::DesktopRuntime;

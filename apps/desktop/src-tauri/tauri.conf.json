@@ -7,6 +7,7 @@
     "frontendDist": "../src"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Lumi Agents",
@@ -24,6 +25,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": []
+    "icon": [
+      "icons/lumi-development.png",
+      "icons/lumi-development.ico"
+    ]
   }
 }
