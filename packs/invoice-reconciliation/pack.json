@@ -179,7 +179,7 @@
       "operation": "write_reconciliation_report",
       "arguments_template": {
         "period": "$input.period",
-        "output": "workspaces/recon/report-$input.period.json"
+        "output": "workspaces/recon/report-${input.period}.json"
       },
       "preferred_tier": "CONNECTOR_API",
       "allowed_fallback_tiers": [
@@ -193,19 +193,19 @@
           "id": "report-written",
           "description": "Report artifact exists",
           "check": "file_exists",
-          "path": "workspaces/recon/report.json"
+          "path": "workspaces/recon/report-${input.period}.json"
         }
       ],
       "idempotency": {
-        "key": "recon-report",
+        "key": "recon-$input.period-$input.ledger_account",
         "semantics": "CLIENT_KEY"
       },
       "evidence": [
         "CHECKSUM"
       ],
       "resource_type": "file",
-      "resource_id_template": "workspaces/recon/report-$input.period.json",
-      "target_template": "file://workspaces/recon/report-$input.period.json",
+      "resource_id_template": "workspaces/recon/report-${input.period}.json",
+      "target_template": "file://workspaces/recon/report-${input.period}.json",
       "exception_route": {
         "triggers": [
           "FILESYSTEM"

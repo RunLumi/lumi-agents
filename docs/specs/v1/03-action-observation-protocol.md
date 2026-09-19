@@ -69,7 +69,10 @@ Once approved, material fields MUST NOT change.
 Material fields include:
 
 - capability;
-- resource;
+- resource identity and sensitivity;
+- risk class;
+- tenant and acting principal identity;
+- idempotency semantics and key;
 - target;
 - operation;
 - destination;
@@ -77,6 +80,14 @@ Material fields include:
 - consequential arguments.
 
 Any material change requires new policy evaluation and approval where applicable.
+
+The implementation uses `lumi-action-digest/v2`, a versioned SHA-256 projection
+serialized with the canonical JSON helper (including sorted nested argument
+keys). It adds policy-relevant sensitivity, risk, principal and idempotency
+binding omitted by the initial implementation. Existing v1 approvals and journal
+digests MUST NOT be silently accepted or rewritten to v2: require fresh scoped
+approval and reviewed recovery of any unresolved historical action. Executor
+tier changes alone do not change the approved business effect.
 
 ## 3.4 Raw gestures
 

@@ -40,3 +40,16 @@ Baseline: remote `main` `96fa46c4dba7aa70e86830232e2ba29e371b8d84`, reviewed 202
 Baseline: 392 passing local tests (391 sandboxed plus one OS Keychain test with host permission). Many directly call helpers or pre-seed verification state, so the former claim that every subsystem test drives through one choke point was too strong.
 
 Before customer canaries, inject failures at the actual entry boundary, verify target/account identity and business postconditions, and retain all failed/ambiguous runs in the denominator. Never seed a success oracle and describe it as an observed external effect.
+
+## Reviewed safety delta after the baseline
+
+The safety PR adds fail-closed writes/restores, generation/lock protection,
+durable retry admission, original-action/verifier binding, result identity
+checks, scoped cross-run idempotency and classified failure audit evidence.
+The action digest is versioned to v2; legacy ambiguous records are not silently
+rewritten. Unsupported pack preconditions now refuse preparation, and malformed
+client-key metadata is rejected at protocol/policy admission.
+
+The baseline rows above remain an audit record. This delta does not establish
+live connectors, authenticated sessions, customer baselines, signed distribution,
+role capacity or repeatability. Those gates remain NO-GO.

@@ -100,6 +100,17 @@ Examples:
 
 Recovery MUST inspect external state/postconditions before deciding to retry.
 
+Failure to persist pre-action intent or the side-effect journal MUST prevent
+executor invocation. All orchestrator constructors must load existing recovery
+state; an unreadable journal cannot become an empty fresh run. Persistence
+failure after dispatch prevents a success report and stops further admission
+until storage and external state are independently reconciled.
+
+A direct repeated execution call must obey the same journal guard as resume.
+Changing a run/action identifier does not prove a new business effect is safe.
+Old records with unknown required metadata must fail closed, rather than be
+silently upgraded to permissive state.
+
 ## 2.8 Resume
 
 Resume MUST:
