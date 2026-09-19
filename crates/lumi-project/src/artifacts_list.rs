@@ -2,11 +2,12 @@
 //!
 //! The Artifacts surface shows REAL generated outputs: entries found
 //! under the project's `.lumi/artifacts` store (the spec 08 layout with
-//! `artifact.json` index records) plus any loose files Lumi wrote there.
+//! `artifact.json` index records) and files in those artifact directories.
 //! An empty project has an empty list — no sample rows, ever.
 
 use serde::Serialize;
-use std::path::Path;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 
 /// Store location convention inside a project root.
 pub const ARTIFACTS_DIR: &str = ".lumi/artifacts";
@@ -32,12 +33,26 @@ pub struct ArtifactEntry {
     pub modified_at: i64,
 }
 
+// Bound optional index metadata independently from the result count.
+const MAX_INDEX_BYTES: u64 = 64 * 1024;
+
+fn scoped_path(root: &Path, relative: &Path) -> Result<PathBuf, crate::ProjectError> {
+    lumi_workspaces::resolve_in_workspace(root, relative).map_err(|e| match e {
+        lumi_workspaces::PathError::Io(message) => crate::ProjectError::Io(message),
+        _ => crate::ProjectError::OutsideProjectRoots {
+            requested: relative.display().to_string(),
+        },
+    })
+}
+
 /// Lists bounded artifact entries for a project root (§26.7 budgets:
 /// entry cap, no recursion beyond the store's two levels).
 ///
 /// # Errors
 /// [`crate::ProjectError::RootMissing`] when the root is gone; missing
-/// artifact directories are simply an empty list.
+/// artifact directories are simply an empty list. Escapes from the project
+/// root are refused, including store, artifact, index, and output symlinks.
+/// Index fields are declarations, not independent verification of the output.
 pub fn list_artifacts(
     project_root: &Path,
     max_entries: usize,
@@ -47,19 +62,32 @@ pub fn list_artifacts(
             path: project_root.display().to_string(),
         });
     }
-    let store = project_root.join(ARTIFACTS_DIR);
+    let root =
+        std::fs::canonicalize(project_root).map_err(|e| crate::ProjectError::Io(e.to_string()))?;
+    if !root.is_dir() {
+        return Err(crate::ProjectError::RootNotADirectory {
+            path: root.display().to_string(),
+        });
+    }
+    let max_entries = max_entries.min(crate::search::MAX_RESULTS);
+    if max_entries == 0 {
+        return Ok(Vec::new());
+    }
+    let store = scoped_path(&root, Path::new(ARTIFACTS_DIR))?;
     let mut out = Vec::new();
     let entries = match std::fs::read_dir(&store) {
         Ok(entries) => entries,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(out),
         Err(e) => return Err(crate::ProjectError::Io(e.to_string())),
     };
-    for entry in entries.flatten().take(max_entries) {
-        let dir_path = entry.path();
+    for entry in entries.take(max_entries) {
+        let entry = entry.map_err(|e| crate::ProjectError::Io(e.to_string()))?;
+        let relative_dir = Path::new(ARTIFACTS_DIR).join(entry.file_name());
+        let dir_path = scoped_path(&root, &relative_dir)?;
         if !dir_path.is_dir() {
             continue;
         }
-        let index = dir_path.join("artifact.json");
+        let index = scoped_path(&root, &relative_dir.join("artifact.json"))?;
         #[derive(serde::Deserialize)]
         struct Index {
             artifact_type: String,
@@ -68,21 +96,28 @@ pub fn list_artifacts(
             #[serde(default)]
             sha256: Option<String>,
         }
-        let index: Option<Index> = std::fs::read_to_string(&index)
-            .ok()
-            .and_then(|text| serde_json::from_str(&text).ok());
-        let files = match std::fs::read_dir(&dir_path) {
-            Ok(files) => files,
-            Err(_) => continue,
+        let index: Option<Index> = if index.is_file() {
+            let mut bytes = Vec::new();
+            std::fs::File::open(&index)
+                .and_then(|file| file.take(MAX_INDEX_BYTES + 1).read_to_end(&mut bytes))
+                .ok()
+                .filter(|size| *size <= MAX_INDEX_BYTES as usize)
+                .and_then(|_| serde_json::from_slice(&bytes).ok())
+        } else {
+            None
         };
-        for file in files.flatten() {
-            let path = file.path();
-            if path.file_name().is_some_and(|n| n == "artifact.json") {
+        let files =
+            std::fs::read_dir(&dir_path).map_err(|e| crate::ProjectError::Io(e.to_string()))?;
+        // Bound visited entries as well as returned files (one extra for index).
+        for file in files.take(max_entries + 1) {
+            let file = file.map_err(|e| crate::ProjectError::Io(e.to_string()))?;
+            let relative = relative_dir.join(file.file_name());
+            let path = scoped_path(&root, &relative)?;
+            if file.file_name() == "artifact.json" {
                 continue;
             }
-            let Ok(meta) = file.metadata() else {
-                continue;
-            };
+            let meta =
+                std::fs::metadata(&path).map_err(|e| crate::ProjectError::Io(e.to_string()))?;
             if !meta.is_file() {
                 continue;
             }
@@ -92,10 +127,7 @@ pub fn list_artifacts(
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
-            let relative = path
-                .strip_prefix(project_root)
-                .map(|p| p.display().to_string())
-                .unwrap_or_default();
+            let relative = relative.display().to_string();
             out.push(ArtifactEntry {
                 name: file.file_name().to_string_lossy().to_string(),
                 path: relative,
@@ -106,11 +138,12 @@ pub fn list_artifacts(
                 modified_at: modified,
             });
             if out.len() >= max_entries {
+                out.sort_by_key(|entry| std::cmp::Reverse(entry.modified_at));
                 return Ok(out);
             }
         }
     }
-    out.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    out.sort_by_key(|entry| std::cmp::Reverse(entry.modified_at));
     Ok(out)
 }
 
@@ -164,5 +197,76 @@ mod tests {
             list_artifacts(&dir, 50),
             Err(crate::ProjectError::RootMissing { .. })
         ));
+    }
+
+    #[test]
+    fn entry_budget_and_invalid_index_do_not_invent_metadata() {
+        let dir =
+            std::env::temp_dir().join(format!("lumi-artifacts-budget-{}", std::process::id()));
+        let store = dir.join(ARTIFACTS_DIR).join("report");
+        std::fs::create_dir_all(&store).unwrap();
+        std::fs::write(store.join("artifact.json"), b"invalid json").unwrap();
+        for name in ["one.txt", "two.txt", "three.txt"] {
+            std::fs::write(store.join(name), b"output").unwrap();
+        }
+        assert!(list_artifacts(&dir, 0).unwrap().is_empty());
+        let entries = list_artifacts(&dir, 2).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().all(|entry| entry.artifact_type.is_none()));
+        std::fs::write(
+            store.join("artifact.json"),
+            vec![b' '; MAX_INDEX_BYTES as usize + 1],
+        )
+        .unwrap();
+        assert_eq!(list_artifacts(&dir, 10).unwrap().len(), 3);
+        assert_eq!(list_artifacts(&dir, usize::MAX).unwrap().len(), 3);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_symlink_escape_at_every_store_level() {
+        use std::os::unix::fs::symlink;
+        for level in ["store", "artifact", "index", "output"] {
+            let base = std::env::temp_dir().join(format!(
+                "lumi-artifacts-escape-{level}-{}",
+                std::process::id()
+            ));
+            let root = base.join("project");
+            let outside = base.join("outside");
+            std::fs::create_dir_all(&root).unwrap();
+            std::fs::create_dir_all(&outside).unwrap();
+            std::fs::write(outside.join("secret.txt"), b"private").unwrap();
+            let store = root.join(ARTIFACTS_DIR);
+            let artifact = store.join("report");
+            match level {
+                "store" => {
+                    std::fs::create_dir_all(root.join(".lumi")).unwrap();
+                    symlink(&outside, &store).unwrap();
+                }
+                "artifact" => {
+                    std::fs::create_dir_all(&store).unwrap();
+                    symlink(&outside, &artifact).unwrap();
+                }
+                "index" | "output" => {
+                    std::fs::create_dir_all(&artifact).unwrap();
+                    let name = if level == "index" {
+                        "artifact.json"
+                    } else {
+                        "leak.txt"
+                    };
+                    symlink(outside.join("secret.txt"), artifact.join(name)).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                matches!(
+                    list_artifacts(&root, 50),
+                    Err(crate::ProjectError::OutsideProjectRoots { .. })
+                ),
+                "escape at {level}"
+            );
+            std::fs::remove_dir_all(base).unwrap();
+        }
     }
 }
