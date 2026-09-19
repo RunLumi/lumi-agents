@@ -125,10 +125,14 @@ mod tests {
     use super::*;
 
     fn unique_depot() -> PathBuf {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "lumi-ws-{}-{}",
+            "lumi-ws-{}-{}-{}",
             std::process::id(),
-            Timestamp::now().nanoseconds()
+            format!("{:?}", std::thread::current().id())
+                .replace("ThreadId(", "")
+                .replace(")", ""),
+            COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
