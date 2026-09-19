@@ -17,3 +17,4 @@ workspace = true
 
 [dev-dependencies]
 lumi-policy = { path = "../lumi-policy" }
+lumi-state = { path = "../lumi-state" }
