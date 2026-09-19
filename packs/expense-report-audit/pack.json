@@ -1,0 +1,146 @@
+{
+  "manifest": {
+    "pack_id": "expense-report-audit",
+    "version": "1.0.0",
+    "owner": "finance-ops@acme.test",
+    "status": "EXPERIMENTAL",
+    "runtime_version_range": ">=0.1",
+    "supported_os": ["macos-14", "windows-11"],
+    "required_connectors": ["expense-connector@1.0"],
+    "required_model_capabilities": ["vision", "structured_output"],
+    "privacy_classification": "PERSONAL_DATA",
+    "default_budget": {
+      "max_actions": 15,
+      "max_retries": 2,
+      "max_vision_actions": 5,
+      "max_external_writes": 1
+    },
+    "inputs": {
+      "fields": [
+        { "name": "report_id", "value_type": "string", "description": "Expense report id", "required": true },
+        { "name": "policy_version", "value_type": "string", "description": "Expense policy version to audit against", "required": true }
+      ]
+    },
+    "outputs": {
+      "fields": [
+        { "name": "audit_result", "value_type": "object", "description": "Per-line audit verdicts", "required": true },
+        { "name": "flagged_lines", "value_type": "number", "description": "Lines flagged for human review", "required": true }
+      ]
+    },
+    "compatibility": {
+      "runtime_versions": [">=0.1"],
+      "operating_systems": ["macos-14", "windows-11"],
+      "app_versions": ["expenses-app/3.2"],
+      "connector_versions": ["expense-connector@1.0"]
+    },
+    "economics": {
+      "manual_minutes_per_run": 25,
+      "residual_human_minutes_per_run": 6,
+      "runs_per_month": 200,
+      "loaded_labor_cost_per_hour_micro_usd": 55000000,
+      "runtime_variable_cost_per_run_micro_usd": 40000,
+      "implementation_hours": 80,
+      "payback_hypothesis": "<8 months at 200 runs/month; native step is the certified bottleneck"
+    }
+  },
+  "steps": [
+    {
+      "step_id": "fetch-report",
+      "purpose": "Fetch the submitted expense report",
+      "capability": "api.read",
+      "operation": "fetch_expense_report",
+      "arguments_template": { "report_id": "$input.report_id" },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": ["CONNECTOR_API"],
+      "risk_class": "READ",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "report-loaded",
+          "description": "Report record exists",
+          "check": "record_exists",
+          "resource": { "resource_type": "database_record", "id": "expenses/reports/$input.report_id" }
+        }
+      ],
+      "idempotency": { "semantics": "VERIFY_BEFORE_RETRY" },
+      "evidence": ["STRUCTURED_STATE"],
+      "resource_type": "database_record",
+      "resource_id_template": "expenses/reports/$input.report_id",
+      "target_template": "expenses://acme.test/reports/$input.report_id",
+      "exception_route": {
+        "triggers": ["CONNECTOR_FAILURE"],
+        "target": { "route": "retry" },
+        "guidance": "Retry the expense connector once"
+      }
+    },
+    {
+      "step_id": "verify-receipts-native",
+      "purpose": "Cross-check receipt images in the expenses desktop app against line items (certified native step)",
+      "capability": "desktop.interact",
+      "operation": "native_read_receipt_rows",
+      "arguments_template": {
+        "report_id": "$input.report_id",
+        "policy_version": "$input.policy_version"
+      },
+      "preferred_tier": "NATIVE_SEMANTIC",
+      "allowed_fallback_tiers": ["NATIVE_SEMANTIC"],
+      "risk_class": "READ",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "receipts-verified",
+          "description": "Receipt rows read from the desktop app",
+          "check": "record_exists",
+          "resource": { "resource_type": "database_record", "id": "expenses/receipts-verified" }
+        }
+      ],
+      "idempotency": { "semantics": "VERIFY_BEFORE_RETRY" },
+      "evidence": ["STRUCTURED_STATE"],
+      "resource_type": "local_app",
+      "resource_id_template": "expenses-app",
+      "target_template": "app://expenses-app/reports/$input.report_id",
+      "exception_route": {
+        "triggers": ["NATIVE_SESSION", "OS_PERMISSION", "NATIVE_ELEMENT"],
+        "target": { "route": "specialist" },
+        "guidance": "Native route failed: check session/permissions, then run the browser fallback playbook"
+      }
+    },
+    {
+      "step_id": "record-audit-verdict",
+      "purpose": "Record the audit verdict and flag lines for human review",
+      "capability": "api.write",
+      "operation": "record_audit_verdict",
+      "arguments_template": {
+        "report_id": "$input.report_id",
+        "policy_version": "$input.policy_version"
+      },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": ["CONNECTOR_API"],
+      "risk_class": "EXTERNAL_WRITE",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "verdict-recorded",
+          "description": "Audit verdict recorded with expected report id",
+          "check": "record_field_equals",
+          "resource": { "resource_type": "database_record", "id": "expenses/audits/$input.report_id" },
+          "field": "report_id",
+          "expected": "$input.report_id"
+        }
+      ],
+      "idempotency": { "key": "audit-verdict", "semantics": "CLIENT_KEY" },
+      "evidence": ["DIFF", "RESOURCE_REFERENCE"],
+      "resource_type": "database_record",
+      "resource_id_template": "expenses/audits/$input.report_id",
+      "target_template": "expenses://acme.test/audits/$input.report_id",
+      "exception_route": {
+        "triggers": ["AMBIGUOUS_STATE"],
+        "target": { "route": "user" },
+        "guidance": "Verdict state unknown: inspect the audit record before any re-submit"
+      }
+    }
+  ]
+}

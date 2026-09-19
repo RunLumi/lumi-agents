@@ -494,6 +494,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-workflows"
+version = "0.1.0"
+dependencies = [
+ "lumi-audit",
+ "lumi-evals",
+ "lumi-orchestrator",
+ "lumi-packs",
+ "lumi-policy",
+ "lumi-protocol",
+ "lumi-state",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

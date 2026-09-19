@@ -213,7 +213,16 @@ pub fn prepare_run(
         })
         .execution_preferences(preferences)
         .evidence_requirements(step.evidence.clone())
-        .postconditions(step.postconditions.clone())
+        .postconditions({
+            // Postcondition checks may reference validated inputs (e.g.
+            // expected = "$input.report_id"); resolve before execution so
+            // verifiers compare concrete values.
+            let raw = serde_json::to_value(&step.postconditions)
+                .map_err(|e| PackRunError::InvalidPack(vec![e.to_string()]))?;
+            let resolved = resolve_value(&raw, inputs, &step.step_id)?;
+            serde_json::from_value(resolved)
+                .map_err(|e| PackRunError::InvalidPack(vec![e.to_string()]))?
+        })
         .idempotency(Idempotency {
             key: step.idempotency.key.clone(),
             semantics: step.idempotency.semantics,

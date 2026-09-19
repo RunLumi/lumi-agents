@@ -1,0 +1,143 @@
+{
+  "manifest": {
+    "pack_id": "quote-followup",
+    "version": "1.0.0",
+    "owner": "sales-ops@acme.test",
+    "status": "ALPHA",
+    "runtime_version_range": ">=0.1",
+    "supported_os": ["macos-14", "windows-11"],
+    "required_connectors": ["crm-connector@1.2", "email-connector@1.0"],
+    "required_model_capabilities": ["structured_output", "tool_use"],
+    "privacy_classification": "CONFIDENTIAL",
+    "default_budget": {
+      "max_actions": 10,
+      "max_retries": 2,
+      "max_external_writes": 1
+    },
+    "inputs": {
+      "fields": [
+        { "name": "quote_id", "value_type": "string", "description": "CRM quote id", "required": true },
+        { "name": "customer_email", "value_type": "string", "description": "Recipient address", "required": true }
+      ]
+    },
+    "outputs": {
+      "fields": [
+        { "name": "sent_message_id", "value_type": "string", "description": "Sent message id", "required": true }
+      ]
+    },
+    "compatibility": {
+      "runtime_versions": [">=0.1"],
+      "operating_systems": ["macos-14", "windows-11"],
+      "connector_versions": ["crm-connector@1.2", "email-connector@1.0"]
+    },
+    "economics": {
+      "manual_minutes_per_run": 10,
+      "residual_human_minutes_per_run": 1,
+      "runs_per_month": 400,
+      "loaded_labor_cost_per_hour_micro_usd": 60000000,
+      "runtime_variable_cost_per_run_micro_usd": 15000,
+      "implementation_hours": 40,
+      "payback_hypothesis": "<6 months at 400 runs/month with approval-first send"
+    }
+  },
+  "steps": [
+    {
+      "step_id": "fetch-quote",
+      "purpose": "Load the quote record from the CRM",
+      "capability": "crm.quote.update",
+      "operation": "fetch_crm_quote",
+      "arguments_template": { "quote_id": "$input.quote_id" },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": ["CONNECTOR_API"],
+      "risk_class": "READ",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "quote-loaded",
+          "description": "Quote record exists",
+          "check": "record_exists",
+          "resource": { "resource_type": "crm_quote", "id": "crm/quotes/Q-2091" }
+        }
+      ],
+      "idempotency": { "semantics": "VERIFY_BEFORE_RETRY" },
+      "evidence": ["STRUCTURED_STATE"],
+      "resource_type": "crm_quote",
+      "resource_id_template": "crm/quotes/$input.quote_id",
+      "target_template": "crm://acme.test/quotes/$input.quote_id",
+      "exception_route": {
+        "triggers": ["CONNECTOR_FAILURE"],
+        "target": { "route": "retry" },
+        "guidance": "Retry the CRM fetch once before escalating"
+      }
+    },
+    {
+      "step_id": "draft-followup",
+      "purpose": "Draft the follow-up email for approval",
+      "capability": "email.draft.create",
+      "operation": "draft_email",
+      "arguments_template": {
+        "to": "$input.customer_email",
+        "subject": "Quote $input.quote_id follow-up"
+      },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": ["CONNECTOR_API"],
+      "risk_class": "LOCAL_WRITE",
+      "approval_rule": "per_policy",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "draft-exists",
+          "description": "Draft exists",
+          "check": "record_exists",
+          "resource": { "resource_type": "email_draft", "id": "outbound/draft-Q-2091" }
+        }
+      ],
+      "idempotency": { "semantics": "NONE" },
+      "evidence": ["RESOURCE_REFERENCE"],
+      "resource_type": "email_draft",
+      "resource_id_template": "outbound/draft-$input.quote_id",
+      "target_template": "mailto:$input.customer_email",
+      "exception_route": {
+        "triggers": ["CONNECTOR_FAILURE"],
+        "target": { "route": "stop" },
+        "guidance": "Draft failures stop the run for review"
+      }
+    },
+    {
+      "step_id": "send-followup",
+      "purpose": "Send the approved follow-up email",
+      "capability": "email.send",
+      "operation": "send_customer_email",
+      "arguments_template": {
+        "to": "$input.customer_email",
+        "subject": "Quote $input.quote_id follow-up"
+      },
+      "preferred_tier": "CONNECTOR_API",
+      "allowed_fallback_tiers": ["CONNECTOR_API"],
+      "risk_class": "COMMUNICATION",
+      "approval_rule": "always",
+      "preconditions": [],
+      "postconditions": [
+        {
+          "id": "message-exists",
+          "description": "Sent message exists with expected subject",
+          "check": "record_field_equals",
+          "resource": { "resource_type": "email_message", "id": "outbound/sent-Q-2091" },
+          "field": "subject",
+          "expected": "Quote Q-2091 follow-up"
+        }
+      ],
+      "idempotency": { "key": "send-Q-2091", "semantics": "CLIENT_KEY" },
+      "evidence": ["STRUCTURED_STATE"],
+      "resource_type": "email_message",
+      "resource_id_template": "outbound/sent-$input.quote_id",
+      "target_template": "mailto:$input.customer_email",
+      "exception_route": {
+        "triggers": ["AMBIGUOUS_STATE", "AUTH_SESSION"],
+        "target": { "route": "user" },
+        "guidance": "Verify the sent folder manually before any re-send"
+      }
+    }
+  ]
+}
