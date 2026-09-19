@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 /// Stable failure categories (spec 18 §18.2). Unknown values fail on
 /// deserialization rather than coercing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FailureCategory {
     ModelReasoning,
