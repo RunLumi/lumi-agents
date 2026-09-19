@@ -101,13 +101,12 @@ impl ProjectService {
     /// # Errors
     /// Registry read failure.
     pub fn list_recent(&self) -> Result<Vec<ProjectSummary>, String> {
-        Ok(self
-            .store
+        self.store
             .list_recent()
             .map_err(|e| e.to_string())?
             .iter()
             .map(|record| ProjectSummary::of(record, &self.store))
-            .collect::<Result<Vec<_>, String>>()?)
+            .collect()
     }
 
     /// Bounded discovery + Git status for the project home (§26.7,
@@ -408,15 +407,15 @@ impl ProjectService {
     ) -> Result<lumi_protocol::Task, String> {
         let id = ProjectId::parse(project_id).map_err(|e| e.to_string())?;
         let record = self.store.get(&id).map_err(|e| e.to_string())?;
-        runtime.create_project_task(
-            &self.tenant_id,
-            &self.principal,
-            goal,
-            &id,
-            &self.environment_id,
-            &record.primary_root.display().to_string(),
-            WorkspaceKind::ProjectRoot,
-        )
+        runtime.create_project_task(&crate::runtime::ProjectTaskSpec {
+            tenant_id: self.tenant_id.clone(),
+            principal: self.principal.clone(),
+            goal: goal.to_owned(),
+            project_id: id,
+            environment_id: self.environment_id.clone(),
+            workspace_root: record.primary_root.display().to_string(),
+            workspace_kind: WorkspaceKind::ProjectRoot,
+        })
     }
 
     /// Project-bound tasks, newest first.
@@ -702,7 +701,7 @@ mod tests {
             );
         }
         // Restart: new service over the same durable directory.
-        let mut service = ProjectService::open(&state).unwrap();
+        let service = ProjectService::open(&state).unwrap();
         let recents = service.list_recent().unwrap();
         assert_eq!(recents.len(), 1);
         assert_eq!(recents[0].health, "available");

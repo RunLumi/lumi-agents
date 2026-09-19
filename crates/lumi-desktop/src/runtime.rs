@@ -22,6 +22,19 @@ use lumi_state::{JsonStateStore, RetryPolicy, SideEffectStatus, StateStore};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+/// Everything needed to create one project-bound task (keeps
+/// [`DesktopRuntime::create_project_task`] within lint argument limits).
+#[derive(Debug, Clone)]
+pub struct ProjectTaskSpec {
+    pub tenant_id: TenantId,
+    pub principal: lumi_protocol::Principal,
+    pub goal: String,
+    pub project_id: ProjectId,
+    pub environment_id: EnvironmentId,
+    pub workspace_root: String,
+    pub workspace_kind: WorkspaceKind,
+}
+
 /// Local runtime state used by the Tauri shell.
 pub struct DesktopRuntime {
     /// The existing orchestration choke point. The desktop stop control
@@ -115,25 +128,16 @@ impl DesktopRuntime {
     /// # Errors
     /// Durable store failure (sticky persistence semantics apply
     /// upstream; here the caller gets the error and may retry create).
-    pub fn create_project_task(
-        &mut self,
-        tenant_id: &TenantId,
-        principal: &lumi_protocol::Principal,
-        goal: &str,
-        project_id: &ProjectId,
-        environment_id: &EnvironmentId,
-        workspace_root: &str,
-        workspace_kind: WorkspaceKind,
-    ) -> Result<Task, String> {
-        if goal.trim().is_empty() {
+    pub fn create_project_task(&mut self, spec: &ProjectTaskSpec) -> Result<Task, String> {
+        if spec.goal.trim().is_empty() {
             return Err("task goal must not be empty".to_owned());
         }
         let task = Task {
             task_id: TaskId::generate(),
-            tenant_id: tenant_id.clone(),
-            principal: principal.clone(),
+            tenant_id: spec.tenant_id.clone(),
+            principal: spec.principal.clone(),
             mode: TaskMode::Work,
-            goal: goal.trim().to_owned(),
+            goal: spec.goal.trim().to_owned(),
             created_at: Timestamp::now(),
             deadline: None,
             budget: lumi_protocol::Budget::default(),
@@ -141,10 +145,10 @@ impl DesktopRuntime {
             status: TaskStatus::Created,
             requested_outputs: vec![],
             project_binding: Some(ProjectTaskBinding {
-                project_id: project_id.clone(),
-                execution_environment_id: environment_id.clone(),
-                workspace_root: workspace_root.to_owned(),
-                workspace_kind,
+                project_id: spec.project_id.clone(),
+                execution_environment_id: spec.environment_id.clone(),
+                workspace_root: spec.workspace_root.clone(),
+                workspace_kind: spec.workspace_kind,
             }),
         };
         self.orchestrator
