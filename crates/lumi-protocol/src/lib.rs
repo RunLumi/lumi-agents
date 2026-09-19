@@ -44,7 +44,9 @@ pub mod timestamp;
 pub use action::{
     ActionProposal, ExecutionPreferences, ExpectedEffect, Idempotency, IdempotencySemantics, Target,
 };
-pub use artifact::{Artifact, ArtifactType, PublicationState, ValidationStatus};
+pub use artifact::{
+    Artifact, ArtifactProvenance, ArtifactType, PublicationState, ValidationStatus,
+};
 pub use budget::{Budget, ConsumedBudget};
 pub use device::{Device, Platform, TrustState, UpdateRing};
 pub use error::{ErrorEnvelope, FailureCategory, RecoveryAction, RetryClass};
@@ -65,7 +67,7 @@ pub use resource::{capabilities, Resource, ResourceRef, ResourceType, Sensitivit
 pub use result::{ExecutionResult, ExecutionStatus, Grounding};
 pub use risk::RiskClass;
 pub use run::{Run, RunState};
-pub use schema::{ProtocolError, PROTOCOL_VERSION};
+pub use schema::{schema_names, ProtocolError, PROTOCOL_VERSION};
 pub use task::{PrivacyConstraint, Task, TaskMode, TaskStatus};
 pub use tenant::{DataEgressPolicy, RetentionPolicy, Tenant};
 pub use tier::{ExecutionTier, ObservationSurface};

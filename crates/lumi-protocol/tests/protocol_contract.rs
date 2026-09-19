@@ -87,10 +87,7 @@ fn golden_observation_fixture_round_trips() {
         obs.confidence.kind,
         lumi_protocol::ConfidenceKind::Structured
     );
-    assert_eq!(
-        obs.action_id.as_deref(),
-        Some("act-2026-09-18-alpha")
-    );
+    assert_eq!(obs.action_id.as_deref(), Some("act-2026-09-18-alpha"));
 }
 
 #[test]

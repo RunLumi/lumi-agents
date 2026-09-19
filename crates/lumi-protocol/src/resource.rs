@@ -86,7 +86,7 @@ pub struct Resource {
 /// Resource reference carried inside action proposals. Identifies the
 /// resource class + canonical id; tenant scope comes from the proposal's
 /// principal so it cannot be spoofed per-resource.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ResourceRef {
     pub resource_type: ResourceType,
     pub id: String,
