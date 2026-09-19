@@ -9,12 +9,13 @@ Start here:
 - [v1 index](./v1/00-v1-index.md)
 - [v1 definition of done](./v1/22-v1-definition-of-done.md)
 - [v1 implementation order](./v1/25-v1-implementation-order.md)
+- [Project workspace / Folder-as-Project](./v1/26-project-workspace-folder-as-project.md)
 
 The v1 suite is deliberately numbered so architecture, code, tests, and reviews can reference stable spec IDs.
 
 Example:
 
-> Implements Spec 04 approval binding and Spec 11 postcondition verification.
+> Implements Spec 04 approval binding, Spec 11 postcondition verification, and Spec 26 Project root isolation.
 
 ## Version policy
 
@@ -32,3 +33,22 @@ Example:
 - `docs/evals/` — test/eval implementation guidance.
 
 If a code change affects a normative contract, the relevant spec and tests MUST change in the same PR.
+
+## Work-mode Project rule
+
+Folder-as-Project is a v1 core Work-mode capability, not a desktop convenience feature.
+
+Implementations MUST preserve the distinction:
+
+```text
+ExecutionEnvironment
+  -> Project
+      -> Task
+          -> Run
+```
+
+Project defines durable working context and authorized roots.
+
+Task workspace defines the concrete execution scope used by a Task/Run.
+
+See spec 26 for the normative contract.
