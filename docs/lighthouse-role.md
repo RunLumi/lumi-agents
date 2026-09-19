@@ -98,13 +98,20 @@ report audit with a stable input identity. Each run must record:
 - output artifact ID and checksum;
 - exception route and human intervention minutes;
 - runtime cost, latency, executor tier, provider/model, and failure category;
-- postcondition result: `DELIVERED`, `REFUSED`, `NO_EFFECT`, `AMBIGUOUS`,
-  `ERROR`, or `CANCELLED`.
+- executor outcome: `DELIVERED`, `REFUSED`, `NO_EFFECT`, `AMBIGUOUS`,
+  `ERROR`, or `CANCELLED`;
+- verification status: `PASSED`, `FAILED`, `AMBIGUOUS`, or `NOT_REQUIRED`,
+  with the postcondition results and evidence references recorded separately
+  from the executor outcome, as required by
+  [spec 11.16](specs/v1/11-audit-evidence-verification.md#1116-executor-outcome-vs-verification).
 
 “Report created” is not enough. A verified unit requires the expected input set,
-matching result, report artifact, and evidence references to reconcile. A
-materially ambiguous state stops the run and requires external inspection before
-retry.
+matching result, report artifact, and evidence references to reconcile, with
+required verification `PASSED`. `DELIVERED` plus `FAILED` verification is not a
+verified success. Correct refusal or escalation is reported separately from
+completed routine units. Failed and ambiguous units remain in the declared
+canary denominator. A materially ambiguous state stops the run and requires
+external inspection before retry.
 
 ## Exact access inputs needed
 

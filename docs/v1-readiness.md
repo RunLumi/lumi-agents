@@ -36,6 +36,7 @@ The native-desktop requirement in spec 22 remains an eventual V1 target. It is n
 | Work | Tracking | Exit evidence |
 |---|---|---|
 | Durable-intent and replay safety | [#43](https://github.com/RunLumi/lumi-agents/issues/43) | Executor never called after failed intent persistence; ambiguous/applied effects not replayed |
+| Executor, artifact and approval boundaries | [#44](https://github.com/RunLumi/lumi-agents/issues/44) | Real worker protocol verified; artifact escapes refused; sensitivity, device state and required evidence enforced before customer canaries |
 | One lighthouse and real-system Gate A | [#40](https://github.com/RunLumi/lumi-agents/issues/40) | Named system/supervisor, representative queue, 100 measured live/staging runs |
 | Minimal Role Pack and honest scorecard | [#41](https://github.com/RunLumi/lumi-agents/issues/41) | Packs compose without authority growth; synthetic evidence cannot grant live maturity |
 | Independent deployment reuse and incidents | [#42](https://github.com/RunLumi/lumi-agents/issues/42) | Three independent deployments; measured customization and regression learning |

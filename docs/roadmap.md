@@ -81,7 +81,8 @@ Staging and fixtures cannot establish production capacity replacement.
 
 ## Near-term work
 
-1. Repair durable persistence/replay defects and reconcile readiness (#43).
+1. Repair durable persistence/replay defects (#43) and executor, artifact and
+   approval boundary gaps (#44); reconcile readiness before customer canaries.
 2. Select one queue and obtain actual access and baseline measurements (#40).
 3. Implement only the Role Pack and scorecard needed by that responsibility (#41).
 4. Bridge the smallest real API/browser path; require native only where necessary.
