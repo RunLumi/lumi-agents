@@ -538,6 +538,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-scheduler"
+version = "0.1.0"
+dependencies = [
+ "lumi-audit",
+ "lumi-orchestrator",
+ "lumi-policy",
+ "lumi-protocol",
+ "lumi-state",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lumi-secrets"
 version = "0.1.0"
 dependencies = [
