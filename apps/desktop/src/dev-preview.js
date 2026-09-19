@@ -108,6 +108,13 @@
         }
       },
     },
+    window: {
+      getCurrent: () => ({
+        close: () => {},
+        minimize: () => {},
+        toggleMaximize: () => {},
+      }),
+    },
     dialog: { open: async () => null },
     opener: { revealItemInDir: async () => {} },
   };

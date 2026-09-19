@@ -162,6 +162,19 @@ button, .card, .nav-btn, .tab, .recent-card, .action-card {
   display: flex; flex-direction: column;
   padding: 14px 12px 12px; gap: 2px;
 }
+.titlebar-strip { display: flex; align-items: center; height: 28px; margin: -6px -4px 4px; }
+.traffic-lights { display: flex; gap: 8px; padding-left: 4px; }
+.tl {
+  width: 12px; height: 12px; border-radius: var(--radius-pill);
+  padding: 0; position: relative;
+  border: 1px solid color-mix(in oklch, var(--color-civic-navy) 18%, transparent);
+}
+.tl-close { background: #FF5F57; }
+.tl-min { background: #FEBC2E; }
+.tl-max { background: #28C840; }
+.tl svg { width: 8px; height: 8px; position: absolute; inset: 0; margin: auto; opacity: 0; }
+.traffic-lights:hover .tl svg { opacity: 0.55; }
+.tl:hover { filter: brightness(0.94); }
 .logo-row { display: flex; align-items: center; padding: 2px 8px 14px; }
 .logo-row img { height: 30px; width: auto; display: block; }
 
@@ -214,6 +227,7 @@ button, .card, .nav-btn, .tab, .recent-card, .action-card {
   padding: 9px 18px;
   background: var(--color-surface-white);
   border-bottom: 1px solid var(--color-border);
+  user-select: none;
 }
 .breadcrumb { display: flex; align-items: center; gap: 6px; min-width: 170px; font-size: 13px; }
 .crumb { color: var(--color-soft-slate); font-weight: 500; cursor: pointer; padding: 0; }
@@ -794,7 +808,10 @@ button, .card, .nav-btn, .tab, .recent-card, .action-card {
 .palette-item .p-meta { margin-left: auto; font-size: 11px; color: var(--color-soft-slate); }
 .palette-ask { display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--color-border); padding: 10px 12px; }
 .palette-ask svg { width: 14px; height: 14px; color: var(--color-lumi-blue); }
+.palette-ask-ico { color: var(--color-lumi-blue); font-size: 12px; }
 .palette-ask input { flex: 1; border: 0; outline: none; background: none; font-size: 13px; color: var(--color-ink); }
+.palette-footer-hints { display: flex; gap: 12px; align-items: center; padding: 0 12px 10px; color: var(--color-soft-slate); font-size: 10.5px; }
+.palette-footer-hints .kbd { font-size: 9.5px; padding: 0 5px; }
 
 /* ============ Toasts — overlay sheets ============ */
 .toasts { position: fixed; bottom: 18px; right: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }

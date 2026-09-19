@@ -10,6 +10,13 @@
   <div class="app">
     <!-- ============ Sidebar ============ -->
     <aside class="sidebar">
+      <div class="titlebar-strip">
+        <div class="traffic-lights" id="traffic-lights">
+          <button class="tl tl-close" id="win-close" title="Close" aria-label="Close window"></button>
+          <button class="tl tl-min" id="win-min" title="Minimize" aria-label="Minimize window"></button>
+          <button class="tl tl-max" id="win-max" title="Maximize" aria-label="Maximize window"></button>
+        </div>
+      </div>
       <div class="logo-row">
         <img src="assets/brand/lumi-logo.svg" alt="Lumi" title="Lumi Agents" />
       </div>
@@ -59,7 +66,7 @@
 
     <!-- ============ Main ============ -->
     <div class="main">
-      <header class="topbar">
+      <header class="topbar" data-tauri-drag-region>
         <div class="breadcrumb" id="breadcrumb">
           <span class="crumb current">Projects</span>
         </div>
@@ -93,8 +100,9 @@
         <div class="palette-results" id="palette-results"></div>
       </div>
       <div class="palette-ask">
+        <span class="palette-ask-ico">✦</span>
         <input id="palette-ask" type="text" placeholder="Ask Lumi to do anything…" />
-        <button class="btn btn-primary btn-sm" id="palette-ask-send">➤</button>
+        <span class="kbd">↵</span>
       </div>
     </div>
   </div>
