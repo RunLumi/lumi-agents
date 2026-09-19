@@ -7,9 +7,10 @@
 //! carries producing task/run, source refs, generator, checksum, and
 //! recorded validation outcomes (§8.12).
 
+use crate::paths::resolve_in_workspace;
 use lumi_protocol::Timestamp;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// Lifecycle states (§8.11).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -247,17 +248,28 @@ impl ArtifactStore {
         content: &[u8],
         provenance: ArtifactProvenance,
     ) -> Result<ArtifactRecord, ArtifactError> {
+        validate_artifact_id(artifact_id)?;
+        if file_name == "artifact.json" {
+            return Err(ArtifactError::Io(
+                "artifact.json is reserved for the artifact index".to_owned(),
+            ));
+        }
         let rel_dir = Path::new(artifact_id);
-        let abs_dir = self.root.join(rel_dir);
+        let abs_dir = self.resolve_path(rel_dir)?;
+        if abs_dir.exists() {
+            return Err(ArtifactError::Io(format!(
+                "artifact id already exists: {artifact_id}"
+            )));
+        }
+        let abs_file = self.resolve_artifact_file(artifact_id, file_name)?;
         std::fs::create_dir_all(&abs_dir)
             .map_err(|e| ArtifactError::Io(format!("creating artifact dir: {e}")))?;
-        let abs_file = abs_dir.join(file_name);
         std::fs::write(&abs_file, content)
             .map_err(|e| ArtifactError::Io(format!("writing artifact: {e}")))?;
         let record = ArtifactRecord {
             artifact_id: artifact_id.to_owned(),
             artifact_type: artifact_type.to_owned(),
-            path: abs_dir.join(file_name).display().to_string(),
+            path: rel_dir.join(file_name).display().to_string(),
             lifecycle: ArtifactLifecycle::Draft,
             provenance,
             sha256: None,
@@ -285,7 +297,15 @@ impl ArtifactStore {
                 to: "VALIDATING",
             });
         }
-        let content = std::fs::read(&record.path)
+        validate_artifact_id(&record.artifact_id)?;
+        let artifact_dir = self.resolve_path(Path::new(&record.artifact_id))?;
+        let content_path = self.resolve_path(Path::new(&record.path))?;
+        if !content_path.starts_with(&artifact_dir) || content_path == artifact_dir {
+            return Err(ArtifactError::Io(
+                "artifact record path escapes its artifact directory".to_owned(),
+            ));
+        }
+        let content = std::fs::read(&content_path)
             .map_err(|e| ArtifactError::Io(format!("reading artifact: {e}")))?;
         let mut outcomes = Vec::new();
         for validator in BuiltInValidator::defaults_for(&record.artifact_type) {
@@ -384,13 +404,48 @@ impl ArtifactStore {
     }
 
     fn persist_index(&self, record: &ArtifactRecord) -> Result<(), ArtifactError> {
-        let index = self
-            .root
-            .join(record.artifact_id.clone())
-            .join("artifact.json");
+        validate_artifact_id(&record.artifact_id)?;
+        let index = self.resolve_path(&Path::new(&record.artifact_id).join("artifact.json"))?;
         let text =
             serde_json::to_string_pretty(record).map_err(|e| ArtifactError::Io(e.to_string()))?;
         std::fs::write(index, text).map_err(|e| ArtifactError::Io(e.to_string()))
+    }
+
+    fn resolve_path(&self, requested: &Path) -> Result<PathBuf, ArtifactError> {
+        resolve_in_workspace(&self.root, requested)
+            .map_err(|error| ArtifactError::Io(format!("unsafe artifact path: {error}")))
+    }
+
+    fn resolve_artifact_file(
+        &self,
+        artifact_id: &str,
+        file_name: &str,
+    ) -> Result<PathBuf, ArtifactError> {
+        validate_artifact_id(artifact_id)?;
+        let artifact_dir = self.resolve_path(Path::new(artifact_id))?;
+        let file_path = Path::new(file_name);
+        if file_path.is_absolute() {
+            return Err(ArtifactError::Io(
+                "artifact file name must be relative".to_owned(),
+            ));
+        }
+        let resolved = self.resolve_path(&Path::new(artifact_id).join(file_path))?;
+        if !resolved.starts_with(&artifact_dir) || resolved == artifact_dir {
+            return Err(ArtifactError::Io(
+                "artifact file path escapes its artifact directory".to_owned(),
+            ));
+        }
+        Ok(resolved)
+    }
+}
+
+fn validate_artifact_id(artifact_id: &str) -> Result<(), ArtifactError> {
+    let mut components = Path::new(artifact_id).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(_)), None) => Ok(()),
+        _ => Err(ArtifactError::Io(
+            "artifact id must be one nonempty path component".to_owned(),
+        )),
     }
 }
 
@@ -507,6 +562,146 @@ mod tests {
         }));
         let validated = store.validate(&record, &[total_is_positive]).unwrap();
         assert_eq!(validated.lifecycle, ArtifactLifecycle::ReadyForReview);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn create_refuses_traversal_absolute_names_and_symlink_escapes() {
+        let (dir, store) = store();
+        let outside_dir = dir
+            .parent()
+            .unwrap()
+            .join(format!("lumi-artifacts-outside-{}", std::process::id()));
+        std::fs::create_dir_all(&outside_dir).unwrap();
+        let outside_file = outside_dir.join("sentinel.txt");
+        std::fs::write(&outside_file, b"keep").unwrap();
+
+        let traversal = store.create(
+            "../artifact-escape",
+            "text",
+            "output.txt",
+            b"must not write",
+            provenance(),
+        );
+        assert!(traversal.is_err(), "artifact id traversal must be refused");
+
+        let absolute_name = store.create(
+            "safe",
+            "text",
+            &outside_file.display().to_string(),
+            b"must not write",
+            provenance(),
+        );
+        assert!(
+            absolute_name.is_err(),
+            "absolute artifact names must be refused"
+        );
+
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&outside_dir, dir.join("escape")).unwrap();
+            let symlink_escape = store.create(
+                "escape",
+                "text",
+                "output.txt",
+                b"must not write",
+                provenance(),
+            );
+            assert!(symlink_escape.is_err(), "symlink escape must be refused");
+        }
+
+        assert_eq!(std::fs::read(&outside_file).unwrap(), b"keep");
+        std::fs::remove_dir_all(&outside_dir).ok();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn validate_refuses_tampered_record_path() {
+        let (dir, store) = store();
+        let mut record = store
+            .create("safe", "text", "output.txt", b"inside", provenance())
+            .unwrap();
+        let outside = dir
+            .parent()
+            .unwrap()
+            .join(format!("lumi-artifacts-tampered-{}", std::process::id()));
+        std::fs::write(&outside, b"outside sentinel").unwrap();
+        record.path = outside.display().to_string();
+        assert!(store.validate(&record, &[]).is_err());
+        assert_eq!(std::fs::read(&outside).unwrap(), b"outside sentinel");
+        std::fs::remove_file(&outside).ok();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn artifact_id_and_reserved_index_names_fail_before_writes() {
+        let (dir, store) = store();
+        for artifact_id in ["", "nested/id", "..", "/absolute"] {
+            assert!(
+                store
+                    .create(
+                        artifact_id,
+                        "text",
+                        "output.txt",
+                        b"must not write",
+                        provenance(),
+                    )
+                    .is_err(),
+                "artifact id {artifact_id:?} must be refused"
+            );
+        }
+        assert!(store
+            .create(
+                "reserved",
+                "text",
+                "artifact.json",
+                b"must not overwrite index",
+                provenance(),
+            )
+            .is_err());
+        assert!(!dir.join("reserved").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn duplicate_artifact_id_does_not_overwrite_published_content() {
+        let (dir, store) = store();
+        let record = store
+            .create("stable", "text", "output.txt", b"original", provenance())
+            .unwrap();
+        let validated = store.validate(&record, &[]).unwrap();
+        let approved = store.approve(&validated).unwrap();
+        let published = store.publish(&approved).unwrap();
+        assert_eq!(published.lifecycle, ArtifactLifecycle::Published);
+
+        assert!(store
+            .create("stable", "text", "output.txt", b"replacement", provenance())
+            .is_err());
+        assert_eq!(
+            std::fs::read(dir.join("stable").join("output.txt")).unwrap(),
+            b"original"
+        );
+        let index = std::fs::read_to_string(dir.join("stable").join("artifact.json")).unwrap();
+        assert!(index.contains("PUBLISHED"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn validation_cannot_read_another_artifacts_file() {
+        let (dir, store) = store();
+        let record_a = store
+            .create("artifact-a", "text", "a.txt", b"a", provenance())
+            .unwrap();
+        let record_b = store
+            .create("artifact-b", "text", "b.txt", b"b", provenance())
+            .unwrap();
+        let mut tampered = record_a;
+        tampered.path = record_b.path;
+        assert!(store.validate(&tampered, &[]).is_err());
+        assert_eq!(
+            std::fs::read(dir.join("artifact-b").join("b.txt")).unwrap(),
+            b"b"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 }

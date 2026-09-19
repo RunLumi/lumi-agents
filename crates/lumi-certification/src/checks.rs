@@ -38,7 +38,10 @@ pub struct UpdaterConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CertificationReport {
     pub checks: Vec<CheckResult>,
-    /// True only when ALL required checks pass.
+    /// All supplied configuration declarations passed this checklist.
+    pub configuration_ready: bool,
+    /// Configuration booleans are not artifact or live-canary evidence.
+    /// This checker cannot authorize a release and always reports false.
     pub release_approved: bool,
 }
 
@@ -145,10 +148,11 @@ pub fn run_certification(
         },
     });
 
-    let release_approved = checks.iter().all(|c| c.passed);
+    let configuration_ready = checks.iter().all(|c| c.passed);
     CertificationReport {
         checks,
-        release_approved,
+        configuration_ready,
+        release_approved: false,
     }
 }
 
@@ -175,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn all_pass_release_approved() {
+    fn all_declared_checks_pass_but_cannot_approve_a_release() {
         let report = run_certification(
             &signing_config(),
             &updater_config(),
@@ -184,7 +188,11 @@ mod tests {
             true, // SBOM
             true, // dep policy
         );
-        assert!(report.release_approved, "{report:?}");
+        assert!(report.configuration_ready, "{report:?}");
+        assert!(
+            !report.release_approved,
+            "declarations are not artifact proof"
+        );
         assert_eq!(report.checks.len(), 9);
     }
 
@@ -232,6 +240,7 @@ mod tests {
             run_certification(&signing_config(), &updater_config(), true, true, true, true);
         let json = serde_json::to_string(&report).unwrap();
         let back: CertificationReport = serde_json::from_str(&json).unwrap();
-        assert!(back.release_approved);
+        assert!(back.configuration_ready);
+        assert!(!back.release_approved);
     }
 }

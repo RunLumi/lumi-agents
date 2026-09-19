@@ -198,3 +198,24 @@ V1 MUST additionally test:
 - baseline local history excludes forbidden content classes;
 - explicit evidence policy permits only the selected additional content;
 - AMBIGUOUS action cannot be auto-replayed without recovery verification.
+
+## 11.15 Required evidence admission
+
+An action's `evidence_requirements` are conjunctive requirements, not a silent
+best-effort menu. The runtime MUST refuse unsupported required capture before
+mutation and MUST NOT finalize a verified success when a required proof is
+missing. Current support is structured proof, resource references, file/artifact
+checksums and bounded field diffs. Logs/screenshots require an actual supported
+capture path; they cannot be substituted by an unrelated record.
+
+Evidence MUST refer to the exact verified postcondition resources and its IDs
+MUST be attached to the corresponding action audit event. Persist only the
+minimal proof projection; unrelated raw verifier-record fields, tokens and
+passwords are not evidence. A field diff records observed before/after hashes,
+not a fabricated before value derived from the expected after value.
+
+Potentially slow pre-observation requires fresh policy, approval-time, budget and
+cancellation checks before dispatch. A changed second observation cannot be
+stored as support for a stale passed comparison. File checks MUST remain inside
+the canonical workspace root and refuse traversal, absolute paths and escaping
+or unresolved symlinks.

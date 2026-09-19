@@ -4,22 +4,27 @@
 //! This suite is the executable proof of the AGENTS.md core invariant with
 //! deterministic fixture executors (no network, no model):
 
-use lumi_audit::{AuditEventKind, ChainVerification, FixtureEnvironment, VerificationStatus};
+use lumi_audit::{
+    AuditEventKind, ChainVerification, FixtureEnvironment, VerificationEnvironment,
+    VerificationStatus,
+};
 use lumi_orchestrator::{Orchestrator, OrchestratorConfig, StepOutcome};
 use lumi_policy::{
-    evaluate, CapabilityGrant, DeviceExecutionState, GrantSource, PolicyContext, ResourceScope,
+    evaluate, CapabilityGrant, DeviceExecutionState, GrantSource, PolicyContext, PreAuthorization,
+    ResourceScope,
 };
 use lumi_protocol::{
     ActionId, ActionProposal, AuthenticationStrength, Budget, Capability, ConsumedBudget,
-    ExecutionResult, ExecutionStatus, FailureCategory, Principal, PrincipalId, PrincipalKind,
-    ResourceRef, ResourceType, RiskClass, RunId, SensitivityLabel, Target, TaskId, TenantId,
-    Timestamp,
+    EvidenceId, ExecutionResult, ExecutionStatus, FailureCategory, Principal, PrincipalId,
+    PrincipalKind, ResourceRef, ResourceType, RiskClass, RunId, SensitivityLabel, Target, TaskId,
+    TenantId, Timestamp,
 };
 use lumi_state::{
-    AmbiguousResolution, Checkpoint, InMemoryStateStore, JsonStateStore, PreActionCheckpoint,
-    SideEffectJournal, SideEffectRecord, SideEffectStatus, StateStore, StoreError,
+    AmbiguousResolution, CancelToken, Checkpoint, InMemoryStateStore, JsonStateStore,
+    PreActionCheckpoint, SideEffectJournal, SideEffectRecord, SideEffectStatus, StateStore,
+    StoreError,
 };
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
@@ -168,6 +173,48 @@ fn human() -> Principal {
     }
 }
 
+#[derive(Clone)]
+struct MutableRecordEnvironment {
+    resource: ResourceRef,
+    state: Rc<RefCell<Option<serde_json::Value>>>,
+}
+
+impl VerificationEnvironment for MutableRecordEnvironment {
+    fn resolve_record(&self, resource: &ResourceRef) -> Option<serde_json::Value> {
+        if resource == &self.resource {
+            self.state.borrow().clone()
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone)]
+struct CancellingRecordEnvironment {
+    inner: MutableRecordEnvironment,
+    cancel: CancelToken,
+}
+
+impl VerificationEnvironment for CancellingRecordEnvironment {
+    fn resolve_record(&self, resource: &ResourceRef) -> Option<serde_json::Value> {
+        self.cancel.cancel();
+        self.inner.resolve_record(resource)
+    }
+}
+
+#[derive(Clone)]
+struct SlowRecordEnvironment {
+    inner: MutableRecordEnvironment,
+    delay: std::time::Duration,
+}
+
+impl VerificationEnvironment for SlowRecordEnvironment {
+    fn resolve_record(&self, resource: &ResourceRef) -> Option<serde_json::Value> {
+        std::thread::sleep(self.delay);
+        self.inner.resolve_record(resource)
+    }
+}
+
 fn registry() -> lumi_policy::CapabilityRegistry {
     let grant = |id: &'static str, cap: &'static str, rtype: ResourceType| CapabilityGrant {
         grant_id: id.to_owned(),
@@ -200,6 +247,7 @@ fn registry() -> lumi_policy::CapabilityRegistry {
 fn config() -> OrchestratorConfig {
     OrchestratorConfig {
         registry: registry(),
+        device_state: DeviceExecutionState::Trusted,
         pre_authorizations: vec![],
         retry: lumi_state::RetryPolicy::default(),
         policy_version: "1.0.0".to_owned(),
@@ -262,6 +310,65 @@ fn email_action(id: &str) -> ActionProposal {
         key: Some("customer-42-followup".to_owned()),
         semantics: lumi_protocol::IdempotencySemantics::ClientKey,
     })
+    .unwrap()
+}
+
+fn evidence_record_action(
+    id: &str,
+    action_resource: ResourceRef,
+    postcondition_resource: ResourceRef,
+    requirements: Vec<lumi_protocol::EvidenceRequirement>,
+) -> ActionProposal {
+    ActionProposal::builder(
+        ActionId::parse(id).unwrap(),
+        TaskId::parse("task-evidence").unwrap(),
+        RunId::parse("run-evidence").unwrap(),
+        principal(),
+        Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+        action_resource,
+        Target::canonical("connector://finance-staging/expenses/42"),
+        "read_expense",
+        RiskClass::Read,
+    )
+    .postconditions(vec![lumi_protocol::Postcondition {
+        id: lumi_protocol::PostconditionId::new("expense-readback"),
+        description: "expense record matches the requested readback".to_owned(),
+        check: lumi_protocol::PostconditionCheck::RecordFieldEquals {
+            resource: postcondition_resource,
+            field: "total".to_owned(),
+            expected: serde_json::json!("100.00"),
+        },
+    }])
+    .evidence_requirements(requirements)
+    .unwrap()
+}
+
+fn diff_action(id: &str, postcondition_resource: ResourceRef) -> ActionProposal {
+    ActionProposal::builder(
+        ActionId::parse(id).unwrap(),
+        TaskId::parse("task-diff").unwrap(),
+        RunId::parse("run-diff").unwrap(),
+        principal(),
+        Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "reports/expense.csv".to_owned(),
+            sensitivity: Some(SensitivityLabel::Internal),
+        },
+        Target::canonical("connector://finance-staging/expenses/42"),
+        "read_expense_diff",
+        RiskClass::Read,
+    )
+    .postconditions(vec![lumi_protocol::Postcondition {
+        id: lumi_protocol::PostconditionId::new("expense-status-diff"),
+        description: "expense status changed to approved".to_owned(),
+        check: lumi_protocol::PostconditionCheck::RecordFieldEquals {
+            resource: postcondition_resource,
+            field: "status".to_owned(),
+            expected: serde_json::json!("B"),
+        },
+    }])
+    .evidence_requirements(vec![lumi_protocol::EvidenceRequirement::Diff])
     .unwrap()
 }
 
@@ -507,6 +614,18 @@ fn failed_post_effect_write_never_reports_verified_success() {
     );
     assert!(matches!(second, StepOutcome::Stopped { .. }));
     assert_eq!(second_calls.get(), 0);
+    let tenant = TenantId::parse("t-acme").unwrap();
+    let event = orch
+        .audit
+        .events_for(&tenant)
+        .into_iter()
+        .find(|event| {
+            matches!(&event.kind, AuditEventKind::Action(details) if details.action_id == email.action_id)
+        })
+        .expect("persistence failure remains auditable");
+    assert_eq!(event.evidence_refs.len(), 1);
+    let evidence_id = EvidenceId::parse(&event.evidence_refs[0]).unwrap();
+    assert!(orch.evidence.get(&tenant, &evidence_id).is_some());
 }
 
 #[test]
@@ -837,7 +956,14 @@ fn failed_consequential_executor_result_requires_external_resolution() {
 fn mismatched_consequential_executor_result_is_ambiguous() {
     let mut orch: Orchestrator<InMemoryStateStore> =
         Orchestrator::new(config(), InMemoryStateStore::new());
-    let email = email_action("a-mismatched-result");
+    let mut email = email_action("a-mismatched-result");
+    email.execution_preferences = lumi_protocol::ExecutionPreferences {
+        allowed_tiers: vec![
+            lumi_protocol::ExecutionTier::ConnectorApi,
+            lumi_protocol::ExecutionTier::Vision,
+        ],
+        preferred_tier: Some(lumi_protocol::ExecutionTier::ConnectorApi),
+    };
     let approval = orch
         .approvals
         .issue(
@@ -864,16 +990,19 @@ fn mismatched_consequential_executor_result_is_ambiguous() {
             error: None,
         }
     };
+    let mut consumed = ConsumedBudget::default();
     let first = orch.execute_step(
         &email,
         Some(&approval.approval_id),
         &Budget::default(),
-        &mut ConsumedBudget::default(),
+        &mut consumed,
         &FixtureEnvironment::new(),
         &mut executor,
     );
     assert!(matches!(first, StepOutcome::Ambiguous { .. }));
     assert_eq!(calls.get(), 1);
+    assert_eq!(consumed.actions, 1);
+    assert_eq!(consumed.vision_actions, 0);
 }
 
 #[test]
@@ -1127,16 +1256,25 @@ fn idempotency_scope_blocks_same_business_work_but_allows_distinct_scope() {
 
     // A genuinely different resource/target is a different conservative
     // scope and can execute the same client key.
+    let other_resource_ref = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::EMAIL_MESSAGE),
+        id: "outbound/customer-43".to_owned(),
+        sensitivity: Some(SensitivityLabel::Confidential),
+    };
     let other_resource = ActionProposal {
         action_id: ActionId::parse("a-idempotency-other-resource").unwrap(),
         run_id: RunId::parse("run-other-resource").unwrap(),
-        resource: ResourceRef {
-            resource_type: ResourceType::well_known(ResourceType::EMAIL_MESSAGE),
-            id: "outbound/customer-43".to_owned(),
-            sensitivity: Some(SensitivityLabel::Confidential),
-        },
+        resource: other_resource_ref.clone(),
         target: Target::canonical("mailto:other@example.test"),
-        postconditions: vec![],
+        postconditions: vec![lumi_protocol::Postcondition {
+            id: lumi_protocol::PostconditionId::new("message-exists-other-resource"),
+            description: "other message readback".to_owned(),
+            check: lumi_protocol::PostconditionCheck::RecordFieldEquals {
+                resource: other_resource_ref,
+                field: "subject".to_owned(),
+                expected: serde_json::json!("Quote follow-up"),
+            },
+        }],
         ..first
     };
     let resource_approval = orch
@@ -1334,6 +1472,91 @@ fn budget_exhaustion_stops_cleanly_and_cancellation_is_prompt() {
     orch.cancel.cancel();
     let third = orch.execute_step(&read, None, &budget, &mut consumed, &env, &mut executor);
     assert!(matches!(third, StepOutcome::Stopped { .. }));
+}
+
+#[test]
+fn device_revocation_is_rechecked_before_next_action() {
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let read = ActionProposal::builder(
+        ActionId::parse("a-device-revocation").unwrap(),
+        TaskId::parse("task-device-revocation").unwrap(),
+        RunId::parse("run-device-revocation").unwrap(),
+        principal(),
+        Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "invoices/device.csv".to_owned(),
+            sensitivity: Some(SensitivityLabel::Internal),
+        },
+        Target::canonical("file://workspaces/device/invoices.csv"),
+        "read_invoices",
+        RiskClass::Read,
+    )
+    .unwrap();
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success, ExecutionStatus::Success]);
+    assert!(matches!(
+        orch.execute_step(
+            &read,
+            None,
+            &Budget::default(),
+            &mut ConsumedBudget::default(),
+            &FixtureEnvironment::new(),
+            &mut executor,
+        ),
+        StepOutcome::VerifiedSuccess { .. }
+    ));
+    assert_eq!(calls.get(), 1);
+
+    orch.config.device_state = DeviceExecutionState::Revoked;
+    let denied = orch.execute_step(
+        &read,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &FixtureEnvironment::new(),
+        &mut executor,
+    );
+    assert!(matches!(denied, StepOutcome::Denied { .. }));
+    assert_eq!(
+        calls.get(),
+        1,
+        "revocation must stop the next executor call"
+    );
+}
+
+#[test]
+fn unregistered_device_state_denies_by_default() {
+    let mut cfg = config();
+    cfg.device_state = DeviceExecutionState::Unregistered;
+    let mut orch = Orchestrator::new(cfg, InMemoryStateStore::new());
+    let read = ActionProposal::builder(
+        ActionId::parse("a-unregistered-device").unwrap(),
+        TaskId::parse("task-unregistered-device").unwrap(),
+        RunId::parse("run-unregistered-device").unwrap(),
+        principal(),
+        Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "invoices/unregistered.csv".to_owned(),
+            sensitivity: Some(SensitivityLabel::Internal),
+        },
+        Target::canonical("file://workspaces/unregistered/invoices.csv"),
+        "read_invoices",
+        RiskClass::Read,
+    )
+    .unwrap();
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &read,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &FixtureEnvironment::new(),
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::Denied { .. }));
+    assert_eq!(calls.get(), 0);
 }
 
 #[test]
@@ -1649,4 +1872,621 @@ fn router_selection_failure_stops_the_step() {
         StepOutcome::Stopped { reason } => assert!(reason.contains("router"), "{reason}"),
         other => panic!("expected Stopped, got {other:?}"),
     }
+}
+
+#[test]
+fn evidence_ids_are_stored_and_linked_to_scoped_audit_events() {
+    let action_resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::FILE),
+        id: "expense-ui/42".to_owned(),
+        sensitivity: Some(SensitivityLabel::Internal),
+    };
+    let postcondition_resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+        id: "expenses/42".to_owned(),
+        sensitivity: None,
+    };
+    let action = evidence_record_action(
+        "a-evidence-link",
+        action_resource,
+        postcondition_resource.clone(),
+        vec![lumi_protocol::EvidenceRequirement::StructuredState],
+    );
+    let env = FixtureEnvironment::new().with_record(
+        postcondition_resource,
+        serde_json::json!({
+            "exists": true,
+            "total": "100.00",
+            "api_token": "must-not-be-stored",
+            "password": "must-not-be-stored"
+        }),
+    );
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::VerifiedSuccess { .. }));
+    assert_eq!(calls.get(), 1);
+
+    let tenant = TenantId::parse("t-acme").unwrap();
+    let event = orch
+        .audit
+        .events_for(&tenant)
+        .into_iter()
+        .find(|event| {
+            matches!(&event.kind, AuditEventKind::Action(details) if details.action_id == action.action_id)
+        })
+        .expect("action audit event");
+    assert_eq!(event.evidence_refs.len(), 1);
+    let evidence_id = EvidenceId::parse(&event.evidence_refs[0]).unwrap();
+    let evidence = orch
+        .evidence
+        .get(&tenant, &evidence_id)
+        .expect("audit evidence reference resolves");
+    assert_eq!(evidence.kind, lumi_audit::EvidenceKind::StructuredState);
+    let payload = serde_json::to_string(&evidence.payload).unwrap();
+    assert!(!payload.contains("must-not-be-stored"));
+    assert!(payload.contains("expenses/42"));
+    assert!(orch
+        .evidence
+        .get(&TenantId::parse("tenant-other").unwrap(), &evidence_id)
+        .is_none());
+}
+
+#[test]
+fn unsupported_required_evidence_stops_before_dispatch() {
+    let action = evidence_record_action(
+        "a-evidence-unsupported",
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "expense-ui/43".to_owned(),
+            sensitivity: Some(SensitivityLabel::Internal),
+        },
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+            id: "expenses/43".to_owned(),
+            sensitivity: None,
+        },
+        vec![lumi_protocol::EvidenceRequirement::FullScreenshot],
+    );
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &FixtureEnvironment::new(),
+        &mut executor,
+    );
+    match outcome {
+        StepOutcome::Stopped { reason } => assert!(reason.contains("FullScreenshot"), "{reason}"),
+        other => panic!("unsupported evidence must stop, got {other:?}"),
+    }
+    assert_eq!(calls.get(), 0);
+    assert!(orch.evidence.is_empty());
+}
+
+#[test]
+fn evidence_uses_postcondition_resource_instead_of_action_resource() {
+    let action_resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::FILE),
+        id: "native-expense-window/42".to_owned(),
+        sensitivity: Some(SensitivityLabel::Internal),
+    };
+    let postcondition_resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+        id: "finance/expenses/42".to_owned(),
+        sensitivity: None,
+    };
+    let action = evidence_record_action(
+        "a-evidence-resource",
+        action_resource,
+        postcondition_resource.clone(),
+        vec![lumi_protocol::EvidenceRequirement::ResourceReference],
+    );
+    let env = FixtureEnvironment::new().with_record(
+        postcondition_resource,
+        serde_json::json!({"exists": true, "total": "100.00"}),
+    );
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let (mut executor, _) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::VerifiedSuccess { .. }));
+    let tenant = TenantId::parse("t-acme").unwrap();
+    let event = orch
+        .audit
+        .events_for(&tenant)
+        .into_iter()
+        .find(|event| {
+            matches!(&event.kind, AuditEventKind::Action(details) if details.action_id == action.action_id)
+        })
+        .unwrap();
+    let evidence_id = EvidenceId::parse(&event.evidence_refs[0]).unwrap();
+    let payload =
+        serde_json::to_string(&orch.evidence.get(&tenant, &evidence_id).unwrap().payload).unwrap();
+    assert!(payload.contains("finance/expenses/42"));
+    assert!(!payload.contains("native-expense-window/42"));
+}
+
+#[test]
+fn structured_evidence_never_serializes_raw_verifier_records() {
+    let postcondition_resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+        id: "finance/expenses/44".to_owned(),
+        sensitivity: None,
+    };
+    let action = evidence_record_action(
+        "a-evidence-secret",
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "reports/44.csv".to_owned(),
+            sensitivity: Some(SensitivityLabel::Confidential),
+        },
+        postcondition_resource.clone(),
+        vec![lumi_protocol::EvidenceRequirement::StructuredState],
+    );
+    let env = FixtureEnvironment::new().with_record(
+        postcondition_resource,
+        serde_json::json!({
+            "exists": true,
+            "total": "100.00",
+            "api_token": "raw-api-token",
+            "password": "raw-password"
+        }),
+    );
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let (mut executor, _) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::VerifiedSuccess { .. }));
+    let payload = orch
+        .evidence
+        .get(
+            &TenantId::parse("t-acme").unwrap(),
+            &EvidenceId::parse(
+                orch.audit
+                    .events_for(&TenantId::parse("t-acme").unwrap())
+                    .into_iter()
+                    .find_map(|event| match &event.kind {
+                        AuditEventKind::Action(details)
+                            if details.action_id == action.action_id =>
+                        {
+                            event.evidence_refs.first().cloned()
+                        }
+                        _ => None,
+                    })
+                    .unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap()
+        .payload
+        .to_string();
+    assert!(!payload.contains("raw-api-token"));
+    assert!(!payload.contains("raw-password"));
+}
+
+#[test]
+fn diff_evidence_captures_distinct_before_and_after_hashes() {
+    let resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+        id: "finance/expenses/42".to_owned(),
+        sensitivity: Some(SensitivityLabel::Confidential),
+    };
+    let action = diff_action("a-evidence-diff", resource.clone());
+    let state = Rc::new(RefCell::new(Some(serde_json::json!({"status": "A"}))));
+    let env = MutableRecordEnvironment {
+        resource,
+        state: Rc::clone(&state),
+    };
+    let executor_state = Rc::clone(&state);
+    let mut executor = move |action: &ActionProposal| {
+        *executor_state.borrow_mut() = Some(serde_json::json!({"status": "B"}));
+        ExecutionResult {
+            action_id: action.action_id.clone(),
+            task_id: action.task_id.clone(),
+            run_id: action.run_id.clone(),
+            status: ExecutionStatus::Success,
+            started_at: ts(0),
+            ended_at: ts(1),
+            grounding: Some(lumi_protocol::Grounding::DeterministicApi),
+            observation_ids: vec![],
+            error: None,
+        }
+    };
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::VerifiedSuccess { .. }));
+    let tenant = TenantId::parse("t-acme").unwrap();
+    let event = orch
+        .audit
+        .events_for(&tenant)
+        .into_iter()
+        .find(|event| {
+            matches!(&event.kind, AuditEventKind::Action(details) if details.action_id == action.action_id)
+        })
+        .unwrap();
+    let evidence_id = EvidenceId::parse(&event.evidence_refs[0]).unwrap();
+    let payload = &orch.evidence.get(&tenant, &evidence_id).unwrap().payload["proofs"][0];
+    assert_eq!(payload["changed"], true);
+    assert_ne!(payload["before_hash"], payload["after_hash"]);
+    assert_eq!(payload["comparison"], "observed_before_vs_observed_after");
+}
+
+#[test]
+fn missing_diff_before_state_stops_without_dispatch() {
+    let resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+        id: "finance/expenses/missing".to_owned(),
+        sensitivity: Some(SensitivityLabel::Confidential),
+    };
+    let action = diff_action("a-evidence-diff-missing", resource.clone());
+    let env = MutableRecordEnvironment {
+        resource,
+        state: Rc::new(RefCell::new(None)),
+    };
+    let calls = Rc::new(Cell::new(0));
+    let observed = Rc::clone(&calls);
+    let mut executor = move |action: &ActionProposal| {
+        observed.set(observed.get() + 1);
+        ExecutionResult {
+            action_id: action.action_id.clone(),
+            task_id: action.task_id.clone(),
+            run_id: action.run_id.clone(),
+            status: ExecutionStatus::Success,
+            started_at: ts(0),
+            ended_at: ts(1),
+            grounding: Some(lumi_protocol::Grounding::DeterministicApi),
+            observation_ids: vec![],
+            error: None,
+        }
+    };
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::Stopped { .. }));
+    assert_eq!(calls.get(), 0);
+}
+
+#[test]
+fn cancellation_after_before_observation_stops_before_dispatch() {
+    let resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+        id: "finance/expenses/cancelled".to_owned(),
+        sensitivity: Some(SensitivityLabel::Confidential),
+    };
+    let action = diff_action("a-evidence-diff-cancel", resource.clone());
+    let cancel = CancelToken::new();
+    let env = CancellingRecordEnvironment {
+        inner: MutableRecordEnvironment {
+            resource,
+            state: Rc::new(RefCell::new(Some(serde_json::json!({"status": "A"})))),
+        },
+        cancel: cancel.clone(),
+    };
+    let calls = Rc::new(Cell::new(0));
+    let observed = Rc::clone(&calls);
+    let mut executor = move |action: &ActionProposal| {
+        observed.set(observed.get() + 1);
+        ExecutionResult {
+            action_id: action.action_id.clone(),
+            task_id: action.task_id.clone(),
+            run_id: action.run_id.clone(),
+            status: ExecutionStatus::Success,
+            started_at: ts(0),
+            ended_at: ts(1),
+            grounding: Some(lumi_protocol::Grounding::DeterministicApi),
+            observation_ids: vec![],
+            error: None,
+        }
+    };
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    orch.cancel = cancel;
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    match outcome {
+        StepOutcome::Stopped { reason } => assert!(reason.contains("cancelled"), "{reason}"),
+        other => panic!("expected pre-dispatch cancellation, got {other:?}"),
+    }
+    assert_eq!(calls.get(), 0);
+}
+
+#[test]
+fn diff_observation_refreshes_expiring_pre_authorization_before_dispatch() {
+    let post_resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::DATABASE_RECORD),
+        id: "finance/expenses/expiring".to_owned(),
+        sensitivity: Some(SensitivityLabel::Confidential),
+    };
+    let mut action = diff_action("a-evidence-expiring", post_resource.clone());
+    action.capability = Capability::well_known(lumi_protocol::capabilities::EMAIL_SEND);
+    action.resource = ResourceRef {
+        resource_type: ResourceType::well_known(ResourceType::EMAIL_MESSAGE),
+        id: "outbound/expense-expiring".to_owned(),
+        sensitivity: Some(SensitivityLabel::Confidential),
+    };
+    action.target = Target::canonical("mailto:finance@example.test");
+    action.operation = "send_expense_status".to_owned();
+    action.risk_class = RiskClass::Communication;
+    action.expected_effect.external_visibility = true;
+
+    let expires_at = Timestamp::now()
+        .checked_add(std::time::Duration::from_millis(5))
+        .unwrap();
+    let mut cfg = config();
+    cfg.pre_authorizations = vec![PreAuthorization {
+        auth_id: "short-lived-expense-grant".to_owned(),
+        capability: Capability::well_known(lumi_protocol::capabilities::EMAIL_SEND),
+        resource_types: vec![ResourceType::well_known(ResourceType::EMAIL_MESSAGE)],
+        target_prefixes: vec!["mailto:".to_owned()],
+        workflow_id: None,
+        max_sensitivity: None,
+        expires_at,
+    }];
+    let state = Rc::new(RefCell::new(Some(serde_json::json!({"status": "A"}))));
+    let env = SlowRecordEnvironment {
+        inner: MutableRecordEnvironment {
+            resource: post_resource,
+            state,
+        },
+        delay: std::time::Duration::from_millis(25),
+    };
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(cfg, InMemoryStateStore::new());
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::ApprovalNeeded { .. }));
+    assert_eq!(
+        calls.get(),
+        0,
+        "expired pre-authorization must not dispatch"
+    );
+}
+
+#[test]
+fn checksum_evidence_requires_and_records_actual_relative_file_hash() {
+    let suffix = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let root = std::env::temp_dir().join(format!("lumi-orch-checksum-{suffix}"));
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("report.csv"), b"expense,total\n42,100.00\n").unwrap();
+    let expected = lumi_protocol::canonical::sha256_hex(b"expense,total\n42,100.00\n");
+    let action = ActionProposal::builder(
+        ActionId::parse("a-evidence-checksum").unwrap(),
+        TaskId::parse("task-evidence-checksum").unwrap(),
+        RunId::parse("run-evidence-checksum").unwrap(),
+        principal(),
+        Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "reports/report.csv".to_owned(),
+            sensitivity: Some(SensitivityLabel::Internal),
+        },
+        Target::canonical("file://workspaces/evidence/report.csv"),
+        "read_report",
+        RiskClass::Read,
+    )
+    .postconditions(vec![lumi_protocol::Postcondition {
+        id: lumi_protocol::PostconditionId::new("report-checksum"),
+        description: "report checksum matches".to_owned(),
+        check: lumi_protocol::PostconditionCheck::FileChecksum {
+            path: "report.csv".to_owned(),
+            sha256: expected.clone(),
+        },
+    }])
+    .evidence_requirements(vec![lumi_protocol::EvidenceRequirement::Checksum])
+    .unwrap();
+    let env = FixtureEnvironment::new().with_workspace(root.clone());
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::VerifiedSuccess { .. }));
+    assert_eq!(calls.get(), 1);
+    let tenant = TenantId::parse("t-acme").unwrap();
+    let event = orch
+        .audit
+        .events_for(&tenant)
+        .into_iter()
+        .find(|event| {
+            matches!(&event.kind, AuditEventKind::Action(details) if details.action_id == action.action_id)
+        })
+        .unwrap();
+    let evidence_id = EvidenceId::parse(&event.evidence_refs[0]).unwrap();
+    let evidence = orch.evidence.get(&tenant, &evidence_id).unwrap();
+    assert_eq!(evidence.kind, lumi_audit::EvidenceKind::Checksum);
+    assert!(evidence.payload.to_string().contains(&expected));
+    std::fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn checksum_evidence_hashes_file_exists_without_claiming_static_expected_hash() {
+    let suffix = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let root = std::env::temp_dir().join(format!("lumi-orch-file-exists-{suffix}"));
+    std::fs::create_dir_all(&root).unwrap();
+    let contents = b"generated after planning";
+    std::fs::write(root.join("generated.txt"), contents).unwrap();
+    let action = ActionProposal::builder(
+        ActionId::parse("a-evidence-file-exists").unwrap(),
+        TaskId::parse("task-evidence-file-exists").unwrap(),
+        RunId::parse("run-evidence-file-exists").unwrap(),
+        principal(),
+        Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "reports/generated.txt".to_owned(),
+            sensitivity: Some(SensitivityLabel::Internal),
+        },
+        Target::canonical("file://workspaces/evidence/generated.txt"),
+        "read_generated_report",
+        RiskClass::Read,
+    )
+    .postconditions(vec![lumi_protocol::Postcondition {
+        id: lumi_protocol::PostconditionId::new("generated-exists"),
+        description: "generated report exists".to_owned(),
+        check: lumi_protocol::PostconditionCheck::FileExists {
+            path: "generated.txt".to_owned(),
+        },
+    }])
+    .evidence_requirements(vec![lumi_protocol::EvidenceRequirement::Checksum])
+    .unwrap();
+    let env = FixtureEnvironment::new().with_workspace(root.clone());
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let (mut executor, _) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::VerifiedSuccess { .. }));
+    let tenant = TenantId::parse("t-acme").unwrap();
+    let event = orch
+        .audit
+        .events_for(&tenant)
+        .into_iter()
+        .find(|event| {
+            matches!(&event.kind, AuditEventKind::Action(details) if details.action_id == action.action_id)
+        })
+        .unwrap();
+    let evidence_id = EvidenceId::parse(&event.evidence_refs[0]).unwrap();
+    let payload = orch
+        .evidence
+        .get(&tenant, &evidence_id)
+        .unwrap()
+        .payload
+        .to_string();
+    assert!(payload.contains(&lumi_protocol::canonical::sha256_hex(contents)));
+    assert!(!payload.contains("expected_sha256"));
+    std::fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn missing_actual_checksum_file_cannot_become_verified_success() {
+    let suffix = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let root = std::env::temp_dir().join(format!("lumi-orch-missing-file-{suffix}"));
+    std::fs::create_dir_all(&root).unwrap();
+    let action = ActionProposal::builder(
+        ActionId::parse("a-evidence-missing-file").unwrap(),
+        TaskId::parse("task-evidence-missing-file").unwrap(),
+        RunId::parse("run-evidence-missing-file").unwrap(),
+        principal(),
+        Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::FILE),
+            id: "reports/missing.txt".to_owned(),
+            sensitivity: Some(SensitivityLabel::Internal),
+        },
+        Target::canonical("file://workspaces/evidence/missing.txt"),
+        "read_missing_report",
+        RiskClass::Read,
+    )
+    .postconditions(vec![lumi_protocol::Postcondition {
+        id: lumi_protocol::PostconditionId::new("missing-file-exists"),
+        description: "missing report exists".to_owned(),
+        check: lumi_protocol::PostconditionCheck::FileExists {
+            path: "missing.txt".to_owned(),
+        },
+    }])
+    .evidence_requirements(vec![lumi_protocol::EvidenceRequirement::Checksum])
+    .unwrap();
+    let env = FixtureEnvironment::new().with_workspace(root.clone());
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &action,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert!(matches!(outcome, StepOutcome::Unverified { .. }));
+    assert_eq!(calls.get(), 1);
+    assert!(orch.evidence.is_empty());
+    std::fs::remove_dir_all(root).ok();
 }

@@ -202,17 +202,17 @@ impl ActionProposal {
 
     /// Digest over all material fields (spec 03 §3.3, spec 04 §4.7).
     ///
-    /// Algorithm `lumi-action-digest/v2`: SHA-256 over canonical JSON of
+    /// Algorithm `lumi-action-digest/v3`: SHA-256 over canonical JSON of
     /// the material projection — capability, resource, target, operation,
     /// arguments, risk, sensitivity, principal identity, idempotency, and
-    /// the reversibility/visibility claims. Deliberately
-    /// *excludes*: execution tier preferences, timeout, evidence
-    /// requirements, postconditions, and ids (changing executor tier does
+    /// the reversibility/visibility and verification/evidence requirements.
+    /// Deliberately *excludes*: execution tier preferences, timeout,
+    /// and ids (changing executor tier does
     /// not change the approved business action; changing what it does does).
     #[must_use]
     pub fn material_digest(&self) -> String {
         let material = serde_json::json!({
-            "digest_version": "lumi-action-digest/v2",
+            "digest_version": "lumi-action-digest/v3",
             "principal": {
                 "tenant_id": self.principal.tenant_id,
                 "principal_id": self.principal.principal_id,
@@ -226,6 +226,8 @@ impl ActionProposal {
             },
             "risk_class": self.risk_class,
             "idempotency": self.idempotency,
+            "postconditions": self.postconditions,
+            "evidence_requirements": self.evidence_requirements,
             "target": self.target.canonical,
             "operation": self.operation,
             "arguments": self.arguments,

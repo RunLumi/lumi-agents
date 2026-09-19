@@ -364,7 +364,13 @@ const ops = {
     const download = await downloadPromise;
     const fs = await import('node:fs');
     const path = await import('node:path');
-    const destination = path.join(params.workspace_dir, download.suggestedFilename());
+    const filename = download.suggestedFilename();
+    if (typeof filename !== 'string' || filename.trim().length === 0
+        || filename.trim() !== filename || filename.endsWith('.')
+        || /[\\/:\x00-\x1f]/.test(filename)) {
+      throw failure('BROWSER_STATE', 'download filename is not a safe single path component');
+    }
+    const destination = path.join(params.workspace_dir, filename);
     await download.saveAs(destination);
     const stat = fs.statSync(destination);
     return { path: destination, size: stat.size, suggested_filename: download.suggestedFilename() };

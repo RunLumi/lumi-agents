@@ -1,0 +1,85 @@
+{
+  "identity": {
+    "tenant_id": "fixture-tenant",
+    "role_id": "finance-operations-associate",
+    "deployment_id": "synthetic-example",
+    "role_version": "0.1.0",
+    "runtime_version": "0.1.0"
+  },
+  "provenance": "synthetic",
+  "coverage": {
+    "representative": false,
+    "population_description": "One invented unit for CLI contract testing; not customer evidence.",
+    "evidence_reference": "fixture://synthetic-example"
+  },
+  "windows": [
+    {
+      "window_id": "example-week",
+      "start_unix_seconds": 0,
+      "end_unix_seconds": 604800
+    }
+  ],
+  "work_units": [
+    {
+      "work_unit_id": "synthetic-unit-1",
+      "window_id": "example-week",
+      "observed_at_unix_seconds": 100,
+      "eligible": true,
+      "completed": true,
+      "verified": true,
+      "human_time": {
+        "baseline_human_minutes": 10,
+        "residual_human_minutes": 2,
+        "expected_approval_minutes": 0,
+        "expected_exception_minutes": 0,
+        "unexpected_rescue_minutes": 0,
+        "support_minutes": 1,
+        "review_minutes": 2
+      },
+      "runtime_cost_micro_usd": 10000,
+      "wrong_target_events": 0,
+      "ambiguous_state_events": 0,
+      "unauthorized_side_effects": 0,
+      "unexpected_rescue_count": 0,
+      "exception_count": 0,
+      "escalation_count": 0,
+      "correctly_escalated_exceptions": 0,
+      "incorrectly_handled_exceptions": 0,
+      "sla_met": true,
+      "safety_regression": false,
+      "privacy_regression": false,
+      "tenant_id": "fixture-tenant",
+      "role_id": "finance-operations-associate",
+      "deployment_id": "synthetic-example",
+      "role_version": "0.1.0",
+      "runtime_version": "0.1.0"
+    }
+  ],
+  "window_costs": [
+    {
+      "window_id": "example-week",
+      "support_cost_micro_usd": 1000000,
+      "deployment_cost_micro_usd": 1000000
+    }
+  ],
+  "reuse": {
+    "deployment_hours": null,
+    "customer_specific_code_percent": null,
+    "shared_role_logic_percent": null
+  },
+  "loaded_labor_cost_per_hour_micro_usd": 60000000,
+  "evidence": [
+    {
+      "reference": "fixture://synthetic-example",
+      "provenance": "synthetic",
+      "trust": "imported_assertion",
+      "window_id": "example-week",
+      "reviewer_proof": null,
+      "tenant_id": "fixture-tenant",
+      "role_id": "finance-operations-associate",
+      "deployment_id": "synthetic-example",
+      "role_version": "0.1.0",
+      "runtime_version": "0.1.0"
+    }
+  ]
+}

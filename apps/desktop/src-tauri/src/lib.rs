@@ -1,170 +1,163 @@
-//! Lumi desktop app: Tauri IPC commands wired to the orchestrator gate.
+//! Lumi desktop app: a thin viewport onto runtime-owned state.
 //!
-//! The frontend is a viewport onto the orchestrator's durable state.
-//! Every command delegates to an existing crate API — no parallel
-//! authority, no UI-owned policy, no secret handling.
+//! The shell reads a durable local runtime snapshot. Categories the runtime
+//! cannot prove remain unknown; the UI cannot create policy, credentials,
+//! approvals, or executor state.
 
+use lumi_desktop::{DesktopRuntime, KillSwitchState, OperationsSnapshot};
+use lumi_state::CancelToken;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use tauri::Manager;
 
 /// Shared application state managed by Tauri.
 pub struct AppState {
-    /// Kill switch: when set, no new actions are admitted.
-    pub killed: bool,
+    /// Durable local runtime and its real orchestrator cancellation token.
+    pub runtime: Mutex<DesktopRuntime>,
+    pub cancel: CancelToken,
+    pub stop_marker: std::path::PathBuf,
 }
 
-/// Task progress summary for the dashboard.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskProgressDto {
-    pub task_id: String,
-    pub goal: String,
-    pub phase: String,
-    pub steps_completed: u32,
-    pub steps_total: u32,
-    pub pending_approvals: u32,
-    pub exceptions: u32,
-    pub elapsed_minutes: u32,
-    pub budget_used: u32,
-    pub budget_total: u32,
+impl AppState {
+    #[must_use]
+    pub fn new(runtime: DesktopRuntime) -> Self {
+        let cancel = runtime.cancellation_token();
+        let stop_marker = runtime.stop_marker_path().to_path_buf();
+        Self {
+            runtime: Mutex::new(runtime),
+            cancel,
+            stop_marker,
+        }
+    }
+
+    /// The UI and orchestrator share this exact cancellation token.
+    #[must_use]
+    pub fn cancellation_token(&self) -> CancelToken {
+        self.cancel.clone()
+    }
 }
 
-/// Approval card DTO.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApprovalDto {
-    pub action_digest: String,
-    pub business_effect: String,
-    pub target_description: String,
-    pub reversible: bool,
-    pub policy_reason: String,
-    pub expires_in: String,
-}
-
-/// Exception card DTO.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExceptionDto {
-    pub what_blocked: String,
-    pub why: String,
-    pub safe_choices: Vec<String>,
-    pub consequences: String,
-    pub suggested_next_step: String,
-}
-
-/// Evidence entry DTO.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EvidenceDto {
-    pub action_id: String,
-    pub operation: String,
-    pub trust_label: String,
-    pub verified: bool,
-}
-
-/// Permission status DTO.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PermissionDto {
-    pub capability: String,
-    pub description: String,
-    pub state: String,
-}
-
-/// Kill switch status DTO.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Kill-switch status derived from the shared cancellation token.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct KillSwitchDto {
+    pub state: KillSwitchState,
     pub running: bool,
 }
 
-#[tauri::command]
-fn get_kill_switch(state: tauri::State<Mutex<AppState>>) -> KillSwitchDto {
-    let app = state.lock().unwrap();
-    KillSwitchDto { running: !app.killed }
-}
-
-#[tauri::command]
-fn emergency_stop(state: tauri::State<Mutex<AppState>>) -> KillSwitchDto {
-    let mut app = state.lock().unwrap();
-    app.killed = true;
-    KillSwitchDto { running: false }
-}
-
-#[tauri::command]
-fn get_task_progress() -> TaskProgressDto {
-    TaskProgressDto {
-        task_id: "task-demo".to_owned(),
-        goal: "Reconcile Q3 invoices".to_owned(),
-        phase: "EXECUTING".to_owned(),
-        steps_completed: 3,
-        steps_total: 5,
-        pending_approvals: 1,
-        exceptions: 0,
-        elapsed_minutes: 3,
-        budget_used: 4,
-        budget_total: 20,
+fn kill_switch_dto(cancel: &CancelToken) -> KillSwitchDto {
+    let stopped = cancel.is_cancelled();
+    KillSwitchDto {
+        state: if stopped {
+            KillSwitchState::Stopped
+        } else {
+            KillSwitchState::Running
+        },
+        running: !stopped,
     }
 }
 
 #[tauri::command]
-fn get_pending_approvals() -> Vec<ApprovalDto> {
-    vec![ApprovalDto {
-        action_digest: "abc123def456".to_owned(),
-        business_effect: "Send quote to customer@example.com for 12,500,000 VND".to_owned(),
-        target_description: "Email via CRM connector".to_owned(),
-        reversible: false,
-        policy_reason: "COMMUNICATION requires approval".to_owned(),
-        expires_in: "60 minutes".to_owned(),
-    }]
+fn get_kill_switch(state: tauri::State<AppState>) -> KillSwitchDto {
+    kill_switch_dto(&state.cancellation_token())
 }
 
 #[tauri::command]
-fn get_exceptions() -> Vec<ExceptionDto> {
-    vec![]
+fn emergency_stop(state: tauri::State<AppState>) -> Result<KillSwitchDto, String> {
+    // Do not lock the runtime here. A worker may be holding the runtime
+    // mutex while executing; the shared atomic token must interrupt it.
+    state.cancel.cancel();
+    persist_stop_marker(&state.stop_marker)?;
+    Ok(kill_switch_dto(&state.cancellation_token()))
 }
 
-#[tauri::command]
-fn get_evidence() -> Vec<EvidenceDto> {
-    vec![
-        EvidenceDto {
-            action_id: "a-1".to_owned(),
-            operation: "fetch_open_invoices".to_owned(),
-            trust_label: "Verified".to_owned(),
-            verified: true,
-        },
-        EvidenceDto {
-            action_id: "a-2".to_owned(),
-            operation: "send_customer_email".to_owned(),
-            trust_label: "Attempted".to_owned(),
-            verified: false,
-        },
-    ]
+fn persist_stop_marker(path: &std::path::Path) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("create stop marker directory: {e}"))?;
+    }
+    std::fs::write(path, b"stopped\n").map_err(|e| format!("persist emergency stop: {e}"))
 }
 
+/// Returns the latest runtime-produced snapshot. `null` fields mean the
+/// runtime has not supplied that category of state; they are not empty or
+/// successful values.
 #[tauri::command]
-fn get_permissions() -> Vec<PermissionDto> {
-    vec![
-        PermissionDto {
-            capability: "accessibility".to_owned(),
-            description: "Read and control applications via Accessibility".to_owned(),
-            state: "GRANTED".to_owned(),
-        },
-        PermissionDto {
-            capability: "screen_recording".to_owned(),
-            description: "Selective screenshot evidence".to_owned(),
-            state: "NOT_GRANTED".to_owned(),
-        },
-    ]
+fn get_operations_snapshot(state: tauri::State<AppState>) -> OperationsSnapshot {
+    state
+        .runtime
+        .lock()
+        .expect("desktop runtime lock poisoned")
+        .snapshot()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(Mutex::new(AppState { killed: false }))
+        .setup(|app| {
+            let state_dir = app
+                .path()
+                .app_local_data_dir()
+                .map_err(|error| std::io::Error::other(error.to_string()))?;
+            let runtime = DesktopRuntime::new(state_dir.join("runtime-state.json"))
+                .map_err(std::io::Error::other)?;
+            app.manage(AppState::new(runtime));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_kill_switch,
             emergency_stop,
-            get_task_progress,
-            get_pending_approvals,
-            get_exceptions,
-            get_evidence,
-            get_permissions,
+            get_operations_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stop_uses_the_shared_runtime_token() {
+        let path =
+            std::env::temp_dir().join(format!("lumi-desktop-app-{}.json", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("stopped"));
+        let runtime = DesktopRuntime::new(path.clone()).unwrap();
+        let token = runtime.cancellation_token();
+        let state = AppState::new(runtime);
+        assert!(!state.cancellation_token().is_cancelled());
+        state.cancel.cancel();
+        assert!(token.is_cancelled());
+        assert_eq!(kill_switch_dto(&token).state, KillSwitchState::Stopped);
+        assert!(!kill_switch_dto(&token).running);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("stopped"));
+    }
+
+    #[test]
+    fn initial_operations_view_is_unknown() {
+        let path = std::env::temp_dir().join(format!(
+            "lumi-desktop-app-unknown-{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("stopped"));
+        let state = AppState::new(DesktopRuntime::new(path.clone()).unwrap());
+        let snapshot = state.runtime.lock().unwrap().snapshot();
+        assert_eq!(
+            snapshot.connection,
+            lumi_desktop::ConnectionState::Connected
+        );
+        assert_eq!(
+            snapshot.execution,
+            lumi_desktop::ExecutionState::Unavailable
+        );
+        assert_eq!(snapshot.queue, Some(vec![]));
+        assert!(snapshot.progress.is_none());
+        assert!(snapshot.pending_approvals.is_none());
+        assert!(snapshot.economics.is_none());
+        assert!(snapshot.permissions.is_none());
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("stopped"));
+    }
 }

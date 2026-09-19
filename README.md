@@ -30,9 +30,16 @@ success is not effect success. Ambiguous work remains ambiguous.
 
 ## Product direction
 
-Work mode supports novel work, exceptions and discovery. Workflow Packs harden
-repeatable work with contracts and evaluations. Minimal Role Packs will compose
-workflows into bounded operational responsibilities and measurable queues.
+Work mode supports novel work, exceptions and discovery. Its core local primitive
+is **Folder-as-Project**: a user opens a folder/repository as a durable Project,
+then Lumi can safely search, read, create, edit, move and delete files, run bounded
+project-local commands, inspect Git, validate changes and resume tasks later.
+Project roots are filesystem authority boundaries, not whole-machine access. See
+[Spec 26](docs/specs/v1/26-project-workspace-folder-as-project.md).
+
+Workflow Packs harden repeatable work with contracts and evaluations. Minimal Role
+Packs will compose workflows into bounded operational responsibilities and
+measurable queues.
 
 The provisional lighthouse is Finance Operations reconciliation and exception
 reporting, excluding autonomous money movement. Ads, HR and Legal Ops are also

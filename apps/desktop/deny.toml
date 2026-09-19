@@ -1,0 +1,74 @@
+[graph]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-msvc",
+]
+all-features = true
+
+[advisories]
+# Unmaintained unic-family crates reached only via tauri-utils -> urlpattern;
+# no safe upgrade exists until Tauri drops urlpattern. Re-review on any Tauri
+# bump that removes the urlpattern path. Triaged 2026-09-19 in
+# docs/dependency-review-tauri.md.
+ignore = [
+    "RUSTSEC-2025-0075",
+    "RUSTSEC-2025-0080",
+    "RUSTSEC-2025-0081",
+    "RUSTSEC-2025-0098",
+    "RUSTSEC-2025-0100",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+
+[licenses]
+confidence-threshold = 0.93
+unused-allowed-license = "allow"
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+# Existing Tauri graph reviewed package-by-package in docs/dependency-review-tauri.md.
+# These exceptions apply only to this app scan and exact locked versions.
+[[licenses.exceptions]]
+name = "cssparser"
+version = "=0.36.0"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+name = "cssparser-macros"
+version = "=0.6.1"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+name = "dtoa-short"
+version = "=0.3.5"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+name = "option-ext"
+version = "=0.2.0"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+name = "selectors"
+version = "=0.36.1"
+allow = ["MPL-2.0"]
+
+[licenses.private]
+ignore = true

@@ -1,0 +1,99 @@
+{
+  "schema_name": "lumi.role_pack",
+  "schema_version": 0,
+  "role_id": "finance-operations-associate",
+  "version": "0.1.0",
+  "owner": "finance-ops@acme.test",
+  "supervisor": "finance-manager@acme.test",
+  "job_to_be_done": "Process bounded finance operations work items and prepare verified reconciliation and expense audit outputs.",
+  "scope": [
+    "reconcile invoice and ledger records",
+    "prepare reconciliation report artifacts",
+    "audit submitted expense reports and prepare a verdict for review"
+  ],
+  "non_scope": [
+    "payments, bank transfers, or movement of money",
+    "tax filings or binding financial commitments",
+    "autonomous approval of expense verdicts",
+    "external writes without the local policy and approval path"
+  ],
+  "queue": {
+    "queue_id": "finance-operations-inbox",
+    "work_item_id_field": "work_item_id",
+    "triggers": [
+      "invoice_batch_available",
+      "expense_report_submitted"
+    ]
+  },
+  "work_item_schema": {
+    "fields": [
+      {
+        "name": "work_item_id",
+        "value_type": "string",
+        "description": "Stable idempotent identity for one finance work item",
+        "required": true
+      },
+      {
+        "name": "source_system",
+        "value_type": "string",
+        "description": "Authoritative source system for the work item",
+        "required": true
+      },
+      {
+        "name": "period",
+        "value_type": "string",
+        "description": "Accounting period when the work item is period based",
+        "required": false
+      },
+      {
+        "name": "report_id",
+        "value_type": "string",
+        "description": "Expense report id when the work item is an audit",
+        "required": false
+      },
+      {
+        "name": "ledger_account",
+        "value_type": "string",
+        "description": "Ledger account when the work item is reconciliation",
+        "required": false
+      },
+      {
+        "name": "policy_version",
+        "value_type": "string",
+        "description": "Expense policy version when the work item is an audit",
+        "required": false
+      }
+    ]
+  },
+  "workflow_packs": [
+    {
+      "pack_id": "invoice-reconciliation",
+      "version": "1.0.0"
+    },
+    {
+      "pack_id": "expense-report-audit",
+      "version": "1.0.0"
+    }
+  ],
+  "authority": {
+    "allowed_capabilities": [
+      "api.read",
+      "api.write",
+      "desktop.interact",
+      "files.write"
+    ],
+    "allowed_risk_classes": [
+      "READ",
+      "LOCAL_WRITE",
+      "EXTERNAL_WRITE"
+    ],
+    "required_approval_risk_classes": [
+      "EXTERNAL_WRITE"
+    ],
+    "max_model_cost_micro_usd": 5000000,
+    "max_actions": 6,
+    "max_retries": 1,
+    "max_vision_actions": 1,
+    "max_external_writes": 1
+  }
+}

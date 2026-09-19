@@ -60,6 +60,7 @@ fn registry_for(pack: &WorkflowPack) -> lumi_policy::CapabilityRegistry {
 fn config_for(pack: &WorkflowPack) -> OrchestratorConfig {
     OrchestratorConfig {
         registry: registry_for(pack),
+        device_state: lumi_policy::DeviceExecutionState::Trusted,
         pre_authorizations: vec![],
         retry: lumi_state::RetryPolicy::default(),
         policy_version: "1.0.0".to_owned(),

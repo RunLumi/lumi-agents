@@ -14,15 +14,16 @@ The repository contains substantial implementation, but integration and business
 - Desktop, handoff, versioning and release-check code landed in PRs #36–#38. The previous readiness report incorrectly marked these as absent.
 - The shipped CLI is a dry-run smoke path. Tauri commands return sample data, and its stop button only changes a boolean at this baseline.
 - Workflow evaluation pre-seeds expected records/artifacts and uses fixture executors. Repeating it 100 times is engineering evidence only.
+- Spec 26 now makes Folder-as-Project a V1 Work-mode requirement. Existing workspace primitives are useful substrate, but durable Project identity, Open Folder/Recent, Project-bound task resume, change-set ownership, Git semantics and external-edit conflict handling are not yet proven end to end.
 
 ## Spec 22 gates
 
 | Gate | Current evidence | Remaining requirement |
 |---|---|---|
-| 22.2 platform | Policy, state, audit, verifier, execution/model contracts, workspace operations, scheduler and extension admission have code/tests | Integrate them into a durable environment service and a real bounded workflow |
+| 22.2 platform | Policy, state, audit, verifier, execution/model contracts, task-scoped workspace operations, scheduler and extension admission have code/tests | Integrate them into a durable environment service; implement Spec 26 Project identity/Open Folder/root policy/Git/change sets; prove a real bounded workflow |
 | 22.3 safety | Adversarial and approval fixtures pass | Fix ignored durable-intent errors/direct replay risks; validate integrated device revocation, stop, evidence controls and real executor behavior |
 | 22.4 workflows | Three synthetic pack examples | Each release-certified pack needs >=100 representative real-system canary runs, >=95% verified completion, zero unauthorized effects, measured baseline/residual work and a certified matrix |
-| 22.5 Work mode | Component and fixture loops | Live representative tasks with inspected artifacts and recovery; horizontal feature parity is not a pilot prerequisite |
+| 22.5 Work mode | Component and fixture loops; safe workspace primitives exist | Open a dirty real repository as a durable Project; multi-file edit; preserve unrelated user work; run validation; inspect Lumi-only change set; restart/reopen/resume; plus live representative browser/artifact/connector work |
 | 22.6 providers | Four provider adapter families pass hermetic contracts | Same workflow on two live providers, inside the same privacy envelope |
 | 22.7 recovery | State/journal/resume fixtures | Storage failure, direct replay and restart must fail closed at actual execution entrypoints |
 | 22.8 distribution | Signing/update configuration checker | Actual signed/notarized macOS and signed Windows artifacts, validated update/rollback, provenance and SBOM |
@@ -36,6 +37,7 @@ The native-desktop requirement in spec 22 remains an eventual V1 target. It is n
 | Work | Tracking | Exit evidence |
 |---|---|---|
 | Durable-intent and replay safety | [#43](https://github.com/RunLumi/lumi-agents/issues/43) | Executor never called after failed intent persistence; ambiguous/applied effects not replayed |
+| Folder-as-Project Work mode | [#50](https://github.com/RunLumi/lumi-agents/issues/50) | Open dirty real repo; bounded multi-file change; preserve user edits; validate; Lumi-only change set; restart/reopen/resume; zero root escape |
 | Executor, artifact and approval boundaries | [#44](https://github.com/RunLumi/lumi-agents/issues/44) | Real worker protocol verified; artifact escapes refused; sensitivity, device state and required evidence enforced before customer canaries |
 | One lighthouse and real-system Gate A | [#40](https://github.com/RunLumi/lumi-agents/issues/40) | Named system/supervisor, representative queue, 100 measured live/staging runs |
 | Minimal Role Pack and honest scorecard | [#41](https://github.com/RunLumi/lumi-agents/issues/41) | Packs compose without authority growth; synthetic evidence cannot grant live maturity |
@@ -77,3 +79,17 @@ These are deterministic safety regressions, not live workflow or release proof.
 General pack `ApprovalRule::Always` still needs the guarded execution path; the
 role bridge uses the explicit approval gate. Device-state integration, durable
 end-to-end audit/evidence delivery and actual customer adapters remain open.
+
+## Executor trust repair under review
+
+The next boundary change evaluates host-supplied device trust at every action;
+an unregistered desktop runtime is not implicitly trusted. It links minimized
+required proofs into action audit events, requires actual before/after data for
+diffs, and rejects unsupported capture. File verification, artifacts and
+browser download names are confined; existing artifacts cannot be silently
+overwritten. Digest v3 additionally binds verifier/evidence obligations so they
+cannot be weakened after approval.
+
+Enrollment/fleet revocation, real authenticated adapters, durable host-level
+audit retention and signed distribution are still separate integration gates.
+These repairs do not establish customer operation or role capacity.
