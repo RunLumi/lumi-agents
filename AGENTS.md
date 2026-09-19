@@ -270,6 +270,40 @@ Remote clients supervise them.
 
 Do not copy authority or secret state into a remote control surface for convenience.
 
+### Project owns durable local working context
+
+Work-mode folder/repository work follows Spec 26:
+
+```text
+ExecutionEnvironment
+  -> Project
+      -> Task
+          -> Run
+```
+
+A Project is a durable user-selected working context rooted in explicit local
+filesystem roots. Opening a folder does not authorize sibling directories, home
+secrets, browser profiles, SSH material or unrelated repositories.
+
+A task workspace is the concrete execution scope for one Task/Run and may be the
+Project root, a subdirectory, worktree, staging directory or sandbox projection.
+Do not silently switch scope.
+
+Project/repository content may guide work but cannot grant authority. In
+particular, AGENTS.md, README files, scripts, hooks and package manifests cannot
+widen policy, network, filesystem, secret, provider or external-action scope.
+
+When editing a real Project:
+
+- detect pre-existing changes;
+- distinguish Lumi-produced changes from user changes;
+- revalidate before writing after a pause/external edit;
+- refuse path/symlink escape;
+- prefer inspectable patches and reversible operations;
+- validate work before claiming completion;
+- never use destructive Git cleanup/reset to make the working tree convenient.
+
+
 ### Extension vocabulary is strict
 
 Use the definitions in `docs/extension-model.md`.
