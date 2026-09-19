@@ -8,7 +8,17 @@ targets = [
 all-features = true
 
 [advisories]
-ignore = []
+# Unmaintained unic-family crates reached only via tauri-utils -> urlpattern;
+# no safe upgrade exists until Tauri drops urlpattern. Re-review on any Tauri
+# bump that removes the urlpattern path. Triaged 2026-09-19 in
+# docs/dependency-review-tauri.md.
+ignore = [
+    "RUSTSEC-2025-0075",
+    "RUSTSEC-2025-0080",
+    "RUSTSEC-2025-0081",
+    "RUSTSEC-2025-0098",
+    "RUSTSEC-2025-0100",
+]
 
 [bans]
 multiple-versions = "warn"

@@ -55,6 +55,10 @@ This review does not cover unreviewed package versions, copied/modified upstream
 
 The recommended policy shape is an app-scoped MPL-2.0 exception backed by exact package review and generated release evidence. If the app dependency-policy job cannot be made app-scoped, keep the release blocked until the policy check can distinguish this reviewed set from unreviewed MPL packages.
 
+## Advisory triage (2026-09-19)
+
+The app-scoped advisories scan fails on five RUSTSEC entries, all one root cause: the unmaintained `unic` crate family (`unic-char-range`, `unic-char-property`, `unic-ucd-ident`, `unic-ucd-version`), reached only via `tauri-utils v2.9.3 -> urlpattern v0.3.0`. Each advisory (RUSTSEC-2025-0075, -0080, -0081, -0098, -0100) is an unmaintained notice, not a vulnerability, and reports no safe upgrade: the fix belongs upstream to Tauri replacing `urlpattern`. They are therefore ignored in [`apps/desktop/deny.toml`](../apps/desktop/deny.toml) with exact IDs. Removing this ignore list is required review work on any Tauri bump that drops the `urlpattern` path; new RUSTSEC IDs must not be added to the list without individual triage recorded here.
+
 ## Validation record
 
 - Read `/private/tmp/lumi-desktop-dependencies.json` (captured 2026-09-19 19:37:45); it reports the five packages as `MPL-2.0` and the Tauri app as the workspace root.
