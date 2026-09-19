@@ -179,10 +179,14 @@ mod tests {
     use super::*;
 
     fn depot() -> PathBuf {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "lumi-paths-{}-{}",
+            "lumi-paths-{}-{}-{}",
             std::process::id(),
-            Timestamp::now().nanoseconds()
+            format!("{:?}", std::thread::current().id())
+                .replace("ThreadId(", "")
+                .replace(")", ""),
+            COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -271,6 +275,4 @@ mod tests {
         assert_eq!(resolved.file_name().unwrap(), "passwd");
         std::fs::remove_dir_all(&root).ok();
     }
-
-    use lumi_protocol::Timestamp;
 }

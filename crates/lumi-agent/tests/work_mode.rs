@@ -22,10 +22,12 @@ fn planner_principal() -> lumi_protocol::Principal {
 }
 
 fn setup(goal: &str, turns: Vec<ModelResponse>) -> (PathBufGuard, AgentRunTestSetup) {
+    static DEPOT_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let tid = format!("{:?}", std::thread::current().id());
     let depot = std::env::temp_dir().join(format!(
-        "lumi-agent-{}-{}",
+        "lumi-agent-{}-{tid}-{}",
         std::process::id(),
-        lumi_protocol::Timestamp::now().nanoseconds()
+        DEPOT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
     ));
     std::fs::create_dir_all(&depot).unwrap();
     let ws = Workspace::create(
@@ -211,10 +213,12 @@ fn work_mode_completes_write_then_answer() {
 #[test]
 fn read_file_observation_feeds_back_to_planner() {
     let (depot, ws) = {
+        static DEPOT_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let tid = format!("{:?}", std::thread::current().id());
         let depot = std::env::temp_dir().join(format!(
-            "lumi-agent-read-{}-{}",
+            "lumi-agent-read-{}-{tid}-{}",
             std::process::id(),
-            lumi_protocol::Timestamp::now().nanoseconds()
+            DEPOT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         ));
         std::fs::create_dir_all(&depot).unwrap();
         let ws = Workspace::create(

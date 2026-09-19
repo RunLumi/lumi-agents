@@ -13,6 +13,7 @@ members = [
     "crates/lumi-packs",
     "crates/lumi-workflows",
     "crates/lumi-workspaces",
+    "crates/lumi-memory",
     "crates/lumi-agent",
     "crates/lumi-secrets",
     "crates/lumi-runtime",

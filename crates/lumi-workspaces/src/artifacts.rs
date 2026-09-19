@@ -399,10 +399,14 @@ mod tests {
     use super::*;
 
     fn store() -> (PathBuf, ArtifactStore) {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "lumi-artifacts-{}-{}",
+            "lumi-artifacts-{}-{}-{}",
             std::process::id(),
-            Timestamp::now().nanoseconds()
+            format!("{:?}", std::thread::current().id())
+                .replace("ThreadId(", "")
+                .replace(")", ""),
+            COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         ));
         let s = ArtifactStore::open(&dir).unwrap();
         (dir, s)
