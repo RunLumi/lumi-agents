@@ -271,6 +271,47 @@ Remote web/mobile/desktop supervisors control an environment through authenticat
 
 Every task records its execution-environment identity and a capability snapshot.
 
+## Project is a first-class durable working context
+
+Work mode uses the hierarchy:
+
+```text
+ExecutionEnvironment
+  -> Project
+      -> Task
+          -> Run
+              -> Action
+```
+
+A **Project** is a durable user-selected body of work rooted in one or more
+authorized local filesystem roots on an ExecutionEnvironment.
+
+It owns or references:
+
+- stable Project identity;
+- authorized roots and primary root;
+- Project policy/configuration;
+- discovered repository/build metadata;
+- Git metadata when applicable;
+- Project-scoped retrieval/index state;
+- Project memory with provenance;
+- durable Task history and Lumi change sets.
+
+A Project is distinct from a task workspace. A Task may operate directly on the
+Project root, a subdirectory, an isolated worktree, a temporary staging directory,
+or a sandbox projection. The runtime records the concrete workspace and must not
+silently switch scopes.
+
+The Project root is the default filesystem authority boundary. Opening a Project
+does not authorize sibling directories, home-directory secrets, SSH material,
+browser profiles or unrelated repositories.
+
+Repository content and project instruction files may guide work but cannot grant
+capabilities or widen organization/user policy.
+
+Normative behavior lives in
+`docs/specs/v1/26-project-workspace-folder-as-project.md`.
+
 ## Capability negotiation
 
 Clients, control plane, and local runtimes may upgrade independently.
