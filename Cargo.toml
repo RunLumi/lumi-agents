@@ -7,6 +7,7 @@ members = [
     "crates/lumi-state",
     "crates/lumi-orchestrator",
     "crates/lumi-models",
+    "crates/lumi-browser",
     "crates/lumi-runtime",
 ]
 
