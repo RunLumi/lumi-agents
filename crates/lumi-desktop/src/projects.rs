@@ -187,18 +187,8 @@ impl ProjectService {
                 "destination parent is not a directory: {destination_parent}"
             ));
         }
-        let repo_name = source
-            .trim_end_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or_default()
-            .trim_end_matches(".git");
-        if repo_name.is_empty() {
-            return Err("cannot derive a folder name from the source".to_owned());
-        }
-        let destination = parent.join(repo_name);
-        clone_repository(source, &destination).map_err(|e| e.to_string())?;
-        self.open_folder(&destination.display().to_string(), display_name)
+        let repo = clone_repository(source, parent).map_err(|e| e.to_string())?;
+        self.open_folder(&repo.root().display().to_string(), display_name)
     }
 
     /// Records durable project memory with mandatory provenance

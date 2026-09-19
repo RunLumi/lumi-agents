@@ -469,19 +469,41 @@ impl GitRepo {
 /// # Errors
 /// [`GitError`] on command failure or if the destination already exists.
 pub fn clone_repository(source: &str, destination: &Path) -> Result<GitRepo, GitError> {
-    if destination.exists() {
+    // `destination` is the parent directory (must already exist); the
+    // clone target is `<destination>/<repo name>` and must NOT exist.
+    let destination = normalize_path(destination.to_path_buf());
+    if !destination.is_dir() {
         return Err(GitError::Io(format!(
-            "clone destination already exists: {}",
+            "clone destination parent is not a directory: {}",
             destination.display()
         )));
     }
+    // Folder name: last segment of the source (both separators), minus a
+    // trailing ".git". A verbatim Windows source (\\?\C:\...) must not
+    // leak into the destination name.
+    let source_path = normalize_path(PathBuf::from(source));
+    let repo_name = source_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let repo_name = repo_name.trim_end_matches(".git");
+    if repo_name.is_empty() {
+        return Err(GitError::Io(
+            "cannot derive a folder name from the source".to_owned(),
+        ));
+    }
+    let target = destination.join(repo_name);
+    if target.exists() {
+        return Err(GitError::Io(format!(
+            "clone destination already exists: {}",
+            target.display()
+        )));
+    }
     run_expect(
-        destination
-            .parent()
-            .ok_or_else(|| GitError::Io("destination has no parent".to_owned()))?,
-        &["clone", "--quiet", source, &destination.to_string_lossy()],
+        &destination,
+        &["clone", "--quiet", source, &target.to_string_lossy()],
     )?;
-    GitRepo::discover(destination)
+    GitRepo::discover(&target)
         .ok_or_else(|| GitError::Io("cloned destination is not a repository".to_owned()))
 }
 
