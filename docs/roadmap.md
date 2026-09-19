@@ -91,7 +91,7 @@ Staging and fixtures cannot establish production capacity replacement.
 
 1. Repair durable persistence/replay defects (#43) and executor, artifact and
    approval boundary gaps (#44); reconcile readiness before customer canaries.
-2. Implement the smallest end-to-end Folder-as-Project slice from Spec 26:
+2. Implement the smallest end-to-end Folder-as-Project slice from Spec 26 (#50):
    durable Project identity, Open Folder/Recent, root isolation, files/search,
    change-set tracking, Git read/local-write, bounded shell/validation, restart
    and resume. Prove it on a dirty real internal repository before IDE breadth.
