@@ -1,0 +1,7 @@
+{"id":"r1","op":"navigate","url":"https://portal.example.test/invoices","wait_until":"load","trace_path":"/workspace/traces/r1.zip","session":{"headless":false,"profile":{"mode":"isolated"},"trace":"on_demand"}}
+{"id":"r2","op":"fill","target":{"strategy":"test_id","test_id":"email","nth":1},"value":"person@example.test","timeout_ms":1000}
+{"id":"r3","op":"read"}
+{"id":"r4","op":"wait_for","selector":{"strategy":"test_id","test_id":"ready"},"state":"visible","timeout_ms":50}
+{"id":"r5","op":"download","trigger":{"strategy":"test_id","test_id":"download-report"},"workspace_dir":"/workspace/downloads","timeout_ms":1000}
+{"id":"r6","op":"submit","target":{"strategy":"test_id","test_id":"submit"},"expect":{"selector":{"strategy":"test_id","test_id":"confirmation"}},"timeout_ms":0}
+{"id":"r7","op":"stop_trace"}
