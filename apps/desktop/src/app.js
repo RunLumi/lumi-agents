@@ -219,9 +219,7 @@ function projectsHomeView() {
   wrap.querySelector("#action-recent").addEventListener("click", () => {
     wrap.querySelector("#recents").scrollIntoView({ behavior: "smooth" });
   });
-  wrap.querySelector("#action-clone").addEventListener("click", () => {
-    toast("Clone Repository ships in an upcoming release.", "");
-  });
+  wrap.querySelector("#action-clone").addEventListener("click", cloneRepositoryFlow);
 
   const recents = wrap.querySelector("#recents");
   if (S.projects === null) {
@@ -275,6 +273,29 @@ function openProjectMenu(project) {
     }
   }
 }
+async function cloneRepositoryFlow() {
+  const source = prompt("Repository URL or local path to clone:");
+  if (!source) return;
+  if (!hasTauri()) { toast("Folder picking needs the desktop app.", "error"); return; }
+  try {
+    const parent = await window.__TAURI__.dialog.open({
+      directory: true, multiple: false, title: "Choose the parent folder for the clone",
+    });
+    if (!parent) return;
+    const name = prompt("Display name for the new project (optional):");
+    const opened = await invoke("project_clone", {
+      source: source.trim(),
+      destinationParent: parent,
+      displayName: name || null,
+    });
+    toast("Repository cloned and opened as a project.", "success");
+    refresh();
+    setRoute(`#/p/${encodeURIComponent(opened.project.project_id)}/home`);
+  } catch (error) {
+    toast(String(error), "error");
+  }
+}
+
 async function pickAndOpenFolder() {
   if (!hasTauri()) { toast("Folder picking needs the desktop app.", "error"); return; }
   try {
@@ -910,6 +931,22 @@ function settingsView() {
             <button class="btn btn-danger-outline" id="btn-remove">Remove project</button>
           </div>
         </div>
+        <div class="card" id="memory-panel">
+          <h3>💡 Project Memory</h3>
+          <p class="card-sub">Validated knowledge with provenance. Records tied to a Git HEAD go stale when HEAD moves; invalidation is reasoned and audit-retained.</p>
+          <div id="memory-rows"></div>
+          <div class="inline-form" style="margin-top:10px">
+            <input class="input" id="memory-content" placeholder="e.g. npm test validates the sync module">
+            <input class="input" id="memory-command" placeholder="command (required for validated_command)">
+            <select class="select" id="memory-kind" style="max-width:180px">
+              <option value="validated_command">validated_command</option>
+              <option value="convention">convention</option>
+              <option value="environment_requirement">environment_requirement</option>
+              <option value="recovery_procedure">recovery_procedure</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="memory-save">Remember</button>
+          </div>
+        </div>
       </div>
       <aside class="context-panel">
         <div class="card context-card">
@@ -931,6 +968,48 @@ function settingsView() {
     if (confirm("Remove this project from Lumi? The folder on disk is not touched.")) {
       invoke("project_remove", { projectId: p.project_id }).then(() => setRoute("#/projects")).catch((e) => toast(String(e), "error"));
     }
+  });
+
+  const memoryRows = wrap.querySelector("#memory-rows");
+  invoke("memory_list", { projectId: p.project_id }).then((records) => {
+    if (!records || records.__unavailable || !records.length) {
+      memoryRows.innerHTML = '<div class="empty-state">No project memory yet. Validated commands and conventions appear here with provenance.</div>';
+      return;
+    }
+    memoryRows.innerHTML = records.map(([record, trusted]) => `
+      <div class="mini-row">
+        <span class="${trusted ? "check-yes" : "check-no"}">${trusted ? "✓" : "✗"}</span>
+        <span style="flex:1">${esc(record.content)}
+          <span class="muted small mono">· ${esc(record.kind)} · ${esc(record.provenance.task_id)}</span></span>
+        <span class="pill ${trusted ? "pill-green" : "pill-gray"}">${trusted ? "trusted" : "stale"}</span>
+        ${trusted ? `<button class="card-link" data-invalidate="${esc(record.memory_id)}">Invalidate</button>` : ""}
+      </div>`).join("");
+    memoryRows.querySelectorAll("[data-invalidate]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const reason = prompt("Reason for invalidating this memory:");
+        if (!reason) return;
+        invoke("memory_invalidate", { projectId: p.project_id, memoryId: b.dataset.invalidate, reason })
+          .then(refresh).catch((e) => toast(String(e), "error"));
+      }));
+  }).catch((e) => { memoryRows.innerHTML = `<div class="empty-state">${esc(String(e))}</div>`; });
+
+  wrap.querySelector("#memory-save").addEventListener("click", async () => {
+    const content = wrap.querySelector("#memory-content").value.trim();
+    const command = wrap.querySelector("#memory-command").value.trim() || null;
+    const kind = wrap.querySelector("#memory-kind").value;
+    if (!content) { toast("Describe the knowledge first.", "error"); return; }
+    try {
+      await invoke("memory_remember", {
+        projectId: p.project_id,
+        submission: {
+          memory_id: `mem-${Date.now()}`,
+          kind, content, task_id: "task-manual-local",
+          command, evidence: null,
+        },
+      });
+      toast("Remembered.", "success");
+      refresh();
+    } catch (e) { toast(String(e), "error"); }
   });
   return wrap;
 }

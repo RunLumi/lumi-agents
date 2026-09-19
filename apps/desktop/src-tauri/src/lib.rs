@@ -390,6 +390,59 @@ fn change_sets(
         .change_sets(&project_id)
 }
 
+#[tauri::command]
+fn project_clone(
+    state: tauri::State<'_, AppState>,
+    source: String,
+    destination_parent: String,
+    display_name: Option<String>,
+) -> Result<lumi_desktop::OpenedProject, String> {
+    state
+        .projects
+        .lock()
+        .expect("project service lock poisoned")
+        .clone_repository(&source, &destination_parent, display_name)
+}
+
+#[tauri::command]
+fn memory_remember(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    submission: lumi_desktop::MemorySubmission,
+) -> Result<(), String> {
+    state
+        .projects
+        .lock()
+        .expect("project service lock poisoned")
+        .memory_remember(&project_id, &submission)
+}
+
+#[tauri::command]
+fn memory_list(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+) -> Result<Vec<(lumi_project::MemoryRecord, bool)>, String> {
+    state
+        .projects
+        .lock()
+        .expect("project service lock poisoned")
+        .memory_list(&project_id)
+}
+
+#[tauri::command]
+fn memory_invalidate(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    memory_id: String,
+    reason: String,
+) -> Result<(), String> {
+    state
+        .projects
+        .lock()
+        .expect("project service lock poisoned")
+        .memory_invalidate(&project_id, &memory_id, &reason)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -439,6 +492,10 @@ pub fn run() {
             validation_run,
             change_set,
             change_sets,
+            project_clone,
+            memory_remember,
+            memory_list,
+            memory_invalidate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

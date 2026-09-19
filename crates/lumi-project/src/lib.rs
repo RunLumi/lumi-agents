@@ -25,6 +25,7 @@ pub mod discovery;
 pub mod error;
 pub mod files;
 pub mod git;
+pub mod memory;
 pub mod record;
 pub mod roots;
 pub mod search;
@@ -39,9 +40,10 @@ pub use discovery::{discover, source_label, ProjectDiscovery, ProposedCommand};
 pub use error::ProjectError;
 pub use files::{FileOpsError, MutationOutcome, ProjectFiles, MAX_PATCH_BYTES, MAX_READ_BYTES};
 pub use git::{
-    normalize_path, CommitInfo, FileStatus, GitError, GitRepo, GitStatus, WorktreeEntry,
-    GIT_MAX_OUTPUT_BYTES, GIT_TIMEOUT_MS,
+    clone_repository, normalize_path, CommitInfo, FileStatus, GitError, GitRepo, GitStatus,
+    WorktreeEntry, GIT_MAX_OUTPUT_BYTES, GIT_TIMEOUT_MS,
 };
+pub use memory::{Invalidation, MemoryKind, MemoryProvenance, MemoryRecord, ProjectMemoryStore};
 pub use record::{
     capability_snapshot, detect_git, detect_source, scan_instructions, AuthorizedRoot,
     DetectedSource, GitMetadata, IndexingState, InstructionKind, InstructionSource,

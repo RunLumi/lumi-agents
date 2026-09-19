@@ -458,6 +458,33 @@ impl GitRepo {
     }
 }
 
+/// Clones `source` into `destination` (spec 26 §26.27: clone is a
+/// network + filesystem action; the caller (desktop user or policy)
+/// supplies the authority, and nothing cloned is executed by this
+/// crate). Deterministic tests use local path sources, which `git
+/// clone` supports natively.
+///
+/// Returns the cloned worktree root.
+///
+/// # Errors
+/// [`GitError`] on command failure or if the destination already exists.
+pub fn clone_repository(source: &str, destination: &Path) -> Result<GitRepo, GitError> {
+    if destination.exists() {
+        return Err(GitError::Io(format!(
+            "clone destination already exists: {}",
+            destination.display()
+        )));
+    }
+    run_expect(
+        destination
+            .parent()
+            .ok_or_else(|| GitError::Io("destination has no parent".to_owned()))?,
+        &["clone", "--quiet", source, &destination.to_string_lossy()],
+    )?;
+    GitRepo::discover(destination)
+        .ok_or_else(|| GitError::Io("cloned destination is not a repository".to_owned()))
+}
+
 struct GitOutput {
     succeeded: bool,
     stdout: String,
