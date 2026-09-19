@@ -1,0 +1,11 @@
+{
+  "name": "@lumi/playwright-worker",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Lumi browser worker: unprivileged Playwright automation process. Exposes a closed operation set over line-delimited JSON on stdio. Holds no policy, no secret store, no approval authority (spec 06 section 6.3).",
+  "dependencies": {
+    "playwright": "1.49.1"
+  }
+}
