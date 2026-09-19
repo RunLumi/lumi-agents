@@ -5,7 +5,7 @@
 //! does with local files happens under its root; broader access requires
 //! an explicit policy grant (out of workspace scope).
 
-use lumi_protocol::{TaskId, Timestamp};
+use lumi_protocol::{ProjectId, TaskId, Timestamp, WorkspaceKind};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -33,6 +33,14 @@ pub struct WorkspaceMetadata {
     pub cleanup: CleanupPolicy,
     /// Layout version for forward-compatible metadata handling.
     pub layout_version: u32,
+    /// Project this workspace belongs to when project-bound (spec 08 §8.2).
+    /// `None` for legacy task-depot workspaces, which are not project scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<ProjectId>,
+    /// Workspace kind when project-bound. `None` is a legacy task-depot
+    /// workspace; resume must never reinterpret it as project scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_kind: Option<WorkspaceKind>,
 }
 
 /// A workspace bound to one task.
@@ -66,6 +74,8 @@ impl Workspace {
             created_at: Timestamp::now(),
             cleanup,
             layout_version: 1,
+            project_id: None,
+            workspace_kind: None,
         };
         let workspace = Self { metadata };
         workspace.persist_metadata()?;

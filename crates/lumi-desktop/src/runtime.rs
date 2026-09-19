@@ -537,6 +537,7 @@ mod tests {
             privacy_constraints: PrivacyConstraint::default(),
             status,
             requested_outputs: vec![],
+            project_binding: None,
         }
     }
 

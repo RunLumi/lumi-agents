@@ -750,6 +750,7 @@ mod tests {
             privacy_constraints: lumi_protocol::PrivacyConstraint::default(),
             status,
             requested_outputs: vec![],
+            project_binding: None,
         }
     }
 

@@ -585,6 +585,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-project"
+version = "0.1.0"
+dependencies = [
+ "lumi-protocol",
+ "lumi-workspaces",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lumi-protocol"
 version = "0.1.0"
 dependencies = [

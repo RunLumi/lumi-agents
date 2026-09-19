@@ -1684,6 +1684,7 @@ fn crash_after_propose_resumes_with_reverify_plan() {
         privacy_constraints: lumi_protocol::PrivacyConstraint::default(),
         status: lumi_protocol::TaskStatus::Running,
         requested_outputs: vec![],
+        project_binding: None,
     };
     let run = lumi_protocol::Run {
         run_id: RunId::parse("run-1").unwrap(),
