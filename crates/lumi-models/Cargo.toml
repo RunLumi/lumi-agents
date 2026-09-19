@@ -1,0 +1,24 @@
+[package]
+name = "lumi-models"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+lumi-protocol = { path = "../lumi-protocol" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2", optional = true, default-features = false, features = ["native-tls", "json", "gzip"] }
+
+[features]
+default = ["http"]
+# OS-backed TLS (Security.framework / schannel): no bundled crypto code in
+# the local trust runtime.
+http = ["dep:ureq"]
+
+[dev-dependencies]
+lumi-policy = { path = "../lumi-policy" }
+
+[lints]
+workspace = true

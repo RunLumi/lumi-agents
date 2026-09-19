@@ -47,6 +47,42 @@ pub enum FailureCategory {
 }
 
 impl FailureCategory {
+    /// The canonical SCREAMING_SNAKE_CASE name (matches serialization).
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ModelReasoning => "MODEL_REASONING",
+            Self::ModelFormat => "MODEL_FORMAT",
+            Self::ModelContextLimit => "MODEL_CONTEXT_LIMIT",
+            Self::ModelRefusal => "MODEL_REFUSAL",
+            Self::ProviderRateLimit => "PROVIDER_RATE_LIMIT",
+            Self::ProviderUnavailable => "PROVIDER_UNAVAILABLE",
+            Self::PolicyDenyExpected => "POLICY_DENY_EXPECTED",
+            Self::PolicyBug => "POLICY_BUG",
+            Self::ApprovalTimeout => "APPROVAL_TIMEOUT",
+            Self::ApprovalInvalid => "APPROVAL_INVALID",
+            Self::ConnectorFailure => "CONNECTOR_FAILURE",
+            Self::BrowserSelector => "BROWSER_SELECTOR",
+            Self::BrowserState => "BROWSER_STATE",
+            Self::NativeElement => "NATIVE_ELEMENT",
+            Self::NativeSession => "NATIVE_SESSION",
+            Self::VisionGrounding => "VISION_GROUNDING",
+            Self::Filesystem => "FILESYSTEM",
+            Self::ShellExecution => "SHELL_EXECUTION",
+            Self::OsPermission => "OS_PERMISSION",
+            Self::AuthSession => "AUTH_SESSION",
+            Self::UpstreamDriver => "UPSTREAM_DRIVER",
+            Self::Network => "NETWORK",
+            Self::Postcondition => "POSTCONDITION",
+            Self::AmbiguousState => "AMBIGUOUS_STATE",
+            Self::BudgetExceeded => "BUDGET_EXCEEDED",
+            Self::Crash => "CRASH",
+            Self::UserCancel => "USER_CANCEL",
+            Self::VersionIncompatible => "VERSION_INCOMPATIBLE",
+            Self::DataPolicy => "DATA_POLICY",
+            Self::SecurityViolation => "SECURITY_VIOLATION",
+        }
+    }
     /// Default recovery hint for this category (spec 18 §18.3). Workflows
     /// MAY narrow this (never widen automatic retries for consequential
     /// side effects).
