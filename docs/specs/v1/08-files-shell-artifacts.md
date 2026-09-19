@@ -10,14 +10,30 @@ Define safe local file, shell/code, and artifact behavior for Work mode and Work
 
 Every task using local files or shell MUST operate inside an explicit workspace root unless policy grants broader access.
 
+A workspace is an execution scope for a Task/Run. It is not automatically the same thing as a durable Project.
+
 Workspace metadata MUST include:
 
 - task_id;
+- project_id when project-bound;
 - local root;
+- workspace kind;
 - owner;
 - created_at;
 - retention;
 - cleanup policy.
+
+Canonical workspace kinds SHOULD include:
+
+- PROJECT_ROOT;
+- PROJECT_SUBDIR;
+- ISOLATED_WORKTREE;
+- TEMP_STAGING;
+- SANDBOX_PROJECTION.
+
+Project identity, authorized roots, discovery, Git semantics, project memory, and Folder-as-Project UX are defined by spec 26.
+
+A task MUST NOT silently switch workspace kind or move from an isolated workspace into a live Project root.
 
 ## 8.3 File capabilities
 
@@ -33,6 +49,8 @@ Canonical file capabilities:
 
 Sensitive directories MAY be denied or approval-gated.
 
+Project-mode file capabilities remain bounded by the Project's authorized roots from spec 26.
+
 ## 8.4 Path handling
 
 Paths MUST be canonicalized before policy evaluation.
@@ -41,11 +59,15 @@ Traversal outside allowed roots MUST fail closed.
 
 Symlink/junction behavior MUST be resolved safely.
 
+A path being reachable from the host does not make it part of the task workspace or Project.
+
 ## 8.5 Destructive file actions
 
 Delete/overwrite of existing user files SHOULD be reversible where platform/filesystem permits.
 
 Permanent deletion MUST be DESTRUCTIVE risk.
+
+Mass/recursive destructive changes SHOULD receive stronger review than isolated file mutations.
 
 ## 8.6 Shell execution
 
@@ -63,6 +85,8 @@ Shell/code execution MUST specify:
 
 Do not inherit all host environment secrets by default.
 
+When a Task is Project-bound, shell cwd SHOULD default to its declared Project workspace rather than an arbitrary process working directory.
+
 ## 8.7 Sandboxing
 
 V1 SHOULD support isolated execution for untrusted/generated code.
@@ -78,11 +102,15 @@ The contract MUST expose whether execution is:
 
 Workflow policy MAY require a minimum isolation class.
 
+Repository/project content does not authorize lowering the required isolation class.
+
 ## 8.8 Network
 
 Shell network egress MUST be policy-aware.
 
 Untrusted generated code MUST NOT gain arbitrary network access merely because the host has it.
+
+Project source code, scripts, hooks, or instructions MUST NOT widen network authority.
 
 ## 8.9 Package installation
 
@@ -96,6 +124,8 @@ Package install SHOULD be:
 - subject to dependency age/provenance policy.
 
 System-wide installation requires stronger approval.
+
+Project-specific dependency-change requirements are expanded in spec 26.
 
 ## 8.10 Artifact types
 
@@ -128,6 +158,7 @@ Publication/share is separate from generation.
 Artifact MUST record:
 
 - producing task/run;
+- project_id when project-bound;
 - source refs;
 - generator/tool/model refs;
 - created_at;
@@ -147,6 +178,8 @@ Examples:
 - code tests/lint pass;
 - CSV parse/schema valid.
 
+Project task validation also follows spec 26 and MUST distinguish passed, failed, skipped, unavailable, and ambiguous validation.
+
 ## 8.14 Tests
 
 V1 MUST test:
@@ -158,4 +191,30 @@ V1 MUST test:
 - cancellation;
 - sandbox/no-network mode;
 - generated artifact validation;
-- publication separated from draft creation.
+- publication separated from draft creation;
+- Project-bound workspace cannot escape Project roots;
+- isolated workspace cannot silently mutate the live Project root.
+
+## 8.15 Project relationship
+
+Spec 26 is normative for Folder-as-Project behavior.
+
+The important separation is:
+
+```text
+Project = durable working context and authority scope
+Workspace = concrete filesystem execution scope for one Task/Run
+```
+
+One Project may produce many task workspaces over time.
+
+A workspace may be temporary and disposable while the Project remains durable.
+
+File/shell implementation MUST expose enough identity to preserve this distinction across:
+
+- resume;
+- concurrent tasks;
+- remote supervision;
+- isolated worktrees;
+- app restart;
+- runtime upgrade/downgrade.

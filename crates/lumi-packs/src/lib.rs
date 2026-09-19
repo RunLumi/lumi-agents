@@ -12,12 +12,17 @@
 //! only as [`lumi_protocol::SecretRef`]s resolved by the runtime.
 
 pub mod manifest;
+pub mod role;
 pub mod runner;
 pub mod step;
 
 pub use manifest::{
     CompatibilityMatrix, EconomicBaseline, PackManifest, PackStatus, PrivacyClassification,
     SchemaField, SchemaFieldSet, ValueSchema,
+};
+pub use role::{
+    RoleAuthorityCeiling, RolePack, RoleQueue, RoleWorkItem, RoleWorkItemField, RoleWorkItemSchema,
+    WorkflowPackRef, ROLE_SCHEMA_NAME, ROLE_SCHEMA_VERSION,
 };
 pub use runner::{prepare_run, resolve_value, PackRunError, PreparedPackRun};
 pub use step::{ApprovalRule, ExceptionRoute, ExceptionTarget, PackStep, WorkflowPack};

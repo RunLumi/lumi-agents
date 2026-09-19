@@ -81,11 +81,11 @@ Material fields include:
 
 Any material change requires new policy evaluation and approval where applicable.
 
-The implementation uses `lumi-action-digest/v2`, a versioned SHA-256 projection
+The implementation uses `lumi-action-digest/v3`, a versioned SHA-256 projection
 serialized with the canonical JSON helper (including sorted nested argument
 keys). It adds policy-relevant sensitivity, risk, principal and idempotency
-binding omitted by the initial implementation. Existing v1 approvals and journal
-digests MUST NOT be silently accepted or rewritten to v2: require fresh scoped
+binding omitted by the initial implementation. Verification/evidence requirements are also bound so a plan cannot be weakened after approval. Existing v1/v2 approvals and journal
+digests MUST NOT be silently accepted or rewritten to v3: require fresh scoped
 approval and reviewed recovery of any unresolved historical action. Executor
 tier changes alone do not change the approved business effect.
 

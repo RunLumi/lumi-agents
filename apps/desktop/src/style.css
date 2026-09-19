@@ -126,6 +126,38 @@ h2 { font-size: 18px; margin-bottom: 12px; }
   margin-top: 16px;
 }
 
+.empty-state {
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  padding: 24px;
+}
+
+.unavailable { color: var(--warning); }
+
+.safe-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.safe-choice {
+  background: rgba(255,255,255,0.03);
+  border-left: 2px solid var(--warning);
+  padding: 8px 10px;
+}
+
+.safe-choice strong,
+.safe-choice span { display: block; }
+
+.safe-choice span {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
 .btn {
   padding: 8px 20px;
   border: none;

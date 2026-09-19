@@ -2,8 +2,8 @@
 
 use crate::router::{select, ExecutorDescriptor, Selection, TierPolicy};
 use lumi_audit::{
-    AuditEvent, AuditEventKind, AuditLedger, AuditScope, EvidenceKind, EvidenceRequest,
-    EvidenceStore, PolicyOutcome, PostconditionVerifier, VerificationEnvironment,
+    workspace_file_checksum, AuditEvent, AuditEventKind, AuditLedger, AuditScope, EvidenceKind,
+    EvidenceRequest, EvidenceStore, PolicyOutcome, PostconditionVerifier, VerificationEnvironment,
     VerificationOutcome, VerificationStatus,
 };
 use lumi_policy::{
@@ -11,8 +11,9 @@ use lumi_policy::{
     DeviceExecutionState, PolicyContext, PreAuthorization,
 };
 use lumi_protocol::{
-    ActionId, ActionProposal, Budget, ConsumedBudget, ErrorEnvelope, ExecutionResult,
-    ExecutionStatus, FailureCategory, SensitivityLabel, Timestamp,
+    ActionId, ActionProposal, Budget, ConsumedBudget, ErrorEnvelope, EvidenceRequirement,
+    ExecutionResult, ExecutionStatus, FailureCategory, Postcondition, PostconditionCheck,
+    SensitivityLabel, Timestamp,
 };
 use lumi_state::{
     idempotency_scope_digest, resume, verifier_plan_digest, AmbiguousResolution, CancelToken,
@@ -24,6 +25,10 @@ use lumi_state::{
 pub struct OrchestratorConfig {
     /// Policy layer: capability registry (deny-by-default).
     pub registry: CapabilityRegistry,
+    /// Host-enrolled device trust state. This is evaluated at every action
+    /// gate; it is never inferred from a model, connector, or workflow.
+    /// Callers without enrollment must provide `Unregistered`.
+    pub device_state: DeviceExecutionState,
     /// Narrow pre-authorizations that may downgrade soft approval
     /// requirements (never hard gates).
     pub pre_authorizations: Vec<PreAuthorization>,
@@ -92,6 +97,87 @@ fn validate_execution_result(
         return Err("executor result run_id does not match proposal".to_owned());
     }
     result.validate().map_err(|error| error.to_string())
+}
+
+fn validate_evidence_requirements(action: &ActionProposal) -> Result<(), String> {
+    // v1 treats the declared list as conjunctive: every requirement must
+    // produce its own evidence record. Preference rank is for pack authors;
+    // it never permits substituting a weaker kind for a missing requirement.
+    for requirement in &action.evidence_requirements {
+        let supported = match requirement {
+            // These kinds require at least one declared postcondition whose
+            // actual verifier observation can supply the reference/state.
+            EvidenceRequirement::StructuredState | EvidenceRequirement::ResourceReference => {
+                !action.postconditions.is_empty()
+            }
+            EvidenceRequirement::Checksum => action.postconditions.iter().any(|postcondition| {
+                matches!(
+                    postcondition.check,
+                    PostconditionCheck::FileChecksum { .. }
+                        | PostconditionCheck::FileExists { .. }
+                        | PostconditionCheck::ArtifactValid { .. }
+                )
+            }),
+            EvidenceRequirement::Diff => action.postconditions.iter().any(|postcondition| {
+                matches!(
+                    postcondition.check,
+                    PostconditionCheck::RecordFieldEquals { .. }
+                )
+            }),
+            // The current verifier has no controlled source for these kinds.
+            // Refuse before dispatch instead of manufacturing evidence.
+            EvidenceRequirement::LogExcerpt
+            | EvidenceRequirement::SelectiveScreenshot
+            | EvidenceRequirement::FullScreenshot => false,
+        };
+        if !supported {
+            return Err(format!("{requirement:?} is unsupported for this action"));
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct DiffBeforeProof {
+    postcondition_id: String,
+    field: String,
+    value_hash: String,
+}
+
+fn capture_diff_before(
+    action: &ActionProposal,
+    env: &dyn VerificationEnvironment,
+) -> Result<Vec<DiffBeforeProof>, String> {
+    let mut proofs = Vec::new();
+    for postcondition in &action.postconditions {
+        let PostconditionCheck::RecordFieldEquals {
+            resource, field, ..
+        } = &postcondition.check
+        else {
+            continue;
+        };
+        let state = env.resolve_record(resource).ok_or_else(|| {
+            format!(
+                "before-state unavailable for postcondition {}",
+                postcondition.id
+            )
+        })?;
+        let actual = state.get(field).ok_or_else(|| {
+            format!(
+                "before-field {field:?} unavailable for postcondition {}",
+                postcondition.id
+            )
+        })?;
+        proofs.push(DiffBeforeProof {
+            postcondition_id: postcondition.id.0.clone(),
+            field: field.clone(),
+            value_hash: json_hash(actual),
+        });
+    }
+    if proofs.is_empty() {
+        return Err("DIFF requires a RecordFieldEquals postcondition".to_owned());
+    }
+    Ok(proofs)
 }
 
 /// The local execution orchestrator.
@@ -220,7 +306,7 @@ impl<S: StateStore> Orchestrator<S> {
     where
         E: FnMut(&ActionProposal) -> ExecutionResult,
     {
-        let now = Timestamp::now();
+        let mut now = Timestamp::now();
 
         // A failed restore is a durable-state failure, not a reason to run
         // with an empty journal.  Stop before any action can reach policy or
@@ -279,10 +365,10 @@ impl<S: StateStore> Orchestrator<S> {
         // approve an action no executor can perform.
         let policy_ctx = PolicyContext {
             now,
-            device_state: DeviceExecutionState::Trusted,
+            device_state: self.config.device_state,
             registry: Some(&self.config.registry),
         };
-        let decision = evaluate(action, &self.config.pre_authorizations, &policy_ctx);
+        let mut decision = evaluate(action, &self.config.pre_authorizations, &policy_ctx);
         if let Decision::Deny { reason, .. } = &decision {
             let text = reason.as_str().to_owned();
             self.audit_action_event(
@@ -296,6 +382,110 @@ impl<S: StateStore> Orchestrator<S> {
                 VerificationStatus::NotRequired,
             );
             return StepOutcome::Denied { reason: text };
+        }
+
+        // Evidence requirements are part of the action contract. Reject
+        // kinds this runtime cannot produce before selecting or invoking an
+        // executor; supported kinds are checked again against actual
+        // verifier observations after dispatch.
+        if let Err(reason) = validate_evidence_requirements(action) {
+            self.audit_action_event(
+                action,
+                &PolicyOutcome::Denied {
+                    rule_id: "lumi.evidence/v1".to_owned(),
+                    reason: reason.clone(),
+                },
+                None,
+                None,
+                VerificationStatus::NotRequired,
+            );
+            return StepOutcome::Stopped {
+                reason: format!("evidence requirement unavailable: {reason}"),
+            };
+        }
+
+        // DIFF evidence needs a real before observation. Capture it after
+        // policy has allowed the action but before router/approval work can
+        // delay the observation and before any executor dispatch.
+        let diff_before = if action
+            .evidence_requirements
+            .contains(&EvidenceRequirement::Diff)
+        {
+            match capture_diff_before(action, env) {
+                Ok(proofs) => Some(proofs),
+                Err(reason) => {
+                    self.audit_action_event(
+                        action,
+                        &PolicyOutcome::Allowed {
+                            rule_id: "lumi.policy.default/v1".to_owned(),
+                        },
+                        None,
+                        None,
+                        VerificationStatus::NotRequired,
+                    );
+                    return StepOutcome::Stopped {
+                        reason: format!("required DIFF before-state unavailable: {reason}"),
+                    };
+                }
+            }
+        } else {
+            None
+        };
+
+        if diff_before.is_some() {
+            // The before read may cross a deadline, grant expiry, or
+            // cancellation request. Re-authorize with a fresh timestamp
+            // before any approval is consumed or executor is selected.
+            if self.cancel.is_cancelled() {
+                self.audit_action_event(
+                    action,
+                    &PolicyOutcome::Allowed {
+                        rule_id: "lumi.policy.default/v1".to_owned(),
+                    },
+                    None,
+                    None,
+                    VerificationStatus::NotRequired,
+                );
+                return StepOutcome::Stopped {
+                    reason: "cancelled after DIFF before-state observation".to_owned(),
+                };
+            }
+            now = Timestamp::now();
+            if let Some(dimension) = budget.check(consumed, now) {
+                self.audit_action_event(
+                    action,
+                    &PolicyOutcome::Denied {
+                        rule_id: "lumi.budget/v1".to_owned(),
+                        reason: format!("{dimension:?}"),
+                    },
+                    None,
+                    Some(ExecutionStatus::Cancelled),
+                    VerificationStatus::NotRequired,
+                );
+                return StepOutcome::Stopped {
+                    reason: format!("budget exhausted after DIFF observation: {dimension:?}"),
+                };
+            }
+            let fresh_policy_ctx = PolicyContext {
+                now,
+                device_state: self.config.device_state,
+                registry: Some(&self.config.registry),
+            };
+            decision = evaluate(action, &self.config.pre_authorizations, &fresh_policy_ctx);
+            if let Decision::Deny { reason, .. } = &decision {
+                let text = reason.as_str().to_owned();
+                self.audit_action_event(
+                    action,
+                    &PolicyOutcome::Denied {
+                        rule_id: "lumi.policy.default/v1".to_owned(),
+                        reason: text.clone(),
+                    },
+                    None,
+                    None,
+                    VerificationStatus::NotRequired,
+                );
+                return StepOutcome::Denied { reason: text };
+            }
         }
 
         // 3. Execution-tier selection (spec 05): highest-semantic
@@ -404,8 +594,33 @@ impl<S: StateStore> Orchestrator<S> {
             }
         }
 
+        // Cancellation can arrive while policy/approval/intent persistence
+        // is in flight. Recheck at the final pre-dispatch boundary so a
+        // cancelled action never reaches the executor.
+        if self.cancel.is_cancelled() {
+            self.audit_action_event_with_selection_and_error(
+                action,
+                &policy_outcome,
+                approval_id,
+                None,
+                VerificationStatus::NotRequired,
+                Some(ErrorEnvelope::new(
+                    FailureCategory::UserCancel,
+                    "cancelled before executor dispatch",
+                )),
+                Some(&selection),
+            );
+            return StepOutcome::Stopped {
+                reason: "cancelled before executor dispatch".to_owned(),
+            };
+        }
+
         // 5. Execute.
         let result = executor(action);
+        // Every dispatch consumes budget, even if a lower-trust executor
+        // returns malformed data. Count the selected tier, not an unused
+        // fallback listed in the proposal.
+        consumed.record_action(selection.tier.is_vision(), is_consequential);
         if let Err(error) = validate_execution_result(action, &result) {
             if is_consequential {
                 if let Err(persist_error) = self.journalize_ambiguous(action) {
@@ -434,37 +649,93 @@ impl<S: StateStore> Orchestrator<S> {
                 reason: format!("malformed executor result: {error}"),
             };
         }
-        consumed.record_action(
-            action
-                .execution_preferences
-                .allowed_tiers
-                .iter()
-                .any(|t| t.is_vision()),
-            is_consequential,
-        );
-
         // 6. Postcondition verification determines success (spec 11 §11.8).
         match result.status {
             ExecutionStatus::Success => {
                 let (status, outcomes) = self.verifier.verify_all(&action.postconditions, env);
-                self.record_verification_evidence(action, status, &outcomes, env);
+                let evidence_refs = match self.record_verification_evidence(
+                    action,
+                    status,
+                    &outcomes,
+                    env,
+                    diff_before.as_deref(),
+                ) {
+                    Ok(refs) => refs,
+                    Err(reason)
+                        if matches!(
+                            status,
+                            VerificationStatus::Passed | VerificationStatus::NotRequired
+                        ) =>
+                    {
+                        if is_consequential {
+                            if let Err(error) = self.journalize_ambiguous(action) {
+                                return StepOutcome::Stopped {
+                                    reason: format!(
+                                        "required evidence unavailable and ambiguity state persistence failed: {error}"
+                                    ),
+                                };
+                            }
+                        }
+                        let failure = ErrorEnvelope::new(
+                            FailureCategory::Postcondition,
+                            format!("required evidence unavailable: {reason}"),
+                        );
+                        self.audit_action_event_with_selection_and_error(
+                            action,
+                            &policy_outcome,
+                            None,
+                            Some(ExecutionStatus::Success),
+                            VerificationStatus::Ambiguous,
+                            Some(failure),
+                            Some(&selection),
+                        );
+                        return if is_consequential {
+                            StepOutcome::Ambiguous {
+                                action_id: action.action_id.clone(),
+                            }
+                        } else {
+                            StepOutcome::Unverified {
+                                action_id: action.action_id.clone(),
+                                detail: reason,
+                            }
+                        };
+                    }
+                    // A failed or ambiguous verifier result is already
+                    // non-successful; preserve its existing outcome while
+                    // avoiding unreferenced/unsupported proof records.
+                    Err(_) => Vec::new(),
+                };
                 match status {
                     VerificationStatus::Passed => {
                         if let Err(error) =
                             self.journalize_resolution(action, SideEffectStatus::Succeeded)
                         {
+                            self.audit_action_event_with_selection_and_error_and_evidence(
+                                action,
+                                &policy_outcome,
+                                None,
+                                Some(ExecutionStatus::Success),
+                                VerificationStatus::Ambiguous,
+                                Some(ErrorEnvelope::new(
+                                    FailureCategory::Filesystem,
+                                    format!("post-effect state persistence failed: {error}"),
+                                )),
+                                evidence_refs,
+                                Some(&selection),
+                            );
                             return StepOutcome::Stopped {
                                 reason: format!(
                                     "post-effect state persistence failed; refusing success: {error}"
                                 ),
                             };
                         }
-                        self.audit_action_event_with_selection(
+                        self.audit_action_event_with_selection_and_evidence(
                             action,
                             &policy_outcome,
                             None,
                             Some(ExecutionStatus::Success),
                             VerificationStatus::Passed,
+                            evidence_refs,
                             Some(&selection),
                         );
                         StepOutcome::VerifiedSuccess {
@@ -474,12 +745,13 @@ impl<S: StateStore> Orchestrator<S> {
                         }
                     }
                     VerificationStatus::NotRequired if !is_consequential => {
-                        self.audit_action_event_with_selection(
+                        self.audit_action_event_with_selection_and_evidence(
                             action,
                             &policy_outcome,
                             None,
                             Some(ExecutionStatus::Success),
                             VerificationStatus::NotRequired,
+                            evidence_refs,
                             Some(&selection),
                         );
                         StepOutcome::VerifiedSuccess {
@@ -492,6 +764,19 @@ impl<S: StateStore> Orchestrator<S> {
                     // is, by definition, of unknown effect: ambiguous.
                     VerificationStatus::NotRequired | VerificationStatus::Ambiguous => {
                         if let Err(error) = self.journalize_ambiguous(action) {
+                            self.audit_action_event_with_selection_and_error_and_evidence(
+                                action,
+                                &policy_outcome,
+                                None,
+                                Some(ExecutionStatus::Success),
+                                VerificationStatus::Ambiguous,
+                                Some(ErrorEnvelope::new(
+                                    FailureCategory::Filesystem,
+                                    format!("ambiguous effect state persistence failed: {error}"),
+                                )),
+                                evidence_refs,
+                                Some(&selection),
+                            );
                             return StepOutcome::Stopped {
                                 reason: format!(
                                     "ambiguous effect state persistence failed: {error}"
@@ -520,19 +805,35 @@ impl<S: StateStore> Orchestrator<S> {
                             "postcondition failed after executor success",
                         );
                         if let Err(error) = self.journalize_ambiguous(action) {
+                            self.audit_action_event_with_selection_and_error_and_evidence(
+                                action,
+                                &policy_outcome,
+                                None,
+                                Some(ExecutionStatus::Success),
+                                VerificationStatus::Ambiguous,
+                                Some(ErrorEnvelope::new(
+                                    FailureCategory::Filesystem,
+                                    format!(
+                                        "postcondition failure state persistence failed: {error}"
+                                    ),
+                                )),
+                                evidence_refs,
+                                Some(&selection),
+                            );
                             return StepOutcome::Stopped {
                                 reason: format!(
                                     "postcondition failure state persistence failed: {error}"
                                 ),
                             };
                         }
-                        self.audit_action_event_with_selection_and_error(
+                        self.audit_action_event_with_selection_and_error_and_evidence(
                             action,
                             &policy_outcome,
                             None,
                             Some(ExecutionStatus::Success),
                             VerificationStatus::Failed,
                             Some(postcondition_error),
+                            evidence_refs,
                             Some(&selection),
                         );
                         StepOutcome::Unverified {
@@ -758,6 +1059,7 @@ impl<S: StateStore> Orchestrator<S> {
                 },
                 detail: format!("ambiguity resolved to {resolution:?}"),
             },
+            Vec::new(),
             Timestamp::now(),
         );
         resolution
@@ -1027,6 +1329,29 @@ impl<S: StateStore> Orchestrator<S> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    fn audit_action_event_with_selection_and_evidence(
+        &mut self,
+        action: &ActionProposal,
+        policy: &PolicyOutcome,
+        approval_id: Option<&lumi_protocol::ApprovalId>,
+        execution_status: Option<ExecutionStatus>,
+        verification: VerificationStatus,
+        evidence_refs: Vec<String>,
+        selection: Option<&Selection>,
+    ) {
+        self.audit_action_event_with_selection_and_error_and_evidence(
+            action,
+            policy,
+            approval_id,
+            execution_status,
+            verification,
+            None,
+            evidence_refs,
+            selection,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn audit_action_event_with_selection_and_error(
         &mut self,
         action: &ActionProposal,
@@ -1035,6 +1360,30 @@ impl<S: StateStore> Orchestrator<S> {
         execution_status: Option<ExecutionStatus>,
         verification: VerificationStatus,
         failure: Option<ErrorEnvelope>,
+        selection: Option<&Selection>,
+    ) {
+        self.audit_action_event_with_selection_and_error_and_evidence(
+            action,
+            policy,
+            approval_id,
+            execution_status,
+            verification,
+            failure,
+            Vec::new(),
+            selection,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn audit_action_event_with_selection_and_error_and_evidence(
+        &mut self,
+        action: &ActionProposal,
+        policy: &PolicyOutcome,
+        approval_id: Option<&lumi_protocol::ApprovalId>,
+        execution_status: Option<ExecutionStatus>,
+        verification: VerificationStatus,
+        failure: Option<ErrorEnvelope>,
+        evidence_refs: Vec<String>,
         selection: Option<&Selection>,
     ) {
         let kind = AuditEventKind::Action(Box::new(lumi_audit::ActionEventDetails {
@@ -1065,6 +1414,7 @@ impl<S: StateStore> Orchestrator<S> {
                 workflow: None,
             },
             kind,
+            evidence_refs,
             Timestamp::now(),
         );
     }
@@ -1090,13 +1440,20 @@ impl<S: StateStore> Orchestrator<S> {
                 workflow: None,
             },
             kind,
+            Vec::new(),
             Timestamp::now(),
         );
     }
 
-    fn audit_event_inner(&mut self, scope: AuditScope, kind: AuditEventKind, at: Timestamp) {
+    fn audit_event_inner(
+        &mut self,
+        scope: AuditScope,
+        kind: AuditEventKind,
+        evidence_refs: Vec<String>,
+        at: Timestamp,
+    ) {
         let prev = self.audit.head_hash().to_owned();
-        let event = AuditEvent::new(scope, kind, Vec::new(), &prev, at);
+        let event = AuditEvent::new(scope, kind, evidence_refs, &prev, at);
         self.audit.append(event).ok();
     }
 
@@ -1106,33 +1463,340 @@ impl<S: StateStore> Orchestrator<S> {
         status: VerificationStatus,
         outcomes: &[VerificationOutcome],
         env: &dyn VerificationEnvironment,
-    ) {
-        if outcomes.is_empty() {
-            return;
+        diff_before: Option<&[DiffBeforeProof]>,
+    ) -> Result<Vec<String>, String> {
+        if action.evidence_requirements.is_empty() {
+            return Ok(Vec::new());
         }
-        if let Some(state) = env.resolve_record(&action.resource) {
-            let sensitivity = action
-                .resource
-                .sensitivity
-                .unwrap_or(SensitivityLabel::Internal);
-            self.evidence
+
+        // Build every proof before appending any record. A missing required
+        // proof therefore cannot leave unreferenced partial evidence behind.
+        let payloads = action
+            .evidence_requirements
+            .iter()
+            .map(|requirement| {
+                let kind = EvidenceKind::from_requirement(*requirement);
+                let payload = evidence_payload(action, kind, status, outcomes, env, diff_before)
+                    .ok_or_else(|| format!("{requirement:?} proof unavailable"))?;
+                Ok((kind, payload))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let sensitivity = evidence_sensitivity(action);
+        let mut evidence_refs = Vec::with_capacity(payloads.len());
+        for (kind, payload) in payloads {
+            let evidence_id = self
+                .evidence
                 .record(EvidenceRequest {
                     tenant_id: action.principal.tenant_id.clone(),
-                    kind: EvidenceKind::StructuredState,
+                    kind,
                     sensitivity,
-                    payload: serde_json::json!({
-                        "task_id": action.task_id.as_str(),
-                        "action_id": action.action_id.as_str(),
-                        "resource": action.resource.id,
-                        "verification": format!("{status:?}"),
-                        "state": state,
-                    }),
+                    payload,
                     redaction_rules: vec![],
                     created_at: Timestamp::now(),
                     retention_until: None,
                     action_requirements: action.evidence_requirements.clone(),
                 })
-                .ok();
+                .map_err(|error| format!("{kind:?}: {error:?}"))?;
+            evidence_refs.push(evidence_id.as_str().to_owned());
+        }
+        Ok(evidence_refs)
+    }
+}
+
+fn evidence_payload(
+    action: &ActionProposal,
+    kind: EvidenceKind,
+    status: VerificationStatus,
+    outcomes: &[VerificationOutcome],
+    env: &dyn VerificationEnvironment,
+    diff_before: Option<&[DiffBeforeProof]>,
+) -> Option<serde_json::Value> {
+    let passed = action
+        .postconditions
+        .iter()
+        .zip(outcomes)
+        .filter(|(_, outcome)| outcome.status == VerificationStatus::Passed);
+
+    let proofs: Vec<serde_json::Value> = match kind {
+        EvidenceKind::StructuredState => passed
+            .filter_map(|(postcondition, _)| structured_state_proof(postcondition, env))
+            .collect(),
+        EvidenceKind::ResourceReference => passed
+            .map(|(postcondition, _)| resource_reference_proof(postcondition))
+            .collect(),
+        EvidenceKind::Checksum => passed
+            .filter_map(|(postcondition, _)| checksum_proof(postcondition, env))
+            .collect(),
+        EvidenceKind::Diff => passed
+            .filter_map(|(postcondition, _)| diff_proof(postcondition, env, diff_before?))
+            .collect(),
+        // These kinds are rejected by the pre-dispatch validation above.
+        EvidenceKind::LogExcerpt
+        | EvidenceKind::SelectiveScreenshot
+        | EvidenceKind::FullScreenshot => Vec::new(),
+    };
+
+    (!proofs.is_empty()).then(|| {
+        serde_json::json!({
+            "task_id": action.task_id.as_str(),
+            "action_id": action.action_id.as_str(),
+            "verification": format!("{status:?}"),
+            "proofs": proofs,
+        })
+    })
+}
+
+fn evidence_sensitivity(action: &ActionProposal) -> SensitivityLabel {
+    let mut sensitivity = action
+        .resource
+        .sensitivity
+        .unwrap_or(SensitivityLabel::Internal);
+    for postcondition in &action.postconditions {
+        let candidate = match &postcondition.check {
+            PostconditionCheck::RecordExists { resource }
+            | PostconditionCheck::RecordFieldEquals { resource, .. } => resource.sensitivity,
+            _ => None,
+        };
+        if let Some(candidate) = candidate {
+            if sensitivity_rank(candidate) > sensitivity_rank(sensitivity) {
+                sensitivity = candidate;
+            }
         }
     }
+    sensitivity
+}
+
+fn sensitivity_rank(label: SensitivityLabel) -> u8 {
+    match label {
+        SensitivityLabel::Public => 0,
+        SensitivityLabel::Internal => 1,
+        SensitivityLabel::Confidential => 2,
+        SensitivityLabel::Restricted => 3,
+        SensitivityLabel::PersonalData => 4,
+    }
+}
+
+fn resource_reference_proof(postcondition: &Postcondition) -> serde_json::Value {
+    let reference = match &postcondition.check {
+        PostconditionCheck::RecordExists { resource }
+        | PostconditionCheck::RecordFieldEquals { resource, .. } => serde_json::json!({
+            "resource_type": resource.resource_type.0,
+            "resource_id": resource.id,
+        }),
+        PostconditionCheck::FileChecksum { path, .. } | PostconditionCheck::FileExists { path } => {
+            serde_json::json!({
+                "workspace_path": path,
+            })
+        }
+        PostconditionCheck::ArtifactValid { artifact_id } => serde_json::json!({
+            "artifact_id": artifact_id.as_str(),
+        }),
+        PostconditionCheck::RemoteStateMatches { probe_id, .. } => serde_json::json!({
+            "probe_id": probe_id,
+        }),
+        PostconditionCheck::Custom { verifier_id, .. } => serde_json::json!({
+            "verifier_id": verifier_id,
+        }),
+    };
+    serde_json::json!({
+        "postcondition_id": postcondition.id.0,
+        "reference": reference,
+    })
+}
+
+fn structured_state_proof(
+    postcondition: &Postcondition,
+    env: &dyn VerificationEnvironment,
+) -> Option<serde_json::Value> {
+    let proof = match &postcondition.check {
+        PostconditionCheck::RecordExists { resource } => {
+            let state = env.resolve_record(resource)?;
+            if state.get("exists").and_then(serde_json::Value::as_bool) != Some(true) {
+                return None;
+            }
+            serde_json::json!({
+                "check": "record_exists",
+                "resource_type": resource.resource_type.0,
+                "resource_id": resource.id,
+                "observed_exists": state.get("exists").and_then(serde_json::Value::as_bool),
+            })
+        }
+        PostconditionCheck::RecordFieldEquals {
+            resource,
+            field,
+            expected,
+        } => {
+            let state = env.resolve_record(resource)?;
+            let actual = state.get(field)?;
+            if lumi_protocol::canonical::canonical_json(actual)
+                != lumi_protocol::canonical::canonical_json(expected)
+            {
+                return None;
+            }
+            serde_json::json!({
+                "check": "record_field_equals",
+                "resource_type": resource.resource_type.0,
+                "resource_id": resource.id,
+                "field": field,
+                "actual_hash": json_hash(actual),
+                "expected_hash": json_hash(expected),
+            })
+        }
+        PostconditionCheck::FileChecksum { path, sha256 } => {
+            let actual = file_checksum(env, path)?;
+            if actual != *sha256 {
+                return None;
+            }
+            serde_json::json!({
+                "check": "file_checksum",
+                "path": path,
+                "sha256": actual,
+                "expected_sha256": sha256,
+            })
+        }
+        PostconditionCheck::FileExists { path } => {
+            let root = env.workspace_root()?;
+            if !lumi_audit::safe_workspace_path(root, path).is_some_and(|path| path.is_file()) {
+                return None;
+            }
+            serde_json::json!({
+                "check": "file_exists",
+                "path": path,
+                "exists": true,
+            })
+        }
+        PostconditionCheck::ArtifactValid { artifact_id } => {
+            let artifact = env.artifact(artifact_id)?;
+            if artifact.validation_status != lumi_protocol::ValidationStatus::Valid {
+                return None;
+            }
+            serde_json::json!({
+                "check": "artifact_valid",
+                "artifact_id": artifact_id.as_str(),
+                "validation_status": format!("{:?}", artifact.validation_status),
+                "sha256": artifact.sha256,
+            })
+        }
+        PostconditionCheck::RemoteStateMatches { probe_id, expected } => {
+            let actual = env.run_probe(probe_id)?;
+            if lumi_protocol::canonical::canonical_json(&actual)
+                != lumi_protocol::canonical::canonical_json(expected)
+            {
+                return None;
+            }
+            serde_json::json!({
+                "check": "remote_state_matches",
+                "probe_id": probe_id,
+                "actual_hash": json_hash(&actual),
+                "expected_hash": json_hash(expected),
+            })
+        }
+        PostconditionCheck::Custom {
+            verifier_id,
+            params,
+        } => {
+            let verification = env.run_custom(verifier_id, params)?;
+            if verification != VerificationStatus::Passed {
+                return None;
+            }
+            serde_json::json!({
+                "check": "custom",
+                "verifier_id": verifier_id,
+                "result": format!("{verification:?}"),
+            })
+        }
+    };
+    Some(serde_json::json!({
+        "postcondition_id": postcondition.id.0,
+        "proof": proof,
+    }))
+}
+
+fn checksum_proof(
+    postcondition: &Postcondition,
+    env: &dyn VerificationEnvironment,
+) -> Option<serde_json::Value> {
+    match &postcondition.check {
+        PostconditionCheck::FileChecksum { path, sha256 } => {
+            let actual = file_checksum(env, path)?;
+            if actual != *sha256 {
+                return None;
+            }
+            Some(serde_json::json!({
+                "postcondition_id": postcondition.id.0,
+                "path": path,
+                "sha256": actual,
+                "expected_sha256": sha256,
+            }))
+        }
+        PostconditionCheck::FileExists { path } => {
+            let sha256 = file_checksum(env, path)?;
+            Some(serde_json::json!({
+                "postcondition_id": postcondition.id.0,
+                "path": path,
+                "sha256": sha256,
+            }))
+        }
+        PostconditionCheck::ArtifactValid { artifact_id } => {
+            let artifact = env.artifact(artifact_id)?;
+            if artifact.validation_status != lumi_protocol::ValidationStatus::Valid {
+                return None;
+            }
+            let sha256 = artifact.sha256?;
+            Some(serde_json::json!({
+                "postcondition_id": postcondition.id.0,
+                "artifact_id": artifact_id.as_str(),
+                "sha256": sha256,
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn diff_proof(
+    postcondition: &Postcondition,
+    env: &dyn VerificationEnvironment,
+    before: &[DiffBeforeProof],
+) -> Option<serde_json::Value> {
+    let PostconditionCheck::RecordFieldEquals {
+        resource,
+        field,
+        expected,
+    } = &postcondition.check
+    else {
+        return None;
+    };
+    let before = before
+        .iter()
+        .find(|proof| proof.postcondition_id == postcondition.id.0 && proof.field == *field)?;
+    let state = env.resolve_record(resource)?;
+    let actual = state.get(field)?;
+    if lumi_protocol::canonical::canonical_json(actual)
+        != lumi_protocol::canonical::canonical_json(expected)
+    {
+        return None;
+    }
+    let after_hash = json_hash(actual);
+    let changed = before.value_hash != after_hash;
+    Some(serde_json::json!({
+        "postcondition_id": postcondition.id.0,
+        "resource_type": resource.resource_type.0,
+        "resource_id": resource.id,
+        "field": field,
+        "before_hash": before.value_hash,
+        "after_hash": after_hash,
+        "changed": changed,
+        "expected_hash": json_hash(expected),
+        "comparison": "observed_before_vs_observed_after",
+    }))
+}
+
+fn file_checksum(env: &dyn VerificationEnvironment, path: &str) -> Option<String> {
+    let root = env.workspace_root()?;
+    workspace_file_checksum(root, path)
+}
+
+fn json_hash(value: &serde_json::Value) -> String {
+    lumi_protocol::canonical::sha256_hex(lumi_protocol::canonical::canonical_json(value).as_bytes())
 }

@@ -13,6 +13,7 @@
 pub mod economics;
 pub mod metrics;
 pub mod outcomes;
+pub mod role;
 pub mod slo;
 
 pub use economics::{DerivedEconomics, WorkflowEconomics, YEAR_MONTHS};
@@ -21,6 +22,18 @@ pub use metrics::{
     VERIFIED_COMPLETION_ALPHA, VERIFIED_COMPLETION_CANARY, VERIFIED_COMPLETION_HARDENED,
 };
 pub use outcomes::StepOutcomeClass;
+pub use role::{
+    CostPerVerifiedUnit, EvidenceProvenance, EvidenceReference, EvidenceTrust, ExactRatio,
+    GateReason, GateReasonCode, GateResult, GateStatus, HumanTimeMeasurement, RecommendedMaturity,
+    RepresentativeCoverage, ReuseMeasurement, ReviewerProof, RoleAssessment, RoleIdentity,
+    RoleMetrics, RoleScorecard, ScorecardError, ScorecardErrorCode, SignedRatio, TimeWindow,
+    WindowCostMeasurement, WorkUnitMeasurement, CANARY_MAX_RESCUE_DENOMINATOR,
+    CANARY_MAX_RESCUE_NUMERATOR, CANARY_MIN_VERIFIED_DENOMINATOR, CANARY_MIN_VERIFIED_NUMERATOR,
+    MATURE_MAX_OPERATING_COST_DENOMINATOR, MATURE_MAX_OPERATING_COST_NUMERATOR,
+    MATURE_MIN_MINUTES_REMOVED_DENOMINATOR, MATURE_MIN_MINUTES_REMOVED_NUMERATOR,
+    MATURE_MIN_RESCUE_FREE_DENOMINATOR, MATURE_MIN_RESCUE_FREE_NUMERATOR,
+    MATURE_MIN_VERIFIED_DENOMINATOR, MATURE_MIN_VERIFIED_NUMERATOR, SECONDS_PER_WEEK,
+};
 pub use slo::{
     evaluate_alerts, evaluate_slo, Alert, AlertThresholds, SloLevel, SloReport, SloViolation,
 };

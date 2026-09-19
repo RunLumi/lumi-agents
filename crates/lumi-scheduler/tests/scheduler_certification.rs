@@ -79,6 +79,7 @@ fn orchestrator() -> Orchestrator<InMemoryStateStore> {
     });
     let config = OrchestratorConfig {
         registry,
+        device_state: lumi_policy::DeviceExecutionState::Trusted,
         pre_authorizations: vec![lumi_policy::PreAuthorization {
             auth_id: "pre-scheduled-recon".to_owned(),
             capability: Capability::well_known("api.read"),

@@ -35,10 +35,18 @@ Preserve cancellation, durable intent before side effects, scoped approvals,
 idempotency, evidence minimization and recovery from ambiguity. Correct refusal
 and escalation are useful outcomes; they are not completed routine work units.
 
-## Work, Workflow and Role
+## Project, Work, Workflow and Role
 
 Work mode handles novel work, exceptions and discovery of repeatable sequences.
-Workflow Packs harden those sequences with input/output contracts, policy,
+Its durable local unit is a **Project**: an opened folder/repository bound to one
+ExecutionEnvironment, with safe files, Git, shell, task history, change sets,
+validation and Project-scoped context. Folder-as-Project is specified by
+[Spec 26](specs/v1/26-project-workspace-folder-as-project.md).
+
+Project is the durable workspace/context unit. It is not a new permission source,
+and it does not turn repository instructions into authority.
+
+Workflow Packs harden repeatable sequences with input/output contracts, policy,
 postconditions, evidence, failure behavior and evaluations. A minimal Role Pack
 composes workflows into bounded operational ownership and a measurable queue.
 
@@ -83,14 +91,18 @@ Staging and fixtures cannot establish production capacity replacement.
 
 1. Repair durable persistence/replay defects (#43) and executor, artifact and
    approval boundary gaps (#44); reconcile readiness before customer canaries.
-2. Select one queue and obtain actual access and baseline measurements (#40).
-3. Implement only the Role Pack and scorecard needed by that responsibility (#41).
-4. Bridge the smallest real API/browser path; require native only where necessary.
-5. Show actual workload, approvals, exceptions, evidence, human effort and costs
+2. Implement the smallest end-to-end Folder-as-Project slice from Spec 26 (#50):
+   durable Project identity, Open Folder/Recent, root isolation, files/search,
+   change-set tracking, Git read/local-write, bounded shell/validation, restart
+   and resume. Prove it on a dirty real internal repository before IDE breadth.
+3. Select one queue and obtain actual access and baseline measurements (#40).
+4. Implement only the Role Pack and scorecard needed by that responsibility (#41).
+5. Bridge the smallest real API/browser path; require native only where necessary.
+6. Show actual workload, approvals, exceptions, evidence, human effort and costs
    in the desktop operations console (#10). Chat is a steering tool.
-6. Prepare artifact-bound signing, updater/rollback and customer onboarding (#11).
-7. Run, measure, turn escaped failures into regression cases, and reduce touches.
-8. Measure independent deployment reuse (#42): target >=70% shared logic and a
+7. Prepare artifact-bound signing, updater/rollback and customer onboarding (#11).
+8. Run, measure, turn escaped failures into regression cases, and reduce touches.
+9. Measure independent deployment reuse (#42): target >=70% shared logic and a
    third deployment under one engineering day; a tenth under four hours remains
    a later hypothesis.
 

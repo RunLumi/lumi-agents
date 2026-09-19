@@ -10,20 +10,20 @@
   <div class="app">
     <nav class="sidebar">
       <div class="logo">Lumi</div>
-      <button class="nav-btn active" data-view="dashboard" onclick="showView('dashboard')">Dashboard</button>
-      <button class="nav-btn" data-view="approvals" onclick="showView('approvals')">
+      <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+      <button class="nav-btn" data-view="approvals">
         Approvals <span id="approval-badge" class="badge hidden">0</span>
       </button>
-      <button class="nav-btn" data-view="exceptions" onclick="showView('exceptions')">
+      <button class="nav-btn" data-view="exceptions">
         Exceptions <span id="exception-badge" class="badge hidden">0</span>
       </button>
-      <button class="nav-btn" data-view="evidence" onclick="showView('evidence')">Evidence</button>
-      <button class="nav-btn" data-view="permissions" onclick="showView('permissions')">Permissions</button>
+      <button class="nav-btn" data-view="evidence">Evidence</button>
+      <button class="nav-btn" data-view="permissions">Permissions</button>
       <div class="spacer"></div>
-      <button id="kill-switch" class="kill-switch" onclick="emergencyStop()">
+      <button id="kill-switch" class="kill-switch">
         ⏹ STOP ALL
       </button>
-      <div id="connection-status" class="connection-status">● Connected</div>
+      <div id="connection-status" class="connection-status">● Runtime unavailable</div>
     </nav>
 
     <main class="main">

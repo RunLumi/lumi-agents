@@ -62,6 +62,7 @@ fn registry_for(t: &str) -> lumi_policy::CapabilityRegistry {
 fn config_for(t: &str) -> OrchestratorConfig {
     OrchestratorConfig {
         registry: registry_for(t),
+        device_state: lumi_policy::DeviceExecutionState::Trusted,
         pre_authorizations: vec![],
         retry: lumi_state::RetryPolicy::default(),
         policy_version: "1.0.0".to_owned(),

@@ -309,6 +309,37 @@ mod tests {
                 }
             );
         }
+        let mut weakened_evidence = original.clone();
+        weakened_evidence.evidence_requirements =
+            vec![lumi_protocol::EvidenceRequirement::FullScreenshot];
+        assert!(matches!(
+            ledger.validate(
+                &approval.approval_id,
+                &weakened_evidence,
+                Timestamp::UNIX_EPOCH
+            ),
+            ApprovalValidation::Invalid {
+                reason: ApprovalInvalidReason::DigestMismatch
+            }
+        ));
+        let mut changed_verifier = original.clone();
+        changed_verifier.postconditions = vec![lumi_protocol::Postcondition {
+            id: lumi_protocol::PostconditionId::new("substituted-verifier"),
+            description: "Unrelated proof".to_owned(),
+            check: lumi_protocol::PostconditionCheck::RecordExists {
+                resource: original.resource.clone(),
+            },
+        }];
+        assert!(matches!(
+            ledger.validate(
+                &approval.approval_id,
+                &changed_verifier,
+                Timestamp::UNIX_EPOCH
+            ),
+            ApprovalValidation::Invalid {
+                reason: ApprovalInvalidReason::DigestMismatch
+            }
+        ));
     }
 
     #[test]

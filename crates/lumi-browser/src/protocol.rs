@@ -198,12 +198,22 @@ pub struct WorkerRequest {
 }
 
 /// Session-level configuration supplied once at worker start.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SessionParams {
     #[serde(default = "default_true")]
     pub headless: bool,
     pub profile: Option<ProfileMode>,
     pub trace: Option<TracePolicy>,
+}
+
+impl Default for SessionParams {
+    fn default() -> Self {
+        Self {
+            headless: true,
+            profile: None,
+            trace: None,
+        }
+    }
 }
 
 fn default_true() -> bool {
