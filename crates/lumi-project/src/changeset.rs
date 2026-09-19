@@ -12,6 +12,7 @@
 //! via Git state (spec 26 §26.19) and never claimed by Lumi.
 
 use crate::error::ProjectError;
+use crate::validation::{ValidationRecord, ValidationStatus};
 use lumi_protocol::canonical::sha256_hex;
 use lumi_protocol::{TaskId, Timestamp};
 use serde::{Deserialize, Serialize};
@@ -62,6 +63,19 @@ pub struct ChangeEntry {
     pub recorded_at: Timestamp,
 }
 
+/// One bounded shell command a task ran (§26.18 "commands run").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommandRecord {
+    /// Why the command ran ("validate test", "install deps", ...).
+    pub purpose: String,
+    /// The exact command as submitted.
+    pub command: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    pub duration_ms: u64,
+    pub recorded_at: Timestamp,
+}
+
 /// The change set of one task against one project.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChangeSet {
@@ -69,6 +83,12 @@ pub struct ChangeSet {
     pub task_id: TaskId,
     pub entries: Vec<ChangeEntry>,
     pub updated_at: Timestamp,
+    /// Bounded shell commands the task ran (§26.18).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub commands: Vec<CommandRecord>,
+    /// Validations the task executed with honest outcomes (§26.20).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub validations: Vec<ValidationRecord>,
 }
 
 impl ChangeSet {
@@ -79,6 +99,8 @@ impl ChangeSet {
             task_id,
             entries: Vec::new(),
             updated_at: now,
+            commands: Vec::new(),
+            validations: Vec::new(),
         }
     }
 
@@ -93,6 +115,33 @@ impl ChangeSet {
         self.entries
             .iter()
             .filter(|e| e.source == ChangeSource::Agent)
+    }
+
+    /// Appends a command record (§26.18 "commands run").
+    pub fn push_command(&mut self, command: CommandRecord, now: Timestamp) {
+        self.commands.push(command);
+        self.updated_at = now;
+    }
+
+    /// Appends a validation record (§26.20 honest outcomes).
+    pub fn push_validation(&mut self, validation: ValidationRecord) {
+        self.validations.push(validation);
+        self.updated_at = Timestamp::now();
+    }
+
+    /// The validation that decides the task's honest completion claim:
+    /// `Some(true)` only when every recorded validation passed, `None`
+    /// when nothing was validated.
+    #[must_use]
+    pub fn all_validations_passed(&self) -> Option<bool> {
+        if self.validations.is_empty() {
+            return None;
+        }
+        Some(
+            self.validations
+                .iter()
+                .all(|v| v.status == ValidationStatus::Passed),
+        )
     }
 
     /// True when the task changed nothing.

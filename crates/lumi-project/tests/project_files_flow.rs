@@ -244,3 +244,48 @@ fn writes_stay_inside_project_roots_and_fail_closed() {
     std::fs::remove_dir_all(&home).ok();
     std::fs::remove_dir_all(&repo).ok();
 }
+
+#[test]
+fn validation_outcomes_are_recorded_durably_in_the_change_set() {
+    let home = unique_dir("val-home");
+    let repo = unique_dir("val-repo");
+    std::fs::write(repo.join("README.md"), b"# demo\n").unwrap();
+    let mut store = ProjectStore::new(home.join("projects.json"));
+    let project_id = open(&mut store, &repo, 10);
+    let record = store
+        .get(&lumi_protocol::ProjectId::parse(&project_id).unwrap())
+        .unwrap();
+
+    // Discovery on a manifest-less project proposes nothing (never
+    // invents commands), and validation on missing tools is honest.
+    let discovery = lumi_project::discover(&record).unwrap();
+    assert!(discovery.proposed_commands.is_empty());
+
+    let task_id = TaskId::parse("task-val-1").unwrap();
+    let changes_dir = home.join("changes");
+    let change_store = ChangeSetStore::new(changes_dir);
+    let mut change_set = change_store.load(&project_id, &task_id).unwrap();
+
+    // A passing validation is recorded as PASSED with evidence.
+    let passed = lumi_project::run_validation(&record, "test", "true", 5_000).unwrap();
+    assert_eq!(passed.status, lumi_project::ValidationStatus::Passed);
+    change_set.push_validation(passed);
+
+    // A failing validation is recorded as FAILED - never success.
+    std::fs::write(repo.join("check.sh"), b"#!/bin/sh\nexit 2\n").unwrap();
+    let failed = lumi_project::run_validation(&record, "lint", "sh check.sh", 5_000).unwrap();
+    assert_eq!(failed.status, lumi_project::ValidationStatus::Failed);
+    assert_eq!(failed.exit_code, Some(2));
+    change_set.push_validation(failed);
+
+    change_store.save(&change_set).unwrap();
+
+    // Restart: fresh stores see the same honest history.
+    let reloaded = ChangeSetStore::new(home.join("changes"))
+        .load(&project_id, &task_id)
+        .unwrap();
+    assert_eq!(reloaded.validations.len(), 2);
+    assert_eq!(reloaded.all_validations_passed(), Some(false));
+    std::fs::remove_dir_all(&home).ok();
+    std::fs::remove_dir_all(&repo).ok();
+}
