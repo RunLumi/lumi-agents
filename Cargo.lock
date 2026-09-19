@@ -588,6 +588,7 @@ dependencies = [
 name = "lumi-project"
 version = "0.1.0"
 dependencies = [
+ "lumi-policy",
  "lumi-protocol",
  "lumi-workspaces",
  "serde",

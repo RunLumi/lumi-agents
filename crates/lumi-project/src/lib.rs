@@ -23,6 +23,7 @@
 pub mod changeset;
 pub mod error;
 pub mod files;
+pub mod git;
 pub mod record;
 pub mod roots;
 pub mod search;
@@ -33,6 +34,10 @@ pub use changeset::{
 };
 pub use error::ProjectError;
 pub use files::{FileOpsError, MutationOutcome, ProjectFiles, MAX_PATCH_BYTES, MAX_READ_BYTES};
+pub use git::{
+    CommitInfo, FileStatus, GitError, GitRepo, GitStatus, WorktreeEntry, GIT_MAX_OUTPUT_BYTES,
+    GIT_TIMEOUT_MS,
+};
 pub use record::{
     capability_snapshot, detect_git, detect_source, scan_instructions, AuthorizedRoot,
     DetectedSource, GitMetadata, IndexingState, InstructionKind, InstructionSource,
