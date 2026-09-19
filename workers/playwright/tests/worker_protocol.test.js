@@ -127,7 +127,7 @@ function makeAdapter() {
       assert.equal(eventName, 'download');
       return {
         suggestedFilename() {
-          return 'q3-report.csv';
+          return state.suggestedFilename ?? 'q3-report.csv';
         },
         async saveAs(destination) {
           state.savedDownloads.push(destination);
@@ -337,4 +337,21 @@ test('refuses unsupported existing profiles before browser launch', async () => 
   assert.equal(response.error.category, 'SECURITY_VIOLATION');
   assert.deepEqual(worker.state.launches, []);
   assert.deepEqual(worker.state.calls, []);
+});
+
+test('untrusted download names cannot escape the controlled directory', async () => {
+  for (const filename of ['../../outside.csv', '..\\outside.csv', '/tmp/outside', 'C:outside', '.. ', '.', 'report\n.csv']) {
+    const worker = await loadWorker();
+    worker.state.suggestedFilename = filename;
+    const [response] = await runRequests(worker, [{
+      id: 'unsafe-download',
+      op: 'download',
+      trigger: { strategy: 'test_id', test_id: 'download-report' },
+      workspace_dir: '/workspace/downloads',
+      timeout_ms: 1000,
+    }]);
+    assert.equal(response.ok, false);
+    assert.match(response.error.message, /safe single path component/);
+    assert.deepEqual(worker.state.savedDownloads, []);
+  }
 });

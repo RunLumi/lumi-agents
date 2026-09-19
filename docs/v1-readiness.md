@@ -76,3 +76,17 @@ These are deterministic safety regressions, not live workflow or release proof.
 General pack `ApprovalRule::Always` still needs the guarded execution path; the
 role bridge uses the explicit approval gate. Device-state integration, durable
 end-to-end audit/evidence delivery and actual customer adapters remain open.
+
+## Executor trust repair under review
+
+The next boundary change evaluates host-supplied device trust at every action;
+an unregistered desktop runtime is not implicitly trusted. It links minimized
+required proofs into action audit events, requires actual before/after data for
+diffs, and rejects unsupported capture. File verification, artifacts and
+browser download names are confined; existing artifacts cannot be silently
+overwritten. Digest v3 additionally binds verifier/evidence obligations so they
+cannot be weakened after approval.
+
+Enrollment/fleet revocation, real authenticated adapters, durable host-level
+audit retention and signed distribution are still separate integration gates.
+These repairs do not establish customer operation or role capacity.

@@ -70,6 +70,7 @@ fn setup(goal: &str, turns: Vec<ModelResponse>) -> (PathBufGuard, AgentRunTestSe
         });
     let config = OrchestratorConfig {
         registry,
+        device_state: lumi_policy::DeviceExecutionState::Trusted,
         pre_authorizations: vec![],
         retry: lumi_state::RetryPolicy::default(),
         policy_version: "1.0.0".to_owned(),
@@ -291,6 +292,7 @@ fn read_file_observation_feeds_back_to_planner() {
     });
     let config = OrchestratorConfig {
         registry,
+        device_state: lumi_policy::DeviceExecutionState::Trusted,
         pre_authorizations: vec![],
         retry: lumi_state::RetryPolicy::default(),
         policy_version: "1.0.0".to_owned(),
