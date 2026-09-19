@@ -449,6 +449,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-connectors"
+version = "0.1.0"
+dependencies = [
+ "lumi-protocol",
+ "lumi-secrets",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lumi-evals"
 version = "0.1.0"
 dependencies = [
