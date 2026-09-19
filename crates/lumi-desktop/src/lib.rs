@@ -10,6 +10,7 @@
 
 pub mod api;
 pub mod permissions;
+pub mod projects;
 pub mod runtime;
 
 pub use api::{
@@ -17,4 +18,5 @@ pub use api::{
     IssuedApproval, KillSwitchState, OperationsSnapshot, PendingApproval,
 };
 pub use permissions::{PermissionCheckResult, PermissionState, PermissionStatus};
+pub use projects::{FileContent, OpenedProject, ProjectOverview, ProjectService, ProjectSummary};
 pub use runtime::DesktopRuntime;

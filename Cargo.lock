@@ -494,6 +494,7 @@ dependencies = [
  "lumi-handoff",
  "lumi-orchestrator",
  "lumi-policy",
+ "lumi-project",
  "lumi-protocol",
  "lumi-state",
  "lumi-workspaces",

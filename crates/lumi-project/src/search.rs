@@ -60,7 +60,7 @@ pub enum SearchMode {
 }
 
 /// One search hit.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SearchHit {
     /// Project-relative path.
     pub path: String,
@@ -255,7 +255,7 @@ pub fn list_dir(
 }
 
 /// One listed filesystem entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ListedEntry {
     pub name: String,
     /// Project-relative path.

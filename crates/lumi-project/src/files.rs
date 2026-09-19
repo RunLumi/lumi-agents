@@ -121,6 +121,14 @@ pub struct ProjectFiles<'a> {
 }
 
 impl<'a> ProjectFiles<'a> {
+    /// The project record these operations are bounded by.
+    #[must_use]
+    pub const fn project(&self) -> &'a ProjectRecord {
+        self.project
+    }
+}
+
+impl<'a> ProjectFiles<'a> {
     #[must_use]
     pub const fn new(project: &'a ProjectRecord) -> Self {
         Self { project }

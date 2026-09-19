@@ -12,7 +12,7 @@ use std::path::Path;
 
 /// A validation command Lumi proposes for this project. A proposal is
 /// not an authorization: execution goes through the shell policy.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ProposedCommand {
     /// Stable role: "test", "build", "lint", "format", "typecheck".
     pub role: &'static str,
@@ -23,7 +23,7 @@ pub struct ProposedCommand {
 }
 
 /// Result of one bounded discovery pass.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize)]
 pub struct ProjectDiscovery {
     /// Top-level manifests found (relative paths).
     pub manifests: Vec<String>,
