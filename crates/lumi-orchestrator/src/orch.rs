@@ -41,10 +41,13 @@ pub struct OrchestratorConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StepOutcome {
     /// Verified success: executor succeeded AND postconditions passed (or
-    /// none were required for a non-consequential action).
+    /// none were required for a non-consequential action). The tool's
+    /// observation payload (file contents, shell output) rides along for
+    /// the agent loop / UX.
     VerifiedSuccess {
         action_id: ActionId,
         verification: VerificationStatus,
+        observation: Option<String>,
     },
     /// Policy demands a scoped approval bound to this digest.
     ApprovalNeeded {
@@ -64,6 +67,15 @@ pub enum StepOutcome {
     Unverified { action_id: ActionId, detail: String },
     /// Budget exhausted or cancelled.
     Stopped { reason: String },
+}
+
+/// The tool's observation payload for feedback into agent loops.
+fn executor_observation(result: &ExecutionResult) -> Option<String> {
+    if result.observation_ids.is_empty() {
+        None
+    } else {
+        Some(result.observation_ids.join("\n"))
+    }
 }
 
 /// The local execution orchestrator.
@@ -284,6 +296,7 @@ impl<S: StateStore> Orchestrator<S> {
                         StepOutcome::VerifiedSuccess {
                             action_id: action.action_id.clone(),
                             verification: status,
+                            observation: executor_observation(&result),
                         }
                     }
                     VerificationStatus::NotRequired if !is_consequential => {
@@ -298,6 +311,7 @@ impl<S: StateStore> Orchestrator<S> {
                         StepOutcome::VerifiedSuccess {
                             action_id: action.action_id.clone(),
                             verification: VerificationStatus::NotRequired,
+                            observation: executor_observation(&result),
                         }
                     }
                     // A consequential action with no verifiable postcondition

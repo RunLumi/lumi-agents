@@ -184,6 +184,12 @@ pub mod capabilities {
     pub const BROWSER_READ: &str = "browser.read";
     pub const BROWSER_WRITE: &str = "browser.write";
     pub const FILES_READ: &str = "files.read";
+    pub const FILES_CREATE: &str = "files.create";
+    pub const FILES_EDIT: &str = "files.edit";
+    pub const FILES_MOVE: &str = "files.move";
+    pub const FILES_DELETE: &str = "files.delete";
+    pub const FILES_EXPORT: &str = "files.export";
+    pub const FILES_SHARE: &str = "files.share";
     pub const FILES_WRITE: &str = "files.write";
     pub const CRM_QUOTE_UPDATE: &str = "crm.quote.update";
     pub const EMAIL_DRAFT_CREATE: &str = "email.draft.create";
