@@ -51,7 +51,7 @@ pub use record::{
     DetectedSource, GitMetadata, IndexingState, InstructionKind, InstructionSource,
     OpenFolderRequest, OpenOutcome, ProjectRecord, RootAccess, INSTRUCTION_SCAN_LIMIT_BYTES,
 };
-pub use roots::{resolve_in_project, ResolvedInProject};
+pub use roots::{assert_resume_target, resolve_in_project, ResolvedInProject};
 pub use search::{list_dir, search, ListedEntry, SearchError, SearchHit, SearchMode, MAX_RESULTS};
 pub use store::{PersistedProjects, ProjectStore, RootHealth, PROJECTS_SCHEMA_VERSION};
 pub use validation::{run_validation, ValidationRecord, ValidationStatus};
