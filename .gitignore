@@ -25,3 +25,7 @@ Thumbs.db
 /screenshots/
 /artifacts/
 /customer-data/
+apps/desktop/src-tauri/Cargo.lock
+apps/desktop/src-tauri/icons/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
