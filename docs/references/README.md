@@ -204,3 +204,21 @@ A reference finding enters Lumi architecture only when at least one is true:
 - it simplifies an existing design without weakening guarantees.
 
 Interesting is not enough.
+
+
+## T3 persistence boundary recheck — 2026-09-19
+
+Pinned commit unchanged: `9ea9c3d5d2c444133e3ddff40eecf38737951589`.
+Primary code re-read for the durable-intent repair:
+
+- [OrchestrationCommandReceipts](https://github.com/pingdotgg/t3code/blob/9ea9c3d5d2c444133e3ddff40eecf38737951589/apps/server/src/persistence/Layers/OrchestrationCommandReceipts.ts)
+  persists command receipts and propagates storage errors through typed results.
+- [RuntimeReceiptBus](https://github.com/pingdotgg/t3code/blob/9ea9c3d5d2c444133e3ddff40eecf38737951589/apps/server/src/orchestration/Services/RuntimeReceiptBus.ts)
+  explicitly separates short-lived test/harness milestones from the production
+  runtime event model.
+
+Transferable principle: surface persistence failures and wait on explicit state
+transitions. Do not copy a harness receipt bus as production business evidence,
+or adopt the entire event-sourcing stack to repair a failed write barrier.
+Lumi's experiment is injected storage failure plus executor-call-count and
+restart/replay tests. No source or dependency was copied.

@@ -278,6 +278,93 @@ mod tests {
     }
 
     #[test]
+    fn approval_rejects_changed_sensitivity_risk_principal_and_idempotency() {
+        let mut ledger = ApprovalLedger::new();
+        let original = action("t-1", "mailto:c@example.test");
+        let approval = ledger
+            .issue(
+                &original,
+                &human("t-1"),
+                ApprovalTtl::ONE_HOUR,
+                Timestamp::UNIX_EPOCH,
+                false,
+            )
+            .unwrap();
+        let mut sensitivity = original.clone();
+        sensitivity.resource.sensitivity = Some(lumi_protocol::SensitivityLabel::Restricted);
+        let mut risk = original.clone();
+        risk.risk_class = RiskClass::Read;
+        let mut principal = original.clone();
+        principal.principal.principal_id = PrincipalId::parse("another-actor").unwrap();
+        let mut retry_key = original.clone();
+        retry_key.idempotency = lumi_protocol::Idempotency {
+            key: Some("different-effect-key".to_owned()),
+            semantics: lumi_protocol::IdempotencySemantics::ClientKey,
+        };
+        for changed in [sensitivity, risk, principal, retry_key] {
+            assert_eq!(
+                ledger.validate(&approval.approval_id, &changed, Timestamp::UNIX_EPOCH),
+                ApprovalValidation::Invalid {
+                    reason: ApprovalInvalidReason::DigestMismatch
+                }
+            );
+        }
+        let mut weakened_evidence = original.clone();
+        weakened_evidence.evidence_requirements =
+            vec![lumi_protocol::EvidenceRequirement::FullScreenshot];
+        assert!(matches!(
+            ledger.validate(
+                &approval.approval_id,
+                &weakened_evidence,
+                Timestamp::UNIX_EPOCH
+            ),
+            ApprovalValidation::Invalid {
+                reason: ApprovalInvalidReason::DigestMismatch
+            }
+        ));
+        let mut changed_verifier = original.clone();
+        changed_verifier.postconditions = vec![lumi_protocol::Postcondition {
+            id: lumi_protocol::PostconditionId::new("substituted-verifier"),
+            description: "Unrelated proof".to_owned(),
+            check: lumi_protocol::PostconditionCheck::RecordExists {
+                resource: original.resource.clone(),
+            },
+        }];
+        assert!(matches!(
+            ledger.validate(
+                &approval.approval_id,
+                &changed_verifier,
+                Timestamp::UNIX_EPOCH
+            ),
+            ApprovalValidation::Invalid {
+                reason: ApprovalInvalidReason::DigestMismatch
+            }
+        ));
+    }
+
+    #[test]
+    fn approval_ignores_argument_object_insertion_order() {
+        let mut ledger = ApprovalLedger::new();
+        let mut original = action("t-1", "mailto:c@example.test");
+        original.arguments = serde_json::json!({"z": 1, "nested": {"z": 2, "a": 3}});
+        let mut reordered = original.clone();
+        reordered.arguments = serde_json::json!({"nested": {"a": 3, "z": 2}, "z": 1});
+        let approval = ledger
+            .issue(
+                &original,
+                &human("t-1"),
+                ApprovalTtl::ONE_HOUR,
+                Timestamp::UNIX_EPOCH,
+                false,
+            )
+            .unwrap();
+        assert!(matches!(
+            ledger.validate(&approval.approval_id, &reordered, Timestamp::UNIX_EPOCH),
+            ApprovalValidation::Valid { .. }
+        ));
+    }
+
+    #[test]
     fn approval_binds_to_action_digest() {
         let mut ledger = ApprovalLedger::new();
         let a = action("t-1", "mailto:c@example.test");

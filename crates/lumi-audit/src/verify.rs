@@ -10,7 +10,7 @@
 use lumi_protocol::{ArtifactId, Postcondition, PostconditionCheck, ResourceRef, SensitivityLabel};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// Canonical verification statuses (spec 11 §11.7).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -213,7 +213,7 @@ impl PostconditionVerifier {
                 },
             },
             PostconditionCheck::FileChecksum { path, sha256 } => match env.workspace_root() {
-                Some(root) => match file_sha256(&root.join(path)) {
+                Some(root) => match workspace_file_checksum(root, path) {
                     Some(actual) if actual == *sha256 => VerificationOutcome {
                         postcondition_id: postcondition.id.0.clone(),
                         status: VerificationStatus::Passed,
@@ -238,7 +238,7 @@ impl PostconditionVerifier {
             },
             PostconditionCheck::FileExists { path } => match env.workspace_root() {
                 Some(root) => {
-                    let exists = root.join(path).is_file();
+                    let exists = safe_workspace_path(root, path).is_some_and(|path| path.is_file());
                     VerificationOutcome {
                         postcondition_id: postcondition.id.0.clone(),
                         status: if exists {
@@ -350,6 +350,59 @@ impl PostconditionVerifier {
         };
         (aggregate, outcomes)
     }
+}
+
+/// Resolve a workspace-relative path without allowing absolute paths,
+/// parent traversal, or symlinks that escape the canonical workspace root.
+/// The returned path may not exist yet; its nearest existing ancestor is
+/// canonicalized before the missing suffix is reattached.
+#[must_use]
+pub fn safe_workspace_path(root: &Path, relative_path: &str) -> Option<PathBuf> {
+    let relative = Path::new(relative_path);
+    if relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                Component::Prefix(_) | Component::RootDir | Component::ParentDir
+            )
+        })
+    {
+        return None;
+    }
+
+    let canonical_root = root.canonicalize().ok()?;
+    let mut existing = canonical_root.join(relative);
+    let mut missing = Vec::new();
+    // A dangling symlink is not an absent path segment: never reattach it
+    // after validating only its parent directory.
+    while std::fs::symlink_metadata(&existing)
+        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+    {
+        missing.push(existing.file_name()?.to_os_string());
+        if !existing.pop() {
+            return None;
+        }
+    }
+    let canonical_existing = existing.canonicalize().ok()?;
+    if !canonical_existing.starts_with(&canonical_root) {
+        return None;
+    }
+    let mut safe = canonical_existing;
+    for component in missing.iter().rev() {
+        safe.push(component);
+    }
+    Some(safe)
+}
+
+/// Read and hash a workspace file only after the path has passed the
+/// workspace-boundary check.
+#[must_use]
+pub fn workspace_file_checksum(root: &Path, relative_path: &str) -> Option<String> {
+    let path = safe_workspace_path(root, relative_path)?;
+    if !path.is_file() {
+        return None;
+    }
+    file_sha256(&path)
 }
 
 fn file_sha256(path: &Path) -> Option<String> {
@@ -568,5 +621,55 @@ mod tests {
         let (status, _) = PostconditionVerifier.verify_all(&[postcondition], &env);
         assert_eq!(status, VerificationStatus::Passed);
         let _ = Target::canonical("unused");
+    }
+
+    #[test]
+    fn workspace_paths_cannot_escape_by_absolute_or_parent_traversal() {
+        let suffix = format!(
+            "{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let root = std::env::temp_dir().join(format!("lumi-verify-root-{suffix}"));
+        let outside = std::env::temp_dir().join(format!("lumi-verify-outside-{suffix}.txt"));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(&outside, b"outside secret").unwrap();
+
+        assert!(safe_workspace_path(&root, "../lumi-verify-outside.txt").is_none());
+        assert!(safe_workspace_path(&root, outside.to_str().unwrap()).is_none());
+        assert!(workspace_file_checksum(&root, "../lumi-verify-outside.txt").is_none());
+
+        let escaped = Postcondition {
+            id: PostconditionId::new("escaped-file"),
+            description: "must not read outside workspace".to_owned(),
+            check: PostconditionCheck::FileChecksum {
+                path: outside.to_str().unwrap().to_owned(),
+                sha256: lumi_protocol::canonical::sha256_hex(b"outside secret"),
+            },
+        };
+        let (status, _) = PostconditionVerifier.verify_all(
+            &[escaped],
+            &FixtureEnvironment::new().with_workspace(root.clone()),
+        );
+        assert_eq!(status, VerificationStatus::Failed);
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let link = root.join("outside-link");
+            symlink(&outside, &link).unwrap();
+            assert!(safe_workspace_path(&root, "outside-link").is_none());
+            assert!(workspace_file_checksum(&root, "outside-link").is_none());
+            let dangling = root.join("dangling-link");
+            symlink(outside.with_extension("not-created"), &dangling).unwrap();
+            assert!(safe_workspace_path(&root, "dangling-link").is_none());
+            assert!(safe_workspace_path(&root, "dangling-link/child").is_none());
+        }
+
+        std::fs::remove_file(&outside).ok();
+        std::fs::remove_dir_all(&root).ok();
     }
 }

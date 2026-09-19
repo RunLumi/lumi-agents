@@ -21,6 +21,6 @@ pub use event::{ActionEventDetails, AuditEvent, AuditEventKind, AuditScope, Poli
 pub use evidence::{EvidenceError, EvidenceKind, EvidenceRecord, EvidenceRequest, EvidenceStore};
 pub use ledger::{AuditLedger, ChainVerification, JsonlAuditLog};
 pub use verify::{
-    FixtureEnvironment, PostconditionVerifier, UnavailableEnvironment, VerificationEnvironment,
-    VerificationOutcome, VerificationStatus,
+    safe_workspace_path, workspace_file_checksum, FixtureEnvironment, PostconditionVerifier,
+    UnavailableEnvironment, VerificationEnvironment, VerificationOutcome, VerificationStatus,
 };

@@ -4,7 +4,7 @@
 //! UI gesture (`click(x=823, y=418)`). Raw gestures MAY exist inside
 //! executor-specific plans but never as organization-level policy units.
 
-use crate::canonical::sha256_hex;
+use crate::canonical::sha256_canonical;
 use crate::evidence::EvidenceRequirement;
 use crate::ids::{ActionId, RunId, StepId, TaskId, WorkflowId};
 use crate::postcondition::Postcondition;
@@ -176,6 +176,17 @@ impl ActionProposal {
                 "timeout_ms must be positive".to_owned(),
             ));
         }
+        if self.idempotency.semantics == IdempotencySemantics::ClientKey
+            && self
+                .idempotency
+                .key
+                .as_deref()
+                .is_none_or(|key| key.trim().is_empty())
+        {
+            return Err(ProtocolError::Malformed(
+                "CLIENT_KEY requires a nonempty idempotency key".to_owned(),
+            ));
+        }
         if !self.execution_preferences.allowed_tiers.is_empty()
             && self
                 .execution_preferences
@@ -191,27 +202,39 @@ impl ActionProposal {
 
     /// Digest over all material fields (spec 03 §3.3, spec 04 §4.7).
     ///
-    /// Algorithm `lumi-action-digest/v1`: SHA-256 over canonical JSON of
+    /// Algorithm `lumi-action-digest/v3`: SHA-256 over canonical JSON of
     /// the material projection — capability, resource, target, operation,
-    /// arguments, and the reversibility/visibility claims. Deliberately
-    /// *excludes*: execution tier preferences, timeout, evidence
-    /// requirements, postconditions, and ids (changing executor tier does
+    /// arguments, risk, sensitivity, principal identity, idempotency, and
+    /// the reversibility/visibility and verification/evidence requirements.
+    /// Deliberately *excludes*: execution tier preferences, timeout,
+    /// and ids (changing executor tier does
     /// not change the approved business action; changing what it does does).
     #[must_use]
     pub fn material_digest(&self) -> String {
         let material = serde_json::json!({
+            "digest_version": "lumi-action-digest/v3",
+            "principal": {
+                "tenant_id": self.principal.tenant_id,
+                "principal_id": self.principal.principal_id,
+                "kind": self.principal.kind,
+            },
             "capability": self.capability.0,
             "resource": {
                 "type": self.resource.resource_type.0,
                 "id": self.resource.id,
+                "sensitivity": self.resource.sensitivity,
             },
+            "risk_class": self.risk_class,
+            "idempotency": self.idempotency,
+            "postconditions": self.postconditions,
+            "evidence_requirements": self.evidence_requirements,
             "target": self.target.canonical,
             "operation": self.operation,
             "arguments": self.arguments,
             "reversible": self.expected_effect.reversible,
             "external_visibility": self.expected_effect.external_visibility,
         });
-        sha256_hex(material.to_string().as_bytes())
+        sha256_canonical(&material)
     }
 
     /// Detects material mutation relative to a previously-approved digest

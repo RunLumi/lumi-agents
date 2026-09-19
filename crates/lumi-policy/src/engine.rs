@@ -224,6 +224,14 @@ pub fn evaluate(
     pre_authorizations: &[PreAuthorization],
     ctx: &PolicyContext,
 ) -> Decision {
+    // Public proposals can be mutated after construction. Admission must
+    // recheck protocol validity rather than trust the builder was used.
+    if action.validate().is_err() {
+        return Decision::Deny {
+            rule_id: DEFAULT_RULE_ID,
+            reason: DenyReason::FailClosed,
+        };
+    }
     // 1. Hard safety — never overridable by any layer.
     if let Some(decision) = hard_safety(action, ctx) {
         return decision;
@@ -360,6 +368,21 @@ fn approval_requirement(action: &ActionProposal) -> Option<ApprovalReason> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn malformed_client_key_is_denied_even_after_builder_mutation() {
+        let registry = registry_with(&[lumi_protocol::capabilities::FILES_READ]);
+        let mut candidate = action(lumi_protocol::capabilities::FILES_READ, RiskClass::Read);
+        candidate.idempotency.semantics = lumi_protocol::IdempotencySemantics::ClientKey;
+        candidate.idempotency.key = None;
+        assert!(matches!(
+            evaluate(&candidate, &[], &ctx(&registry)),
+            Decision::Deny {
+                reason: DenyReason::FailClosed,
+                ..
+            }
+        ));
+    }
     use crate::capability::{CapabilityGrant, GrantSource, ResourceScope};
     use lumi_protocol::{
         ActionId, AuthenticationStrength, Capability, Principal, PrincipalId, ResourceRef,

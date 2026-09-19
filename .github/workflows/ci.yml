@@ -43,3 +43,40 @@ jobs:
         with:
           command: check
           command-arguments: licenses advisories sources
+
+  desktop:
+    name: desktop (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt,clippy
+      - name: Check locked desktop app
+        run: cargo +1.98.1 check --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+      - name: Clippy desktop app
+        run: cargo +1.98.1 clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+
+  desktop-dependency-policy:
+    name: desktop dependency policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check reviewed desktop graph
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1 / cargo-deny 0.20.2
+        with:
+          manifest-path: apps/desktop/src-tauri/Cargo.toml
+          # --config is a top-level cargo-deny flag; the action places
+          # `arguments` before the subcommand, unlike `command-arguments`.
+          arguments: --config apps/desktop/deny.toml
+          command: check
+          command-arguments: licenses advisories sources

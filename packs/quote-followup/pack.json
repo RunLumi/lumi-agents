@@ -128,7 +128,7 @@
           "expected": "Quote Q-2091 follow-up"
         }
       ],
-      "idempotency": { "key": "send-Q-2091", "semantics": "CLIENT_KEY" },
+      "idempotency": { "key": "send-$input.quote_id", "semantics": "CLIENT_KEY" },
       "evidence": ["STRUCTURED_STATE"],
       "resource_type": "email_message",
       "resource_id_template": "outbound/sent-$input.quote_id",
