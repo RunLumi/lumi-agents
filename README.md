@@ -1,185 +1,81 @@
 # Lumi Agents
 
-**A trusted execution operating system for real computer work.**
+**A local-first runtime for verified digital labor.**
 
-Lumi Agents is RunLumi's local-first runtime for agentic work across APIs, browsers, files, shells, and native desktop applications.
+Lumi aims to own bounded recurring operational work across APIs, browsers,
+files, shells and native applications, with evidence and human exception control.
+The unit of value is useful work verified complete with fewer human minutes and
+lower fully loaded cost.
 
-It is designed for two jobs on one core:
+**Current status: engineering foundation; NO-GO for unattended customer operation
+or V1 release.** The repository has 23 core crates, three synthetic Workflow Pack
+examples and a desktop scaffold. They do not establish live reliability,
+customer ROI or role replacement. See [readiness](docs/v1-readiness.md) and the
+[implementation truth map](docs/implementation-truth.md).
 
-- **Work mode**: substantial general knowledge work, research, files, browser, code, artifacts, and long-running tasks.
-- **Workflow mode**: hardened repeatable business automation with policy, verification, evidence, exceptions, and measurable economics.
-
-The goal is not "an AI that can click."
-
-The goal is to make delegation reliable.
-
-## Product thesis
-
-Models reason.
-
-Lumi governs.
-
-Lumi chooses the safest execution surface.
-
-Lumi acts.
-
-Lumi verifies the real outcome.
-
-Lumi records evidence.
-
-Humans handle judgment, relationships, ambiguity, and consequential approvals.
-
-## Execution hierarchy
-
-Prefer the least fragile surface that can complete the work:
-
-1. connector/API;
-2. browser semantic automation;
-3. native semantic automation;
-4. deterministic app adapter;
-5. vision/coordinates.
-
-Additional controlled surfaces include local files, sandboxed shell/code execution, and artifact generation.
-
-## Why this architecture
-
-Computer-use primitives will commoditize.
-
-The durable layers are:
-
-- workflow semantics;
-- provider-neutral orchestration;
-- business context;
-- local policy;
-- approvals;
-- secrets isolation;
-- verification;
-- evidence/replay;
-- reusable skills and workflow packs;
-- device/deployment trust;
-- evals and reliability data;
-- workflow economics.
-
-## Provider-neutral by design
-
-The core runtime must not depend on one model vendor.
-
-Planned adapters include:
-
-- OpenAI;
-- Anthropic;
-- Gemini;
-- Azure OpenAI;
-- AWS Bedrock;
-- OpenRouter;
-- xAI/Grok after contract validation;
-- generic OpenAI-compatible endpoints;
-- local Ollama/vLLM-style deployments.
-
-Routing is based on tenant data policy, required capability, measured reliability, latency, and **cost per verified successful workflow**.
-
-## Runtime stack
-
-Current foundation:
-
-- Rust core;
-- local policy gate;
-- Cua Driver behind a Lumi-owned native adapter;
-- Playwright as the planned browser-semantic engine;
-- cross-platform CI on macOS, Windows, and Linux core;
-- dependency/license checks.
-
-Target architecture adds:
-
-- durable task state;
-- model router;
-- audit/evidence ledger;
-- secrets broker;
-- postcondition verifier;
-- workflow-pack SDK;
-- Tauri desktop shell;
-- signed updater;
-- provider and executor adapters.
-
-## Security invariants
-
-- Local policy is authoritative.
-- Models and content cannot grant themselves authority.
-- External/destructive actions require explicit policy or approval.
-- Secrets are resolved at the executor boundary, not placed in prompts.
-- Non-read-only vision actions are conservative by default.
-- Workflows verify actual postconditions before reporting success.
-- Unattended execution needs a local kill switch and revocable lease.
-- Prompt-injected website/document/email instructions are untrusted data.
-- Evidence is minimized and must not become continuous employee surveillance.
-
-See:
-
-- `SECURITY.md`
-- `docs/security-model.md`
-- `docs/adr/0004-security-boundary.md`
-
-## Roadmap
-
-Read `docs/roadmap.md`.
-
-The first milestone is intentionally narrow:
-
-> Three economically valuable workflows, each run repeatedly with verified outcomes, zero unauthorized side effects, and measured before/after economics.
-
-Do not broaden the platform until that works.
-
-## Repository map
-
-Current:
+## One trust boundary
 
 ```text
-crates/
-  lumi-protocol/
-  lumi-policy/
-  lumi-runtime/
-
-docs/
-  roadmap.md
-  architecture.md
-  security-model.md
-  model-providers.md
-  workflow-packs.md
-  evals/
-  adr/
+Models propose → policy authorizes → executors act
+→ verifiers determine actual outcome → evidence records → economics measures
 ```
 
-Target structure evolves only when real code needs it. Empty framework sprawl is explicitly discouraged.
+Execution preference: connector/API → browser semantics → native semantics →
+app-specific adapter → vision/coordinates. Local policy is authoritative;
+models, plugins, webpages and remote supervisors cannot grant themselves access.
+
+Required properties include bounded authority, scoped approval, secret isolation,
+idempotency, durable recovery, cancellation and minimized evidence. Transport
+success is not effect success. Ambiguous work remains ambiguous.
+
+## Product direction
+
+Work mode supports novel work, exceptions and discovery. Workflow Packs harden
+repeatable work with contracts and evaluations. Minimal Role Packs will compose
+workflows into bounded operational responsibilities and measurable queues.
+
+The provisional lighthouse is Finance Operations reconciliation and exception
+reporting, excluding autonomous money movement. Ads, HR and Legal Ops are also
+under evaluation. Access, baseline and buyer evidence decide the wedge; existing
+code does not prove a market. See the [lighthouse decision](docs/lighthouse-role.md).
+
+The [roadmap](docs/roadmap.md) puts real-system canaries, human-time measurement,
+role economics and independent deployment reuse ahead of horizontal feature
+breadth. The [execution plan](docs/plan.md) links the active GitHub work graph.
+
+## Repository
+
+- `crates/`: protocol, policy, state, audit/verification, orchestration, execution,
+  providers, secrets, workspaces, packs/evals, scheduler, extensions and UI contracts.
+- `packs/`: synthetic examples; never production evidence.
+- `workers/playwright/`: semantic browser worker.
+- `apps/desktop/`: Tauri shell; separate build from the core workspace.
+- `docs/specs/v1/`: normative contracts; `docs/adr/`: architecture decisions.
+
+Provider engines stay replaceable. Four adapter families have hermetic contract
+coverage; actual provider/workflow reliability must be measured inside each
+customer's privacy and data-egress constraints.
 
 ## Development
 
-```bash
+```sh
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 ```
 
-The Rust toolchain is pinned in `rust-toolchain.toml`.
+Rust is pinned in `rust-toolchain.toml`. The OS Keychain integration test requires
+host secure-store permission; a sandbox failure is not a passing test. Core CI
+covers Ubuntu/macOS/Windows and dependency policy. It does not certify Tauri or
+signed release artifacts.
 
-## Licensing
+## License and security
 
-Lumi Agents is licensed under **Apache-2.0**.
+Lumi's open runtime is Apache-2.0. Preserve compatible upstream notices and
+review dependency, binary and asset licenses separately. See [LICENSE](LICENSE),
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [SECURITY.md](SECURITY.md) and the
+[security model](docs/security-model.md).
 
-Third-party dependencies retain their own licenses and notices.
-
-See:
-
-- `LICENSE`
-- `NOTICE`
-- `THIRD_PARTY_NOTICES.md`
-- `docs/adr/0003-licensing.md`
-
-The commercial RunLumi control plane, managed fleet, premium workflow packs, hosted analytics, vertical IP, and deployment services may remain proprietary outside this open-core repository.
-
-## Quality bar
-
-We are not trying to ship the most features.
-
-We are trying to make delegating real work feel boringly reliable.
-
-That means fewer surprises, bounded authority, excellent artifacts, graceful recovery, provider freedom, inspectable evidence, and measurable value.
+Commercial control-plane services and premium vertical work may remain outside
+this open repository. The runtime's standard is verified outcomes, recoverable
+failure and measurable value, not a convincing demo.
