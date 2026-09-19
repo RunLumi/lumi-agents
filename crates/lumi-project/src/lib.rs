@@ -20,6 +20,7 @@
 //! - Project instruction files are recorded as provenance only; they do
 //!   not and cannot widen authority (§26.8).
 
+pub mod artifacts_list;
 pub mod changeset;
 pub mod discovery;
 pub mod error;
@@ -32,6 +33,7 @@ pub mod search;
 pub mod store;
 pub mod validation;
 
+pub use artifacts_list::{list_artifacts, ArtifactEntry, ARTIFACTS_DIR};
 pub use changeset::{
     checksum, text_patch, ChangeEntry, ChangeKind, ChangeSet, ChangeSetStore, ChangeSource,
     CommandRecord,

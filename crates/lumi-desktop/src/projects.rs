@@ -9,9 +9,10 @@
 
 use crate::runtime::DesktopRuntime;
 use lumi_project::{
-    clone_repository, discover, run_validation, ChangeSet, ChangeSetStore, GitError, GitRepo,
-    MemoryKind, MemoryProvenance, MemoryRecord, OpenFolderRequest, ProjectDiscovery, ProjectFiles,
-    ProjectMemoryStore, ProjectStore, RootHealth, SearchHit, SearchMode, ValidationRecord,
+    clone_repository, discover, list_artifacts, run_validation, ArtifactEntry, ChangeSet,
+    ChangeSetStore, GitError, GitRepo, MemoryKind, MemoryProvenance, MemoryRecord,
+    OpenFolderRequest, ProjectDiscovery, ProjectFiles, ProjectMemoryStore, ProjectStore,
+    RootHealth, SearchHit, SearchMode, ValidationRecord,
 };
 use lumi_protocol::ids::{EnvironmentId, PrincipalId, ProjectId, TaskId, TenantId};
 use lumi_protocol::principal::{AuthenticationStrength, Principal, PrincipalKind};
@@ -476,6 +477,16 @@ impl ProjectService {
         set.push_validation(validation.clone());
         self.changes.save(&set).map_err(|e| e.to_string())?;
         Ok(validation)
+    }
+
+    /// Real generated outputs under `<root>/.lumi/artifacts` (§26.29):
+    /// empty when the project has none — never sample rows.
+    pub fn artifacts_list(
+        &self,
+        project_id: &str,
+    ) -> Result<Vec<ArtifactEntry>, String> {
+        let record = self.record(project_id)?;
+        list_artifacts(&record.primary_root, 200).map_err(|e| e.to_string())
     }
 
     /// The durable change set of one task (§26.18).
@@ -1004,5 +1015,45 @@ mod tests {
         assert!(!listed[0].1);
         std::fs::remove_dir_all(&state).ok();
         std::fs::remove_dir_all(&repo).ok();
+    }
+
+
+    #[test]
+    fn artifacts_list_returns_real_files_only() {
+        let state = temp_dir("art-state");
+        let repo = temp_dir("art-repo");
+        let artifact_dir = repo.join(".lumi/artifacts/report-1");
+        std::fs::create_dir_all(&artifact_dir).unwrap();
+        std::fs::write(
+            artifact_dir.join("artifact.json"),
+            r#"{"artifact_id":"report-1","artifact_type":"test_report","path":"results.json","lifecycle":"READY"}"#,
+        )
+        .unwrap();
+        std::fs::write(artifact_dir.join("results.json"), b"{}").unwrap();
+
+        let mut service = ProjectService::open(&state).unwrap();
+        let project = service
+            .open_folder(repo.to_str().unwrap(), None)
+            .unwrap()
+            .project
+            .project_id
+            .clone();
+        let listed = service.artifacts_list(&project).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].name, "results.json");
+        assert_eq!(listed[0].artifact_type.as_deref(), Some("test_report"));
+
+        // A project without artifacts reports empty — never sample rows.
+        let empty_repo = temp_dir("art-empty");
+        let empty_project = service
+            .open_folder(empty_repo.to_str().unwrap(), None)
+            .unwrap()
+            .project
+            .project_id
+            .clone();
+        assert!(service.artifacts_list(&empty_project).unwrap().is_empty());
+        std::fs::remove_dir_all(&state).ok();
+        std::fs::remove_dir_all(&repo).ok();
+        std::fs::remove_dir_all(&empty_repo).ok();
     }
 }
