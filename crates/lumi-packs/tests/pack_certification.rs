@@ -413,6 +413,18 @@ fn inputs_missing_required_fields_fail_before_execution() {
 }
 
 #[test]
+fn unsupported_preconditions_and_missing_client_key_refuse_preparation() {
+    let (task_id, run_id) = task_and_run();
+    let mut pack = quote_followup_pack();
+    let precondition = pack.steps[0].postconditions[0].clone();
+    pack.steps[0].preconditions.push(precondition);
+    assert!(prepare_run(&pack, &inputs(), &task_id, &run_id, &principal()).is_err());
+    let mut pack = quote_followup_pack();
+    pack.steps[2].idempotency.key = None;
+    assert!(prepare_run(&pack, &inputs(), &task_id, &run_id, &principal()).is_err());
+}
+
+#[test]
 fn templates_resolve_and_materialize_authorized_actions() {
     let pack = quote_followup_pack();
     let (task_id, run_id) = task_and_run();
@@ -435,6 +447,105 @@ fn templates_resolve_and_materialize_authorized_actions() {
         send_action.workflow_id.as_ref().map(|w| w.as_str()),
         Some("crm-quote-followup")
     );
+}
+
+#[test]
+fn repeated_work_items_do_not_overwrite_other_runs_journal_identity() {
+    let pack = quote_followup_pack();
+    let (task_id, run_id) = task_and_run();
+    let first = prepare_run(&pack, &inputs(), &task_id, &run_id, &principal()).unwrap();
+    let resumed = prepare_run(&pack, &inputs(), &task_id, &run_id, &principal()).unwrap();
+    let next = prepare_run(
+        &pack,
+        &inputs(),
+        &task_id,
+        &RunId::parse("run-next").unwrap(),
+        &principal(),
+    )
+    .unwrap();
+    let mut other_tenant = principal();
+    other_tenant.tenant_id = TenantId::parse("t-other").unwrap();
+    let isolated = prepare_run(&pack, &inputs(), &task_id, &run_id, &other_tenant).unwrap();
+    let other_task = prepare_run(
+        &pack,
+        &inputs(),
+        &TaskId::parse("task-other").unwrap(),
+        &run_id,
+        &principal(),
+    )
+    .unwrap();
+    for i in 0..first.actions.len() {
+        let original = &first.actions[i].1;
+        assert_eq!(original.action_id, resumed.actions[i].1.action_id);
+        assert_ne!(original.action_id, next.actions[i].1.action_id);
+        assert_ne!(original.action_id, isolated.actions[i].1.action_id);
+        assert_ne!(original.action_id, other_task.actions[i].1.action_id);
+    }
+}
+
+#[test]
+fn idempotency_templates_follow_business_item_not_run_attempt() {
+    let mut pack = quote_followup_pack();
+    pack.steps[2].idempotency.key = Some("send-$input.quote_id".to_owned());
+    let (task_id, run_id) = task_and_run();
+    let first = prepare_run(&pack, &inputs(), &task_id, &run_id, &principal()).unwrap();
+    let retry = prepare_run(
+        &pack,
+        &inputs(),
+        &task_id,
+        &RunId::parse("retry-run").unwrap(),
+        &principal(),
+    )
+    .unwrap();
+    assert_eq!(
+        first.actions[2].1.idempotency.key.as_deref(),
+        Some("send-Q-2091")
+    );
+    assert_eq!(
+        first.actions[2].1.idempotency.key,
+        retry.actions[2].1.idempotency.key
+    );
+    let mut next_input = inputs();
+    next_input["quote_id"] = serde_json::json!("Q-2092");
+    let next = prepare_run(&pack, &next_input, &task_id, &run_id, &principal()).unwrap();
+    assert_eq!(
+        next.actions[2].1.idempotency.key.as_deref(),
+        Some("send-Q-2092")
+    );
+    // Editing a proposal within a run must invalidate the old digest, not
+    // evade its journal entry by generating a different action identity.
+    assert_eq!(first.actions[2].1.action_id, next.actions[2].1.action_id);
+    assert_ne!(
+        first.actions[2].1.material_digest(),
+        next.actions[2].1.material_digest()
+    );
+}
+
+#[test]
+fn unresolved_or_non_string_identity_and_idempotency_fail_before_dispatch() {
+    let (task_id, run_id) = task_and_run();
+    let mut pack = quote_followup_pack();
+    pack.steps[2].idempotency.key = Some("$input.missing".to_owned());
+    assert!(matches!(
+        prepare_run(&pack, &inputs(), &task_id, &run_id, &principal()),
+        Err(lumi_packs::PackRunError::UnresolvedTemplate { .. })
+    ));
+    let mut supplied = inputs();
+    supplied["bad_identity"] = serde_json::json!(42);
+    for field in ["resource", "target", "key"] {
+        let mut pack = quote_followup_pack();
+        match field {
+            "resource" => pack.steps[2].resource_id_template = "$input.bad_identity".to_owned(),
+            "target" => pack.steps[2].target_template = "$input.bad_identity".to_owned(),
+            _ => pack.steps[2].idempotency.key = Some("$input.bad_identity".to_owned()),
+        }
+        assert!(matches!(
+            prepare_run(&pack, &supplied, &task_id, &run_id, &principal()),
+            Err(lumi_packs::PackRunError::InvalidTemplateValue { .. })
+        ));
+    }
+    pack.steps[2].idempotency.key = Some("   ".to_owned());
+    assert!(prepare_run(&pack, &inputs(), &task_id, &run_id, &principal()).is_err());
 }
 
 #[test]

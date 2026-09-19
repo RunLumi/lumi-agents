@@ -22,10 +22,13 @@ pub mod store;
 
 pub use cancel::CancelToken;
 pub use checkpoint::{Checkpoint, PreActionCheckpoint, VerifierPlan};
-pub use journal::{AmbiguousResolution, SideEffectJournal, SideEffectRecord, SideEffectStatus};
+pub use journal::{
+    idempotency_scope_digest, verifier_plan_digest, AmbiguousResolution, SideEffectJournal,
+    SideEffectRecord, SideEffectStatus,
+};
 pub use machine::{TaskStateMachine, TransitionError};
 pub use retry::{Backoff, RetryController, RetryDecision, RetryPolicy, RetryState};
 pub use store::{
     resume, side_effect_retryable, InMemoryStateStore, JsonStateStore, ResumeAction, ResumeContext,
-    StateStore, StoreError,
+    RetryRecord, StateStore, StoreError,
 };

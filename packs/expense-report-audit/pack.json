@@ -131,7 +131,7 @@
           "expected": "$input.report_id"
         }
       ],
-      "idempotency": { "key": "audit-verdict", "semantics": "CLIENT_KEY" },
+      "idempotency": { "key": "audit-$input.report_id", "semantics": "CLIENT_KEY" },
       "evidence": ["DIFF", "RESOURCE_REFERENCE"],
       "resource_type": "database_record",
       "resource_id_template": "expenses/audits/$input.report_id",

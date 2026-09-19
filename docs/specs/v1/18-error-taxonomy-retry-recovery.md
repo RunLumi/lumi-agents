@@ -108,6 +108,17 @@ On restart:
 - verify external postcondition;
 - resume or enter ambiguity.
 
+An executor returning FAILED or CANCELLED after a consequential dispatch does
+not prove absence of the side effect. Likewise, a failed positive postcondition
+(for example, a record exists with the wrong field value) is not proof that no
+effect occurred. Such results remain ambiguous and block automatic replay.
+
+The generic positive-postcondition verifier may confirm an applied effect, but
+must not convert a failed check into ConfirmedNotApplied. A future adapter may
+support a separately reviewed effect-absence oracle; until then human external
+reconciliation is required. Storage failures remain sticky admission failures
+and must never be cleared by ignoring an error or changing the action ID.
+
 ## 18.12 Failure causality
 
 Audit SHOULD preserve:

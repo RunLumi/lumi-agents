@@ -22,6 +22,8 @@ pub enum PackRunError {
     InvalidPack(Vec<String>),
     /// An argument template referenced a missing input field.
     UnresolvedTemplate { step: String, reference: String },
+    /// A resolved identity or idempotency field was not a nonempty string.
+    InvalidTemplateValue { step: String, field: String },
 }
 
 impl std::fmt::Display for PackRunError {
@@ -39,13 +41,19 @@ impl std::fmt::Display for PackRunError {
                     "step {step:?}: unresolved template reference {reference:?}"
                 )
             }
+            Self::InvalidTemplateValue { step, field } => {
+                write!(
+                    f,
+                    "step {step:?}: {field} must resolve to a nonempty string"
+                )
+            }
         }
     }
 }
 
 impl std::error::Error for PackRunError {}
 
-/// Resolves `$input.<dotted.path>` string leaves against validated
+/// Resolves `$input.<dotted.path>` and `${input.<dotted.path>}` leaves against validated
 /// inputs.
 ///
 /// # Errors
@@ -58,45 +66,23 @@ pub fn resolve_value(
 ) -> Result<serde_json::Value, PackRunError> {
     match value {
         serde_json::Value::String(text) => {
-            if let Some(reference) = text.strip_prefix("$input.") {
-                // Whole-value reference: preserve the input's JSON type.
-                let resolved = reference
-                    .split('.')
-                    .try_fold(inputs, |current, segment| current.get(segment))
-                    .ok_or_else(|| PackRunError::UnresolvedTemplate {
-                        step: step_id.to_owned(),
-                        reference: reference.to_owned(),
-                    })?;
-                Ok(resolved.clone())
-            } else if text.contains("$input.") {
-                // Embedded reference(s): interpolate stringified values.
-                let mut interpolated = String::with_capacity(text.len());
-                let mut rest = text.as_str();
-                while let Some(start) = rest.find("$input.") {
-                    interpolated.push_str(&rest[..start]);
-                    let after = &rest[start + "$input.".len()..];
-                    let end = after
-                        .find(|c: char| !(c.is_alphanumeric() || c == '_'))
-                        .unwrap_or(after.len());
-                    let reference = &after[..end];
-                    let resolved = reference
-                        .split('.')
-                        .try_fold(inputs, |current, segment| current.get(segment))
-                        .ok_or_else(|| PackRunError::UnresolvedTemplate {
-                            step: step_id.to_owned(),
-                            reference: reference.to_owned(),
-                        })?;
-                    match resolved {
-                        serde_json::Value::String(s) => interpolated.push_str(s),
-                        other => interpolated.push_str(&other.to_string()),
-                    }
-                    rest = &after[end..];
+            let mut interpolated = String::with_capacity(text.len());
+            let mut rest = text.as_str();
+            while let Some((start, end, reference)) = next_reference(rest, step_id)? {
+                let resolved = lookup_input(inputs, reference, step_id)?;
+                if start == 0 && end == text.len() && rest.len() == text.len() {
+                    return Ok(resolved.clone());
                 }
-                interpolated.push_str(rest);
-                Ok(serde_json::Value::String(interpolated))
-            } else {
-                Ok(value.clone())
+                interpolated.push_str(&rest[..start]);
+                match resolved {
+                    serde_json::Value::String(value) => interpolated.push_str(value),
+                    other => interpolated.push_str(&other.to_string()),
+                }
+                // Input text is appended once, never interpreted as a new template.
+                rest = &rest[end..];
             }
+            interpolated.push_str(rest);
+            Ok(serde_json::Value::String(interpolated))
         }
         serde_json::Value::Object(map) => {
             let mut resolved = serde_json::Map::new();
@@ -139,27 +125,31 @@ pub fn prepare_run(
     principal: &Principal,
 ) -> Result<PreparedPackRun, PackRunError> {
     pack.validate().map_err(PackRunError::InvalidPack)?;
+    if pack.steps.iter().any(|step| !step.preconditions.is_empty()) {
+        return Err(PackRunError::InvalidPack(vec![
+            "pack preconditions are not implemented by this runner; refusing preparation"
+                .to_owned(),
+        ]));
+    }
     validate_schema(&pack.manifest.inputs, inputs).map_err(PackRunError::InvalidInputs)?;
 
     let mut actions = Vec::with_capacity(pack.steps.len());
     for (index, step) in pack.steps.iter().enumerate() {
         let arguments = resolve_value(&step.arguments_template, inputs, &step.step_id)?;
-        let resource_id = resolve_value(
-            &serde_json::Value::String(step.resource_id_template.clone()),
+        let resource_id = resolve_identity(
+            &step.resource_id_template,
             inputs,
             &step.step_id,
-        )?
-        .as_str()
-        .map(str::to_owned)
-        .unwrap_or_else(|| step.resource_id_template.clone());
-        let target_canonical = resolve_value(
-            &serde_json::Value::String(step.target_template.clone()),
-            inputs,
-            &step.step_id,
-        )?
-        .as_str()
-        .map(str::to_owned)
-        .unwrap_or_else(|| step.target_template.clone());
+            "resource_id",
+        )?;
+        let target_canonical =
+            resolve_identity(&step.target_template, inputs, &step.step_id, "target")?;
+        let idempotency_key = step
+            .idempotency
+            .key
+            .as_deref()
+            .map(|key| resolve_identity(key, inputs, &step.step_id, "idempotency_key"))
+            .transpose()?;
 
         let mut preferences = ExecutionPreferences {
             allowed_tiers: step.allowed_fallback_tiers.clone(),
@@ -170,9 +160,20 @@ pub fn prepare_run(
         }
 
         let proposal = ActionProposal::builder(
+            // Stable for reconstruction of this run, distinct across tenants,
+            // tasks and runs. Hash the tuple to avoid delimiter collisions and
+            // oversized identifiers. Input changes retain the same action id
+            // so journal/approval digest checks can detect material mutation.
             ActionId::parse(format!(
-                "{}-{}-{index}",
-                pack.manifest.pack_id, step.step_id
+                "pack-action-{}",
+                lumi_protocol::canonical::sha256_canonical(&serde_json::json!([
+                    principal.tenant_id.as_str(),
+                    task_id.as_str(),
+                    run_id.as_str(),
+                    pack.manifest.pack_id,
+                    step.step_id,
+                    index,
+                ]))
             ))
             .map_err(|e| PackRunError::InvalidPack(vec![e]))?,
             task_id.clone(),
@@ -224,7 +225,7 @@ pub fn prepare_run(
                 .map_err(|e| PackRunError::InvalidPack(vec![e.to_string()]))?
         })
         .idempotency(Idempotency {
-            key: step.idempotency.key.clone(),
+            key: idempotency_key,
             semantics: step.idempotency.semantics,
         })
         .step_id(
@@ -246,6 +247,114 @@ pub fn prepare_run(
     })
 }
 
+/// A dotted path grammar shared by whole and embedded references. A period
+/// belongs to a path only when followed by another nonempty segment.
+fn reference_length(text: &str) -> usize {
+    let mut end = 0;
+    let mut characters = text.char_indices().peekable();
+    while let Some((offset, character)) = characters.next() {
+        if character.is_alphanumeric() || character == '_' {
+            end = offset + character.len_utf8();
+        } else if character == '.'
+            && end > 0
+            && characters
+                .peek()
+                .is_some_and(|(_, next)| next.is_alphanumeric() || *next == '_')
+        {
+            end = offset + 1;
+        } else {
+            break;
+        }
+    }
+    end
+}
+
+fn lookup_input<'a>(
+    inputs: &'a serde_json::Value,
+    reference: &str,
+    step: &str,
+) -> Result<&'a serde_json::Value, PackRunError> {
+    reference
+        .split('.')
+        .try_fold(inputs, |current, segment| current.get(segment))
+        .ok_or_else(|| PackRunError::UnresolvedTemplate {
+            step: step.to_owned(),
+            reference: reference.to_owned(),
+        })
+}
+
+/// Explicit `${input.path}` ends a reference before a filename suffix.
+/// Unbraced references retain the full dotted-path grammar.
+fn next_reference<'a>(
+    text: &'a str,
+    step: &str,
+) -> Result<Option<(usize, usize, &'a str)>, PackRunError> {
+    let start = match (text.find("$input."), text.find("${input.")) {
+        (Some(a), Some(b)) => a.min(b),
+        (Some(a), None) | (None, Some(a)) => a,
+        (None, None) => return Ok(None),
+    };
+    let braced = text[start..].starts_with("${input.");
+    let prefix = if braced { "${input." } else { "$input." };
+    let after = &text[start + prefix.len()..];
+    let length = if braced {
+        after
+            .find('}')
+            .ok_or_else(|| PackRunError::InvalidTemplateValue {
+                step: step.to_owned(),
+                field: "unterminated input reference".to_owned(),
+            })?
+    } else {
+        reference_length(after)
+    };
+    let reference = &after[..length];
+    if reference.is_empty() || reference_length(reference) != reference.len() {
+        return Err(PackRunError::InvalidTemplateValue {
+            step: step.to_owned(),
+            field: "input reference".to_owned(),
+        });
+    }
+    Ok(Some((
+        start,
+        start + prefix.len() + length + usize::from(braced),
+        reference,
+    )))
+}
+
+fn resolve_identity(
+    template: &str,
+    inputs: &serde_json::Value,
+    step: &str,
+    field: &str,
+) -> Result<String, PackRunError> {
+    let mut rest = template;
+    while let Some((_, end, reference)) = next_reference(rest, step)? {
+        if lookup_input(inputs, reference, step)?
+            .as_str()
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            return Err(PackRunError::InvalidTemplateValue {
+                step: step.to_owned(),
+                field: field.to_owned(),
+            });
+        }
+        rest = &rest[end..];
+    }
+    let resolved = resolve_value(
+        &serde_json::Value::String(template.to_owned()),
+        inputs,
+        step,
+    )?;
+    resolved
+        .as_str()
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| PackRunError::InvalidTemplateValue {
+            step: step.to_owned(),
+            field: field.to_owned(),
+        })
+}
+
 fn validate_schema(schema: &SchemaFieldSet, inputs: &serde_json::Value) -> Result<(), Vec<String>> {
     schema.validate(inputs)
 }
@@ -263,6 +372,36 @@ impl PackStep {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn embedded_nested_paths_and_suffixes_resolve_without_changing_target() {
+        let inputs = serde_json::json!({"customer": {"id": "C-14"}, "quote": "Q-7"});
+        for (template, expected) in [
+            (
+                "crm://accounts/$input.customer.id/quotes/$input.quote",
+                "crm://accounts/C-14/quotes/Q-7",
+            ),
+            ("send-$input.customer.id-$input.quote", "send-C-14-Q-7"),
+            ("$input.quote-suffix", "Q-7-suffix"),
+            ("Quote $input.quote.", "Quote Q-7."),
+            ("report-${input.customer.id}.json", "report-C-14.json"),
+        ] {
+            assert_eq!(
+                resolve_identity(template, &inputs, "s1", "target").unwrap(),
+                expected
+            );
+        }
+        assert!(resolve_identity("crm://$input.customer", &inputs, "s1", "target").is_err());
+        assert!(
+            resolve_identity("crm://$input.customer.missing", &inputs, "s1", "target").is_err()
+        );
+        assert!(resolve_identity("crm://${input.customer.id", &inputs, "s1", "target").is_err());
+        let literal = serde_json::json!({"id":"$input.other", "other":"must-not-expand"});
+        assert_eq!(
+            resolve_identity("id/${input.id}.json", &literal, "s1", "target").unwrap(),
+            "id/$input.other.json"
+        );
+    }
 
     #[test]
     fn template_resolution_walks_nested_paths() {

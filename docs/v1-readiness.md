@@ -58,3 +58,22 @@ Existing #10/#11 remain open: scaffolds did not satisfy their acceptance criteri
 ## Release decision
 
 Fixture success, customer canary readiness, V1 conformance and market repeatability are separate decisions. No market gate is passed at this baseline, and no savings or worker-replacement claim is supported.
+
+## Safety repair under review
+
+The current safety change repairs the durable-intent barrier, binds ambiguity
+resolution to the original action and verifier plan, validates executor response
+identity, prevents scoped business-key replay across runs, and persists retry
+admission. State writes reject stale generations and use a transaction lock;
+an abandoned lock is an explicit recovery condition, never automatically stolen.
+Approval digests now bind sensitivity, risk, actor and idempotency metadata.
+
+Pack preparation now rejects unsupported preconditions and missing client keys,
+keeps action identity stable within a run, and resolves nested/braced templates
+without interpreting input values as new templates. The invoice example's file
+postcondition now refers to its actual period-specific output path.
+
+These are deterministic safety regressions, not live workflow or release proof.
+General pack `ApprovalRule::Always` still needs the guarded execution path; the
+role bridge uses the explicit approval gate. Device-state integration, durable
+end-to-end audit/evidence delivery and actual customer adapters remain open.

@@ -7,8 +7,12 @@
 //! effect" — recovery MUST resolve it through external postconditions
 //! before any retry is considered.
 
-use lumi_protocol::{ActionId, ErrorEnvelope, Timestamp};
+use lumi_protocol::{
+    canonical::canonical_json, canonical::sha256_hex, ActionId, ActionProposal, ErrorEnvelope,
+    Timestamp,
+};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 /// Outcome of resolving an ambiguous side effect by checking external
 /// state.
@@ -29,11 +33,31 @@ pub enum AmbiguousResolution {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SideEffectRecord {
     pub action_id: ActionId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<lumi_protocol::TaskId>,
     pub run_id: lumi_protocol::RunId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<lumi_protocol::TenantId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_id: Option<lumi_protocol::PrincipalId>,
     /// Client idempotency key, when the action declared one.
     pub idempotency_key: Option<String>,
     /// The action's material digest at proposal time.
     pub action_digest: String,
+    /// Material policy metadata retained separately so replay checks remain
+    /// conservative across protocol versions whose digest projection may not
+    /// include every policy-relevant label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk_class: Option<lumi_protocol::RiskClass>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_sensitivity: Option<lumi_protocol::SensitivityLabel>,
+    /// Digest of the idempotency business scope. Old records without this
+    /// field are unsafe to compare and must fail closed on replay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_scope_digest: Option<String>,
+    /// Digest of the exact verifier/postcondition plan persisted with intent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verifier_plan_digest: Option<String>,
     pub status: SideEffectStatus,
     pub proposed_at: Timestamp,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -67,7 +91,7 @@ impl SideEffectStatus {
 }
 
 /// Append/update journal for side effects of one tenant/run set.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SideEffectJournal {
     records: std::collections::BTreeMap<ActionId, SideEffectRecord>,
 }
@@ -87,9 +111,16 @@ impl SideEffectJournal {
     ) -> SideEffectRecord {
         let record = SideEffectRecord {
             action_id: action.action_id.clone(),
+            task_id: Some(action.task_id.clone()),
             run_id: action.run_id.clone(),
+            tenant_id: Some(action.principal.tenant_id.clone()),
+            principal_id: Some(action.principal.principal_id.clone()),
             idempotency_key: action.idempotency.key.clone(),
             action_digest: action.material_digest(),
+            risk_class: Some(action.risk_class),
+            resource_sensitivity: action.resource.sensitivity,
+            idempotency_scope_digest: idempotency_scope_digest(action),
+            verifier_plan_digest: Some(verifier_plan_digest(action)),
             status: SideEffectStatus::Proposed,
             proposed_at: now,
             resolved_at: None,
@@ -210,11 +241,50 @@ impl SideEffectJournal {
     }
 
     /// Restores journal contents (e.g. after loading from disk).
-    pub fn restore(&mut self, records: Vec<SideEffectRecord>) {
+    pub fn restore(&mut self, records: Vec<SideEffectRecord>) -> Result<(), String> {
+        let mut incoming = BTreeSet::new();
+        for record in &records {
+            if self.records.contains_key(&record.action_id)
+                || !incoming.insert(record.action_id.clone())
+            {
+                return Err(format!(
+                    "duplicate side-effect action id {}",
+                    record.action_id
+                ));
+            }
+        }
+        // Validate every record before mutating the map, so a failed restore
+        // cannot leave partially restored durable state.
         for record in records {
             self.records.insert(record.action_id.clone(), record);
         }
+        Ok(())
     }
+}
+
+/// Stable business scope for a client idempotency key. Action/run IDs are
+/// deliberately excluded so repeated runs of the same scoped business work
+/// collide while different tenant/account/resource scopes remain isolated.
+#[must_use]
+pub fn idempotency_scope_digest(action: &ActionProposal) -> Option<String> {
+    let key = action.idempotency.key.as_ref()?;
+    let scope = serde_json::json!({
+        "tenant_id": action.principal.tenant_id,
+        "resource_type": action.resource.resource_type.0,
+        "resource_id": action.resource.id,
+        "target": action.target.canonical,
+        "operation": action.operation,
+        "idempotency_key": key,
+    });
+    Some(sha256_hex(canonical_json(&scope).as_bytes()))
+}
+
+/// Stable digest for the exact verifier plan persisted before execution.
+#[must_use]
+pub fn verifier_plan_digest(action: &ActionProposal) -> String {
+    let plan = serde_json::to_value(&action.postconditions)
+        .expect("postconditions must be JSON serializable");
+    sha256_hex(canonical_json(&plan).as_bytes())
 }
 
 #[cfg(test)]
@@ -333,7 +403,19 @@ mod tests {
         let json = serde_json::to_string(&journal.all()).unwrap();
         let restored: Vec<SideEffectRecord> = serde_json::from_str(&json).unwrap();
         let mut journal2 = SideEffectJournal::new();
-        journal2.restore(restored);
+        journal2.restore(restored).unwrap();
         assert!(journal2.get(&ActionId::parse("a-1").unwrap()).is_some());
+    }
+
+    #[test]
+    fn restore_rejects_duplicate_action_ids() {
+        let mut source = SideEffectJournal::new();
+        source.propose(&action("a-duplicate", None), ts(1));
+        let record = source
+            .get(&ActionId::parse("a-duplicate").unwrap())
+            .unwrap()
+            .clone();
+        let mut restored = SideEffectJournal::new();
+        assert!(restored.restore(vec![record.clone(), record]).is_err());
     }
 }
