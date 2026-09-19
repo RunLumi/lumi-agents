@@ -18,5 +18,9 @@
 //! postconditions pass through the audit crate's verifier.
 
 pub mod orch;
+pub mod router;
 
 pub use orch::{Orchestrator, OrchestratorConfig, StepOutcome};
+pub use router::{
+    select, ExecutorDescriptor, ExecutorHealth, Reliability, Selection, SelectionError, TierPolicy,
+};

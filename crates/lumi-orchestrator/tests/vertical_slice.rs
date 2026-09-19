@@ -79,6 +79,27 @@ fn config() -> OrchestratorConfig {
         pre_authorizations: vec![],
         retry: lumi_state::RetryPolicy::default(),
         policy_version: "1.0.0".to_owned(),
+        executors: vec![
+            lumi_orchestrator::ExecutorDescriptor::new(
+                lumi_protocol::ExecutionTier::ConnectorApi,
+                "http-connector",
+                "1.0.0",
+                [
+                    Capability::well_known(lumi_protocol::capabilities::FILES_READ),
+                    Capability::well_known(lumi_protocol::capabilities::EMAIL_SEND),
+                    Capability::well_known(lumi_protocol::capabilities::CRM_QUOTE_UPDATE),
+                ],
+            ),
+            lumi_orchestrator::ExecutorDescriptor::new(
+                lumi_protocol::ExecutionTier::Vision,
+                "vision-grounding",
+                "1.0.0",
+                [Capability::well_known(
+                    lumi_protocol::capabilities::EMAIL_SEND,
+                )],
+            ),
+        ],
+        tier_policy: lumi_orchestrator::TierPolicy::default(),
     }
 }
 
@@ -509,4 +530,85 @@ fn policy_still_gates_when_evaluated_directly() {
     let d2 = evaluate(&native, &[], &ctx);
     assert_eq!(d1, d2);
     assert!(matches!(d1, lumi_policy::Decision::RequireApproval { .. }));
+}
+
+#[test]
+fn vision_tier_selection_cannot_bypass_approval() {
+    // The action allows ONLY the vision tier for a consequential operation:
+    // policy demands approval, and the vision executor never runs without
+    // it (spec 05 §5.12, spec 04 §4.8).
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config(), InMemoryStateStore::new());
+    let mut email = email_action("a-vision");
+    email.execution_preferences.allowed_tiers = vec![lumi_protocol::ExecutionTier::Vision];
+    email.execution_preferences.preferred_tier = Some(lumi_protocol::ExecutionTier::Vision);
+
+    let env = FixtureEnvironment::new().with_record(
+        ResourceRef {
+            resource_type: ResourceType::well_known(ResourceType::EMAIL_MESSAGE),
+            id: "outbound/customer-42".to_owned(),
+            sensitivity: None,
+        },
+        serde_json::json!({"exists": true, "subject": "Quote follow-up"}),
+    );
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &email,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert_eq!(calls.get(), 0, "vision fallback must not bypass approval");
+    assert!(matches!(outcome, StepOutcome::ApprovalNeeded { .. }));
+
+    // With approval, the vision-tier executor runs (conservatively allowed
+    // only behind explicit human authorization).
+    let approval = orch
+        .approvals
+        .issue(
+            &email,
+            &human(),
+            lumi_policy::ApprovalTtl::ONE_HOUR,
+            Timestamp::now(),
+            true,
+        )
+        .unwrap();
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &email,
+        Some(&approval.approval_id),
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &env,
+        &mut executor,
+    );
+    assert_eq!(calls.get(), 1);
+    assert!(matches!(outcome, StepOutcome::VerifiedSuccess { .. }));
+}
+
+#[test]
+fn router_selection_failure_stops_the_step() {
+    // No executor serves the capability at any allowed tier: the step
+    // stops explicitly instead of degrading silently.
+    let mut config = config();
+    config.executors.clear();
+    let mut orch: Orchestrator<InMemoryStateStore> =
+        Orchestrator::new(config, InMemoryStateStore::new());
+    let email = email_action("a-norouter");
+    let (mut executor, calls) = scripted(vec![ExecutionStatus::Success]);
+    let outcome = orch.execute_step(
+        &email,
+        None,
+        &Budget::default(),
+        &mut ConsumedBudget::default(),
+        &FixtureEnvironment::new(),
+        &mut executor,
+    );
+    assert_eq!(calls.get(), 0);
+    match outcome {
+        StepOutcome::Stopped { reason } => assert!(reason.contains("router"), "{reason}"),
+        other => panic!("expected Stopped, got {other:?}"),
+    }
 }

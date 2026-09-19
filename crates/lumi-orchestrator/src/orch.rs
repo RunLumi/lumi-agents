@@ -1,5 +1,6 @@
 //! The orchestrator core.
 
+use crate::router::{select, ExecutorDescriptor, Selection, TierPolicy};
 use lumi_audit::{
     AuditEvent, AuditEventKind, AuditLedger, AuditScope, EvidenceKind, EvidenceRequest,
     EvidenceStore, PolicyOutcome, PostconditionVerifier, VerificationEnvironment,
@@ -30,6 +31,10 @@ pub struct OrchestratorConfig {
     pub retry: RetryPolicy,
     /// Policy version in force (recorded for resume compatibility checks).
     pub policy_version: String,
+    /// Registered executors available for tier selection (spec 05).
+    pub executors: Vec<ExecutorDescriptor>,
+    /// Tier restrictions from tenant/deployment policy.
+    pub tier_policy: TierPolicy,
 }
 
 /// What one step produced.
@@ -150,68 +155,95 @@ impl<S: StateStore> Orchestrator<S> {
         }
 
         // 2. Policy evaluation (deny-by-default; hard gates intact).
+        // Deny decisions preempt everything; approval requirements are
+        // enforced AFTER tier selection so a human is never asked to
+        // approve an action no executor can perform.
         let policy_ctx = PolicyContext {
             now,
             device_state: DeviceExecutionState::Trusted,
             registry: Some(&self.config.registry),
         };
-        match evaluate(action, &self.config.pre_authorizations, &policy_ctx) {
-            Decision::Deny { reason, .. } => {
-                let text = reason.as_str().to_owned();
+        let decision = evaluate(action, &self.config.pre_authorizations, &policy_ctx);
+        if let Decision::Deny { reason, .. } = &decision {
+            let text = reason.as_str().to_owned();
+            self.audit_action_event(
+                action,
+                &PolicyOutcome::Denied {
+                    rule_id: "lumi.policy.default/v1".to_owned(),
+                    reason: text.clone(),
+                },
+                None,
+                None,
+                VerificationStatus::NotRequired,
+            );
+            return StepOutcome::Denied { reason: text };
+        }
+
+        // 3. Execution-tier selection (spec 05): highest-semantic
+        // eligible executor; denied tiers fail explicitly. Selection
+        // errors stop the step before anything is persisted or executed.
+        let selection = match select(action, &self.config.executors, &self.config.tier_policy) {
+            Ok(selection) => selection,
+            Err(err) => {
+                let reason = err.to_string();
                 self.audit_action_event(
                     action,
                     &PolicyOutcome::Denied {
-                        rule_id: "lumi.policy.default/v1".to_owned(),
-                        reason: text.clone(),
+                        rule_id: "lumi.router/v1".to_owned(),
+                        reason: reason.clone(),
                     },
                     None,
                     None,
                     VerificationStatus::NotRequired,
                 );
-                return StepOutcome::Denied { reason: text };
+                return StepOutcome::Stopped {
+                    reason: format!("router: {reason}"),
+                };
             }
-            Decision::RequireApproval {
-                reason,
-                action_digest,
-                ..
-            } => {
-                // 3. Scoped approval validation + consumption (fail closed).
-                let Some(ap_id) = approval_id else {
-                    self.audit_action_event(
-                        action,
-                        &PolicyOutcome::ApprovalRequired {
-                            rule_id: "lumi.policy.default/v1".to_owned(),
-                            reason: reason.as_str().to_owned(),
-                        },
-                        None,
-                        None,
-                        VerificationStatus::NotRequired,
-                    );
+        };
+
+        // 4. Scoped approval validation + consumption (fail closed).
+        if let Decision::RequireApproval {
+            reason,
+            action_digest,
+            ..
+        } = decision
+        {
+            let Some(ap_id) = approval_id else {
+                self.audit_action_event_with_selection(
+                    action,
+                    &PolicyOutcome::ApprovalRequired {
+                        rule_id: "lumi.policy.default/v1".to_owned(),
+                        reason: reason.as_str().to_owned(),
+                    },
+                    None,
+                    None,
+                    VerificationStatus::NotRequired,
+                    Some(&selection),
+                );
+                return StepOutcome::ApprovalNeeded {
+                    action_digest,
+                    reason: reason.as_str().to_owned(),
+                };
+            };
+            match self.approvals.validate_and_consume(ap_id, action, now) {
+                ApprovalValidation::Valid { .. } => {
+                    self.audit_approval_consumed(action, ap_id);
+                }
+                ApprovalValidation::Invalid { reason: invalid } => {
+                    // Invalid approval == no approval: fail closed.
                     return StepOutcome::ApprovalNeeded {
                         action_digest,
-                        reason: reason.as_str().to_owned(),
+                        reason: invalid.as_str().to_owned(),
                     };
-                };
-                match self.approvals.validate_and_consume(ap_id, action, now) {
-                    ApprovalValidation::Valid { .. } => {
-                        self.audit_approval_consumed(action, ap_id);
-                    }
-                    ApprovalValidation::Invalid { reason: invalid } => {
-                        // Invalid approval == no approval: fail closed.
-                        return StepOutcome::ApprovalNeeded {
-                            action_digest,
-                            reason: invalid.as_str().to_owned(),
-                        };
-                    }
                 }
             }
-            Decision::Allow { .. } => {}
         }
         let policy_outcome = PolicyOutcome::Allowed {
             rule_id: "lumi.policy.default/v1".to_owned(),
         };
 
-        // 4. Consequential actions: persist intent BEFORE executing
+        // 5. Consequential actions: persist intent BEFORE executing
         // (spec 02 §2.6).
         let is_consequential = action.risk_class.is_consequential();
         if is_consequential {
@@ -241,12 +273,13 @@ impl<S: StateStore> Orchestrator<S> {
                 match status {
                     VerificationStatus::Passed => {
                         self.journalize_resolution(action, SideEffectStatus::Succeeded);
-                        self.audit_action_event(
+                        self.audit_action_event_with_selection(
                             action,
                             &policy_outcome,
                             None,
                             Some(ExecutionStatus::Success),
                             VerificationStatus::Passed,
+                            Some(&selection),
                         );
                         StepOutcome::VerifiedSuccess {
                             action_id: action.action_id.clone(),
@@ -254,12 +287,13 @@ impl<S: StateStore> Orchestrator<S> {
                         }
                     }
                     VerificationStatus::NotRequired if !is_consequential => {
-                        self.audit_action_event(
+                        self.audit_action_event_with_selection(
                             action,
                             &policy_outcome,
                             None,
                             Some(ExecutionStatus::Success),
                             VerificationStatus::NotRequired,
+                            Some(&selection),
                         );
                         StepOutcome::VerifiedSuccess {
                             action_id: action.action_id.clone(),
@@ -270,12 +304,13 @@ impl<S: StateStore> Orchestrator<S> {
                     // is, by definition, of unknown effect: ambiguous.
                     VerificationStatus::NotRequired | VerificationStatus::Ambiguous => {
                         self.journalize_ambiguous(action);
-                        self.audit_action_event(
+                        self.audit_action_event_with_selection(
                             action,
                             &policy_outcome,
                             None,
                             Some(ExecutionStatus::Success),
                             VerificationStatus::Ambiguous,
+                            Some(&selection),
                         );
                         StepOutcome::Ambiguous {
                             action_id: action.action_id.clone(),
@@ -291,12 +326,13 @@ impl<S: StateStore> Orchestrator<S> {
                                 "postcondition failed after executor success",
                             ),
                         );
-                        self.audit_action_event(
+                        self.audit_action_event_with_selection(
                             action,
                             &policy_outcome,
                             None,
                             Some(ExecutionStatus::Success),
                             VerificationStatus::Failed,
+                            Some(&selection),
                         );
                         StepOutcome::Unverified {
                             action_id: action.action_id.clone(),
@@ -322,12 +358,13 @@ impl<S: StateStore> Orchestrator<S> {
                 // Classify recovery through the bounded retry controller.
                 let decision = RetryController::new(self.config.retry.clone())
                     .on_failure(&error, Timestamp::now());
-                self.audit_action_event(
+                self.audit_action_event_with_selection(
                     action,
                     &policy_outcome,
                     None,
                     Some(ExecutionStatus::Failed),
                     VerificationStatus::NotRequired,
+                    Some(&selection),
                 );
                 match decision {
                     RetryDecision::RetryAfter(_)
@@ -351,12 +388,13 @@ impl<S: StateStore> Orchestrator<S> {
                 if is_consequential {
                     self.journalize_ambiguous(action);
                 }
-                self.audit_action_event(
+                self.audit_action_event_with_selection(
                     action,
                     &policy_outcome,
                     None,
                     Some(ExecutionStatus::Ambiguous),
                     VerificationStatus::Ambiguous,
+                    Some(&selection),
                 );
                 StepOutcome::Ambiguous {
                     action_id: action.action_id.clone(),
@@ -494,6 +532,26 @@ impl<S: StateStore> Orchestrator<S> {
         execution_status: Option<ExecutionStatus>,
         verification: VerificationStatus,
     ) {
+        self.audit_action_event_with_selection(
+            action,
+            policy,
+            approval_id,
+            execution_status,
+            verification,
+            None,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn audit_action_event_with_selection(
+        &mut self,
+        action: &ActionProposal,
+        policy: &PolicyOutcome,
+        approval_id: Option<&lumi_protocol::ApprovalId>,
+        execution_status: Option<ExecutionStatus>,
+        verification: VerificationStatus,
+        selection: Option<&Selection>,
+    ) {
         let kind = AuditEventKind::Action(Box::new(lumi_audit::ActionEventDetails {
             action_id: action.action_id.clone(),
             step_id: action.step_id.clone(),
@@ -503,9 +561,9 @@ impl<S: StateStore> Orchestrator<S> {
             resource: action.resource.clone(),
             target: action.target.clone(),
             risk_class: action.risk_class,
-            execution_tier: action.execution_preferences.preferred_tier,
-            adapter: None,
-            adapter_version: None,
+            execution_tier: selection.map(|s| s.tier),
+            adapter: selection.map(|s| s.adapter.clone()),
+            adapter_version: selection.map(|s| s.version.clone()),
             policy: policy.clone(),
             approval_id: approval_id.cloned(),
             action_digest: action.material_digest(),
