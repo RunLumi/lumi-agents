@@ -11,7 +11,7 @@
 use crate::workspace::Workspace;
 use lumi_protocol::FailureCategory;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -155,159 +155,176 @@ impl<'a> ShellSandbox<'a> {
     /// spawn error, timeout) is a normalized [`ShellOutcome`] so callers
     /// always get auditable evidence.
     pub fn run(&self, spec: &ShellSpec) -> ShellOutcome {
-        let started = Instant::now();
-        // Fail closed on isolation demands we cannot meet (§8.7).
-        if spec.min_isolation > self.isolation {
+        run_spec(
+            self.workspace.root(),
+            spec,
+            self.isolation,
+            self.cancelled.as_deref(),
+        )
+    }
+}
+
+/// Executes one [`ShellSpec`] with its cwd bound to an explicit root —
+/// the shared engine behind [`ShellSandbox`] and project-root execution
+/// (spec 26 §26.14: project shell uses the same bounds as task shells).
+pub fn run_spec(
+    cwd: &Path,
+    spec: &ShellSpec,
+    isolation: IsolationClass,
+    cancelled: Option<&(dyn Fn() -> bool + '_)>,
+) -> ShellOutcome {
+    let started = Instant::now();
+    // Fail closed on isolation demands we cannot meet (§8.7).
+    if spec.min_isolation > isolation {
+        return ShellOutcome {
+            status: ShellStatus::SpawnError,
+            stdout: String::new(),
+            stderr: format!(
+                "execution requires {:?} isolation but sandbox provides {:?}",
+                spec.min_isolation, isolation
+            ),
+            stdout_truncated: false,
+            stderr_truncated: false,
+            duration_ms: 0,
+            isolation,
+            network: spec.network,
+            failure_category: Some(FailureCategory::SecurityViolation),
+        };
+    }
+
+    // Resolve the program against the PARENT's PATH before clearing
+    // the child environment (a cleared env would otherwise break
+    // PATH-based lookup on macOS posix_spawnp).
+    let program = resolve_program(&spec.program);
+    let program = match program {
+        Some(path) => path,
+        None => {
             return ShellOutcome {
                 status: ShellStatus::SpawnError,
                 stdout: String::new(),
-                stderr: format!(
-                    "execution requires {:?} isolation but sandbox provides {:?}",
-                    spec.min_isolation, self.isolation
-                ),
+                stderr: format!("program not found on PATH: {}", spec.program),
                 stdout_truncated: false,
                 stderr_truncated: false,
-                duration_ms: 0,
-                isolation: self.isolation,
+                duration_ms: started.elapsed().as_millis() as u64,
+                isolation,
                 network: spec.network,
-                failure_category: Some(FailureCategory::SecurityViolation),
+                failure_category: Some(FailureCategory::ShellExecution),
             };
         }
+    };
 
-        // Resolve the program against the PARENT's PATH before clearing
-        // the child environment (a cleared env would otherwise break
-        // PATH-based lookup on macOS posix_spawnp).
-        let program = resolve_program(&spec.program);
-        let program = match program {
-            Some(path) => path,
-            None => {
-                return ShellOutcome {
-                    status: ShellStatus::SpawnError,
-                    stdout: String::new(),
-                    stderr: format!("program not found on PATH: {}", spec.program),
-                    stdout_truncated: false,
-                    stderr_truncated: false,
-                    duration_ms: started.elapsed().as_millis() as u64,
-                    isolation: self.isolation,
-                    network: spec.network,
-                    failure_category: Some(FailureCategory::ShellExecution),
-                };
-            }
-        };
-
-        let mut command = Command::new(program);
-        command
-            .args(&spec.args)
-            .current_dir(self.workspace.root())
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        // Environment: cleared, then minimal non-secret defaults (PATH so
-        // the child can spawn subprocesses; SystemRoot on Windows), then
-        // the allowlist. Host secrets are never inherited (§8.6).
-        command.env_clear();
-        if let Ok(path) = std::env::var("PATH") {
-            command.env("PATH", path);
-        }
-        #[cfg(windows)]
-        {
-            for key in ["SystemRoot", "TEMP", "TMP"] {
-                if let Ok(value) = std::env::var(key) {
-                    command.env(key, value);
-                }
+    let mut command = Command::new(program);
+    command
+        .args(&spec.args)
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    // Environment: cleared, then minimal non-secret defaults (PATH so
+    // the child can spawn subprocesses; SystemRoot on Windows), then
+    // the allowlist. Host secrets are never inherited (§8.6).
+    command.env_clear();
+    if let Ok(path) = std::env::var("PATH") {
+        command.env("PATH", path);
+    }
+    #[cfg(windows)]
+    {
+        for key in ["SystemRoot", "TEMP", "TMP"] {
+            if let Ok(value) = std::env::var(key) {
+                command.env(key, value);
             }
         }
-        for (key, value) in &spec.env_allowlist {
-            command.env(key, value);
+    }
+    for (key, value) in &spec.env_allowlist {
+        command.env(key, value);
+    }
+
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(e) => {
+            return ShellOutcome {
+                status: ShellStatus::SpawnError,
+                stdout: String::new(),
+                stderr: format!("spawn {}: {e}", spec.program),
+                stdout_truncated: false,
+                stderr_truncated: false,
+                duration_ms: started.elapsed().as_millis() as u64,
+                isolation,
+                network: spec.network,
+                failure_category: Some(FailureCategory::ShellExecution),
+            };
         }
+    };
 
-        let mut child = match command.spawn() {
-            Ok(child) => child,
-            Err(e) => {
-                return ShellOutcome {
-                    status: ShellStatus::SpawnError,
-                    stdout: String::new(),
-                    stderr: format!("spawn {}: {e}", spec.program),
-                    stdout_truncated: false,
-                    stderr_truncated: false,
-                    duration_ms: started.elapsed().as_millis() as u64,
-                    isolation: self.isolation,
-                    network: spec.network,
-                    failure_category: Some(FailureCategory::ShellExecution),
-                };
-            }
-        };
+    // Bounded capture: read pipes on threads, capped at the limit.
+    let deadline = started + Duration::from_millis(spec.timeout_ms);
+    let stdout_cap = spec.max_output_bytes as usize;
+    let stderr_cap = spec.max_output_bytes as usize;
+    let stdout_handle = child
+        .stdout
+        .take()
+        .map(|pipe| std::thread::spawn(move || read_capped(pipe, stdout_cap)));
+    let stderr_handle = child
+        .stderr
+        .take()
+        .map(|pipe| std::thread::spawn(move || read_capped(pipe, stderr_cap)));
 
-        // Bounded capture: read pipes on threads, capped at the limit.
-        let deadline = started + Duration::from_millis(spec.timeout_ms);
-        let stdout_cap = spec.max_output_bytes as usize;
-        let stderr_cap = spec.max_output_bytes as usize;
-        let stdout_handle = child
-            .stdout
-            .take()
-            .map(|pipe| std::thread::spawn(move || read_capped(pipe, stdout_cap)));
-        let stderr_handle = child
-            .stderr
-            .take()
-            .map(|pipe| std::thread::spawn(move || read_capped(pipe, stderr_cap)));
-
-        let status = loop {
-            if let Some(is_cancelled) = &self.cancelled {
-                if is_cancelled() {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break ShellStatus::Cancelled;
-                }
-            }
-            match child.try_wait() {
-                Ok(Some(code)) => {
-                    break match code.code() {
-                        Some(0) => ShellStatus::Completed,
-                        Some(nonzero) => ShellStatus::Failed(nonzero),
-                        None => ShellStatus::Failed(-1),
-                    };
-                }
-                Ok(None) => {}
-                Err(_) => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break ShellStatus::SpawnError;
-                }
-            }
-            if Instant::now() >= deadline {
+    let status = loop {
+        if let Some(is_cancelled) = cancelled {
+            if is_cancelled() {
                 let _ = child.kill();
                 let _ = child.wait();
-                break ShellStatus::TimedOut;
+                break ShellStatus::Cancelled;
             }
-            std::thread::sleep(Duration::from_millis(10));
-        };
-
-        let (stdout, stdout_truncated) = stdout_handle
-            .and_then(|h| h.join().ok())
-            .unwrap_or((String::new(), false));
-        let (stderr, stderr_truncated) = stderr_handle
-            .and_then(|h| h.join().ok())
-            .unwrap_or((String::new(), false));
-
-        let failure_category = match status {
-            ShellStatus::Completed => None,
-            ShellStatus::Failed(_) => Some(FailureCategory::ShellExecution),
-            ShellStatus::TimedOut => Some(FailureCategory::ShellExecution),
-            ShellStatus::Cancelled => Some(FailureCategory::UserCancel),
-            ShellStatus::SpawnError => Some(FailureCategory::ShellExecution),
-        };
-
-        ShellOutcome {
-            status,
-            stdout,
-            stderr,
-            stdout_truncated,
-            stderr_truncated,
-            duration_ms: started.elapsed().as_millis() as u64,
-            isolation: self.isolation,
-            network: spec.network,
-            failure_category,
         }
+        match child.try_wait() {
+            Ok(Some(code)) => {
+                break match code.code() {
+                    Some(0) => ShellStatus::Completed,
+                    Some(nonzero) => ShellStatus::Failed(nonzero),
+                    None => ShellStatus::Failed(-1),
+                };
+            }
+            Ok(None) => {}
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break ShellStatus::SpawnError;
+            }
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            break ShellStatus::TimedOut;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+
+    let (stdout, stdout_truncated) = stdout_handle
+        .and_then(|h| h.join().ok())
+        .unwrap_or((String::new(), false));
+    let (stderr, stderr_truncated) = stderr_handle
+        .and_then(|h| h.join().ok())
+        .unwrap_or((String::new(), false));
+
+    let failure_category = match status {
+        ShellStatus::Completed => None,
+        ShellStatus::Failed(_) => Some(FailureCategory::ShellExecution),
+        ShellStatus::TimedOut => Some(FailureCategory::ShellExecution),
+        ShellStatus::Cancelled => Some(FailureCategory::UserCancel),
+        ShellStatus::SpawnError => Some(FailureCategory::ShellExecution),
+    };
+
+    ShellOutcome {
+        status,
+        stdout,
+        stderr,
+        stdout_truncated,
+        stderr_truncated,
+        duration_ms: started.elapsed().as_millis() as u64,
+        isolation,
+        network: spec.network,
+        failure_category,
     }
 }
 

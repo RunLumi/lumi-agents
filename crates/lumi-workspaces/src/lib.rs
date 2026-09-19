@@ -25,6 +25,6 @@ pub use artifacts::{
 pub use files::{FileOp, FileOpError, FileOpRecord, WorkspaceFiles};
 pub use paths::{resolve_in_workspace, PathError};
 pub use shell::{
-    IsolationClass, NetworkPolicy, ShellOutcome, ShellSandbox, ShellSpec, ShellStatus,
+    run_spec, IsolationClass, NetworkPolicy, ShellOutcome, ShellSandbox, ShellSpec, ShellStatus,
 };
 pub use workspace::{CleanupPolicy, Workspace, WorkspaceMetadata};
