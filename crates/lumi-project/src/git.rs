@@ -499,9 +499,13 @@ pub fn clone_repository(source: &str, destination: &Path) -> Result<GitRepo, Git
             target.display()
         )));
     }
+    // The source is normalized too: a verbatim Windows path would
+    // otherwise be parsed by git as an scp-style remote ("invalid
+    // hostname"). URLs pass through unchanged.
+    let source_arg = source_path.to_string_lossy().to_string();
     run_expect(
         &destination,
-        &["clone", "--quiet", source, &target.to_string_lossy()],
+        &["clone", "--quiet", &source_arg, &target.to_string_lossy()],
     )?;
     GitRepo::discover(&target)
         .ok_or_else(|| GitError::Io("cloned destination is not a repository".to_owned()))
