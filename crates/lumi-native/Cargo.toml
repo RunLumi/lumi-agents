@@ -1,0 +1,17 @@
+[package]
+name = "lumi-native"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+lumi-protocol = { path = "../lumi-protocol" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[lints]
+workspace = true
