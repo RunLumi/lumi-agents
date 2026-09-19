@@ -257,7 +257,8 @@ fn worktree_isolation_creates_linked_checkout_outside_the_repo() {
     // The linked checkout is its own repository root with its own
     // branch, and shares history.
     let linked = GitRepo::discover(&wt_path).unwrap();
-    assert_eq!(linked.root(), &wt_path);
+    let expected_root = lumi_project::normalize_path(std::fs::canonicalize(&wt_path).unwrap());
+    assert_eq!(linked.root(), &expected_root);
     assert_eq!(
         linked.status().unwrap().branch.as_deref(),
         Some("feature/isolated")
