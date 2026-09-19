@@ -486,6 +486,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-handoff"
+version = "0.1.0"
+dependencies = [
+ "lumi-evals",
+ "lumi-policy",
+ "lumi-protocol",
+ "lumi-state",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lumi-memory"
 version = "0.1.0"
 dependencies = [
@@ -594,6 +606,15 @@ name = "lumi-state"
 version = "0.1.0"
 dependencies = [
  "lumi-policy",
+ "lumi-protocol",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lumi-versioning"
+version = "0.1.0"
+dependencies = [
  "lumi-protocol",
  "serde",
  "serde_json",
