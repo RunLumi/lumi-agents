@@ -481,10 +481,7 @@ impl ProjectService {
 
     /// Real generated outputs under `<root>/.lumi/artifacts` (§26.29):
     /// empty when the project has none — never sample rows.
-    pub fn artifacts_list(
-        &self,
-        project_id: &str,
-    ) -> Result<Vec<ArtifactEntry>, String> {
+    pub fn artifacts_list(&self, project_id: &str) -> Result<Vec<ArtifactEntry>, String> {
         let record = self.record(project_id)?;
         list_artifacts(&record.primary_root, 200).map_err(|e| e.to_string())
     }
@@ -1016,7 +1013,6 @@ mod tests {
         std::fs::remove_dir_all(&state).ok();
         std::fs::remove_dir_all(&repo).ok();
     }
-
 
     #[test]
     fn artifacts_list_returns_real_files_only() {
