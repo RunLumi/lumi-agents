@@ -1,0 +1,23 @@
+[package]
+name = "lumi-adversarial"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+lumi-protocol = { path = "../lumi-protocol" }
+lumi-models = { path = "../lumi-models" }
+lumi-policy = { path = "../lumi-policy" }
+lumi-audit = { path = "../lumi-audit" }
+lumi-state = { path = "../lumi-state" }
+lumi-orchestrator = { path = "../lumi-orchestrator" }
+lumi-agent = { path = "../lumi-agent" }
+lumi-workspaces = { path = "../lumi-workspaces" }
+lumi-connectors = { path = "../lumi-connectors" }
+lumi-secrets = { path = "../lumi-secrets" }
+lumi-memory = { path = "../lumi-memory" }
+serde_json = "1"
+
+[lints]
+workspace = true
