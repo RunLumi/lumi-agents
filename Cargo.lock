@@ -467,11 +467,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-certification"
+version = "0.1.0"
+dependencies = [
+ "lumi-evals",
+ "lumi-protocol",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lumi-connectors"
 version = "0.1.0"
 dependencies = [
  "lumi-protocol",
  "lumi-secrets",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lumi-desktop"
+version = "0.1.0"
+dependencies = [
+ "lumi-audit",
+ "lumi-handoff",
+ "lumi-orchestrator",
+ "lumi-policy",
+ "lumi-protocol",
+ "lumi-state",
+ "lumi-workspaces",
  "serde",
  "serde_json",
 ]
