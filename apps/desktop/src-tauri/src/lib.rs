@@ -443,6 +443,18 @@ fn memory_invalidate(
         .memory_invalidate(&project_id, &memory_id, &reason)
 }
 
+#[tauri::command]
+fn artifacts_list(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+) -> Result<Vec<lumi_project::ArtifactEntry>, String> {
+    state
+        .projects
+        .lock()
+        .expect("project service lock poisoned")
+        .artifacts_list(&project_id)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -496,6 +508,7 @@ pub fn run() {
             memory_remember,
             memory_list,
             memory_invalidate,
+            artifacts_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
