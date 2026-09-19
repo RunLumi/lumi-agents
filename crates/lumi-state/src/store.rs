@@ -61,9 +61,12 @@ pub struct PersistedState {
 }
 
 /// In-memory reference store (also the unit-test surface).
+///
+/// Handles share the same underlying state (like connections to one
+/// database), so a "restart" from a clone observes all prior writes.
 #[derive(Debug, Default, Clone)]
 pub struct InMemoryStateStore {
-    state: PersistedState,
+    state: std::rc::Rc<std::cell::RefCell<PersistedState>>,
 }
 
 impl InMemoryStateStore {
@@ -71,23 +74,19 @@ impl InMemoryStateStore {
     pub fn new() -> Self {
         Self::default()
     }
-
-    /// Direct read access (for assertions and orchestration).
-    #[must_use]
-    pub const fn state(&self) -> &PersistedState {
-        &self.state
-    }
 }
 
 impl StateStore for InMemoryStateStore {
     fn save_task(&mut self, task: &Task) -> Result<(), StoreError> {
-        self.state.tasks.retain(|t| t.task_id != task.task_id);
-        self.state.tasks.push(task.clone());
+        let mut state = self.state.borrow_mut();
+        state.tasks.retain(|t| t.task_id != task.task_id);
+        state.tasks.push(task.clone());
         Ok(())
     }
 
     fn load_task(&self, task_id: &lumi_protocol::TaskId) -> Result<Task, StoreError> {
         self.state
+            .borrow()
             .tasks
             .iter()
             .find(|t| &t.task_id == task_id)
@@ -96,13 +95,15 @@ impl StateStore for InMemoryStateStore {
     }
 
     fn save_run(&mut self, run: &lumi_protocol::Run) -> Result<(), StoreError> {
-        self.state.runs.retain(|r| r.run_id != run.run_id);
-        self.state.runs.push(run.clone());
+        let mut state = self.state.borrow_mut();
+        state.runs.retain(|r| r.run_id != run.run_id);
+        state.runs.push(run.clone());
         Ok(())
     }
 
     fn load_run(&self, run_id: &RunId) -> Result<lumi_protocol::Run, StoreError> {
         self.state
+            .borrow()
             .runs
             .iter()
             .find(|r| &r.run_id == run_id)
@@ -111,15 +112,15 @@ impl StateStore for InMemoryStateStore {
     }
 
     fn save_checkpoint(&mut self, checkpoint: &Checkpoint) -> Result<(), StoreError> {
-        self.state
-            .checkpoints
-            .retain(|c| c.run_id != checkpoint.run_id);
-        self.state.checkpoints.push(checkpoint.clone());
+        let mut state = self.state.borrow_mut();
+        state.checkpoints.retain(|c| c.run_id != checkpoint.run_id);
+        state.checkpoints.push(checkpoint.clone());
         Ok(())
     }
 
     fn load_checkpoint(&self, run_id: &RunId) -> Result<Checkpoint, StoreError> {
         self.state
+            .borrow()
             .checkpoints
             .iter()
             .find(|c| &c.run_id == run_id)
@@ -128,18 +129,18 @@ impl StateStore for InMemoryStateStore {
     }
 
     fn save_pre_action(&mut self, pre: &PreActionCheckpoint) -> Result<(), StoreError> {
-        // Pre-action checkpoints are keyed by run; the run id lives inside
-        // the serialized action. We key by parsing action JSON's run_id is
-        // awkward — instead callers pass the run-scoped pre-action via the
-        // index map. Here we replace by matching run ids.
+        // Pre-action checkpoints are keyed by run id (parsed from the
+        // serialized action).
         let run_id = pre.run_id();
-        self.state.pre_actions.retain(|(rid, _)| rid != &run_id);
-        self.state.pre_actions.push((run_id, pre.clone()));
+        let mut state = self.state.borrow_mut();
+        state.pre_actions.retain(|(rid, _)| rid != &run_id);
+        state.pre_actions.push((run_id, pre.clone()));
         Ok(())
     }
 
     fn load_pre_action(&self, run_id: &RunId) -> Result<PreActionCheckpoint, StoreError> {
         self.state
+            .borrow()
             .pre_actions
             .iter()
             .find(|(rid, _)| rid == run_id)
@@ -148,13 +149,13 @@ impl StateStore for InMemoryStateStore {
     }
 
     fn save_journal(&mut self, journal: &SideEffectJournal) -> Result<(), StoreError> {
-        self.state.journal = journal.all().iter().map(|r| (*r).clone()).collect();
+        self.state.borrow_mut().journal = journal.all().iter().map(|r| (*r).clone()).collect();
         Ok(())
     }
 
     fn load_journal(&self) -> Result<SideEffectJournal, StoreError> {
         let mut journal = SideEffectJournal::new();
-        journal.restore(self.state.journal.clone());
+        journal.restore(self.state.borrow().journal.clone());
         Ok(journal)
     }
 }

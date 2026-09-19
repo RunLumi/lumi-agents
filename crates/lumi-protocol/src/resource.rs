@@ -86,12 +86,32 @@ pub struct Resource {
 /// Resource reference carried inside action proposals. Identifies the
 /// resource class + canonical id; tenant scope comes from the proposal's
 /// principal so it cannot be spoofed per-resource.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+///
+/// Identity is (resource_type, id) only: the sensitivity label is carried
+/// as metadata and deliberately excluded from `Eq`/`Hash` so verification
+/// lookups and registries cannot silently miss a resource because its
+/// label was refined.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceRef {
     pub resource_type: ResourceType,
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sensitivity: Option<SensitivityLabel>,
+}
+
+impl PartialEq for ResourceRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.resource_type == other.resource_type && self.id == other.id
+    }
+}
+
+impl Eq for ResourceRef {}
+
+impl std::hash::Hash for ResourceRef {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.resource_type.hash(state);
+        self.id.hash(state);
+    }
 }
 
 impl From<&Resource> for ResourceRef {

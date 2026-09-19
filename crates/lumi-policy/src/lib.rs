@@ -18,5 +18,6 @@ pub use capability::{
     CapabilityCheck, CapabilityGrant, CapabilityRegistry, GrantSource, ResourceScope,
 };
 pub use engine::{
-    evaluate, Decision, DenyReason, DeviceExecutionState, PolicyContext, DEFAULT_RULE_ID,
+    evaluate, Decision, DenyReason, DeviceExecutionState, PolicyContext, PreAuthorization,
+    DEFAULT_RULE_ID,
 };

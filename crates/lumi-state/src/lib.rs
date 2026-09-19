@@ -22,7 +22,7 @@ pub mod store;
 
 pub use cancel::CancelToken;
 pub use checkpoint::{Checkpoint, PreActionCheckpoint, VerifierPlan};
-pub use journal::{SideEffectJournal, SideEffectRecord, SideEffectStatus};
+pub use journal::{AmbiguousResolution, SideEffectJournal, SideEffectRecord, SideEffectStatus};
 pub use machine::{TaskStateMachine, TransitionError};
 pub use retry::{Backoff, RetryController, RetryDecision, RetryPolicy, RetryState};
 pub use store::{

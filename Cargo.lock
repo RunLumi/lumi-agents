@@ -152,6 +152,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumi-orchestrator"
+version = "0.1.0"
+dependencies = [
+ "lumi-audit",
+ "lumi-policy",
+ "lumi-protocol",
+ "lumi-state",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lumi-policy"
 version = "0.1.0"
 dependencies = [

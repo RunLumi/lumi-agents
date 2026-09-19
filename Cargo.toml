@@ -5,6 +5,7 @@ members = [
     "crates/lumi-policy",
     "crates/lumi-audit",
     "crates/lumi-state",
+    "crates/lumi-orchestrator",
     "crates/lumi-runtime",
 ]
 
