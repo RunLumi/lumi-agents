@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lumi Agents</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="pill pill-amber" style="position:fixed;top:4px;right:8px;z-index:99">DEV PREVIEW — fixture data</div>
+  <div id="app-root"></div>
+  <script>
+    fetch("index.html").then((r) => r.text()).then((html) => {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const root = document.getElementById("app-root");
+      root.innerHTML = "";
+      for (const child of [...doc.querySelectorAll(".app, .palette-overlay, .toasts")]) {
+        root.append(child);
+      }
+      const mock = document.createElement("script");
+      mock.src = "dev-preview.js";
+      document.body.append(mock);
+      const app = document.createElement("script");
+      app.src = "app.js";
+      document.body.append(app);
+    });
+  </script>
+</body>
+</html>

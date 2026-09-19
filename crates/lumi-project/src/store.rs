@@ -45,7 +45,8 @@ pub struct PersistedProjects {
 
 /// Where a project's primary root currently stands (§26.30 root
 /// missing/moved failures are explicit health, not silent repair).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RootHealth {
     /// Root exists, canonicalizes to the recorded path, and carries this
     /// project's identity marker.

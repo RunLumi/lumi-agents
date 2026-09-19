@@ -30,7 +30,8 @@ pub const GIT_TIMEOUT_MS: u64 = 30_000;
 pub const GIT_MAX_OUTPUT_BYTES: usize = 1_048_576;
 
 /// Why a git operation failed (§26.30 git failures are explicit).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum GitError {
     NotARepository {
         path: String,
@@ -67,7 +68,7 @@ impl std::error::Error for GitError {}
 
 /// One changed file from porcelain status (`XY` codes retained verbatim
 /// so the UI can render git's own vocabulary).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct FileStatus {
     /// Worktree-relative path (destination for renames).
     pub path: String,
@@ -81,7 +82,7 @@ pub struct FileStatus {
 
 /// Repository status (§26.16): branch, HEAD, and the three buckets a
 /// dirty tree is made of. A dirty tree is normal state, never an error.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize)]
 pub struct GitStatus {
     /// Current branch name; `None` when HEAD is detached.
     pub branch: Option<String>,
@@ -107,7 +108,7 @@ impl GitStatus {
 }
 
 /// One commit from the log.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CommitInfo {
     pub hash: String,
     pub short_hash: String,
@@ -118,7 +119,7 @@ pub struct CommitInfo {
 }
 
 /// One registered worktree.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WorktreeEntry {
     pub path: String,
     pub head: Option<String>,

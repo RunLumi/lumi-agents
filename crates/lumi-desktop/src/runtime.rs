@@ -14,10 +14,26 @@ use lumi_handoff::exception::{ExceptionCard, SafeChoice};
 use lumi_handoff::{ProgressStep, ProgressView, TaskPhase, TrustLanguage};
 use lumi_orchestrator::{Orchestrator, OrchestratorConfig, TierPolicy};
 use lumi_policy::CapabilityRegistry;
-use lumi_protocol::{ExecutionStatus, Run, Task, TaskId, TaskStatus, TenantId, Timestamp};
-use lumi_state::{JsonStateStore, RetryPolicy, SideEffectStatus};
+use lumi_protocol::{
+    EnvironmentId, ExecutionStatus, ProjectId, ProjectTaskBinding, Run, Task, TaskId, TaskMode,
+    TaskStatus, TenantId, Timestamp, WorkspaceKind,
+};
+use lumi_state::{JsonStateStore, RetryPolicy, SideEffectStatus, StateStore};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+
+/// Everything needed to create one project-bound task (keeps
+/// [`DesktopRuntime::create_project_task`] within lint argument limits).
+#[derive(Debug, Clone)]
+pub struct ProjectTaskSpec {
+    pub tenant_id: TenantId,
+    pub principal: lumi_protocol::Principal,
+    pub goal: String,
+    pub project_id: ProjectId,
+    pub environment_id: EnvironmentId,
+    pub workspace_root: String,
+    pub workspace_kind: WorkspaceKind,
+}
 
 /// Local runtime state used by the Tauri shell.
 pub struct DesktopRuntime {
@@ -98,6 +114,106 @@ impl DesktopRuntime {
     #[must_use]
     pub fn tenant_scope(&self) -> Option<&TenantId> {
         self.tenant_scope.as_ref()
+    }
+
+    /// The fixed local tenant for the single-user desktop install.
+    pub const LOCAL_TENANT: &'static str = "tenant-local";
+
+    /// Creates and persists a durable project-bound work task (spec 26
+    /// §26.6-26.7). The binding is part of the task record, so resume
+    /// restores the same project/workspace relationship. The task starts
+    /// in `CREATED`; execution requires a wired runtime - creating a task
+    /// never implies work has been done.
+    ///
+    /// # Errors
+    /// Durable store failure (sticky persistence semantics apply
+    /// upstream; here the caller gets the error and may retry create).
+    pub fn create_project_task(&mut self, spec: &ProjectTaskSpec) -> Result<Task, String> {
+        if spec.goal.trim().is_empty() {
+            return Err("task goal must not be empty".to_owned());
+        }
+        let task = Task {
+            task_id: TaskId::generate(),
+            tenant_id: spec.tenant_id.clone(),
+            principal: spec.principal.clone(),
+            mode: TaskMode::Work,
+            goal: spec.goal.trim().to_owned(),
+            created_at: Timestamp::now(),
+            deadline: None,
+            budget: lumi_protocol::Budget::default(),
+            privacy_constraints: lumi_protocol::PrivacyConstraint::default(),
+            status: TaskStatus::Created,
+            requested_outputs: vec![],
+            project_binding: Some(ProjectTaskBinding {
+                project_id: spec.project_id.clone(),
+                execution_environment_id: spec.environment_id.clone(),
+                workspace_root: spec.workspace_root.clone(),
+                workspace_kind: spec.workspace_kind,
+            }),
+        };
+        self.orchestrator
+            .store
+            .save_task(&task)
+            .map_err(|e| format!("persist task: {e}"))?;
+        self.refresh_snapshot()?;
+        Ok(task)
+    }
+
+    /// Persists an updated task record (status transitions stay governed
+    /// by the state machine at execution time).
+    ///
+    /// # Errors
+    /// Durable store failure.
+    pub fn save_task(&mut self, task: &Task) -> Result<(), String> {
+        self.orchestrator
+            .store
+            .save_task(task)
+            .map_err(|e| format!("persist task: {e}"))?;
+        self.refresh_snapshot().map(|_| ())
+    }
+
+    /// Loads one task.
+    ///
+    /// # Errors
+    /// Store failure or unknown task.
+    pub fn load_task(&mut self, task_id: &TaskId) -> Result<Task, String> {
+        self.orchestrator
+            .store
+            .load_task(task_id)
+            .map_err(|e| format!("load task: {e}"))
+    }
+
+    /// All tasks bound to one project, newest first, scoped to the
+    /// runtime tenant.
+    ///
+    /// # Errors
+    /// Durable store failure.
+    pub fn project_tasks(&mut self, project_id: &ProjectId) -> Result<Vec<Task>, String> {
+        let persisted = self
+            .orchestrator
+            .store
+            .read()
+            .map_err(|e| format!("read runtime state: {e}"))?;
+        let mut tasks: Vec<Task> = persisted
+            .tasks
+            .iter()
+            .filter(|t| {
+                t.project_binding
+                    .as_ref()
+                    .is_some_and(|b| b.project_id == *project_id)
+                    && self
+                        .tenant_scope
+                        .as_ref()
+                        .is_none_or(|scope| scope == &t.tenant_id)
+            })
+            .cloned()
+            .collect();
+        tasks.sort_by(|a, b| {
+            b.created_at
+                .epoch_seconds()
+                .cmp(&a.created_at.epoch_seconds())
+        });
+        Ok(tasks)
     }
 
     /// Returns the exact cancellation token shared with the orchestrator.

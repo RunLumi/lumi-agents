@@ -1,68 +1,116 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lumi Agents</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app">
-    <nav class="sidebar">
-      <div class="logo">Lumi</div>
-      <button class="nav-btn active" data-view="dashboard">Dashboard</button>
-      <button class="nav-btn" data-view="approvals">
-        Approvals <span id="approval-badge" class="badge hidden">0</span>
-      </button>
-      <button class="nav-btn" data-view="exceptions">
-        Exceptions <span id="exception-badge" class="badge hidden">0</span>
-      </button>
-      <button class="nav-btn" data-view="evidence">Evidence</button>
-      <button class="nav-btn" data-view="permissions">Permissions</button>
+    <!-- ============ Sidebar ============ -->
+    <aside class="sidebar">
+      <div class="logo-row">
+        <div class="logo-mark" aria-hidden="true">L</div>
+        <div>
+          <div class="logo-name">Lumi Agents</div>
+          <div class="logo-tag">Local intelligence. Lasting work.</div>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-btn" data-nav="projects">
+          <span class="nav-ico">📁</span> Projects
+        </button>
+        <button class="nav-btn" data-nav="tasks">
+          <span class="nav-ico">🧭</span> Tasks
+          <span class="badge hidden" id="nav-task-badge"></span>
+        </button>
+        <button class="nav-btn" data-nav="files">
+          <span class="nav-ico">🗂</span> Files
+        </button>
+        <button class="nav-btn" data-nav="changes">
+          <span class="nav-ico">⇄</span> Changes
+        </button>
+        <button class="nav-btn" data-nav="git">
+          <span class="nav-ico">⑂</span> Git
+        </button>
+        <button class="nav-btn" data-nav="artifacts">
+          <span class="nav-ico">◇</span> Artifacts
+        </button>
+        <button class="nav-btn" data-nav="evidence">
+          <span class="nav-ico">≡</span> Evidence
+        </button>
+        <button class="nav-btn" data-nav="approvals">
+          <span class="nav-ico">✓</span> Approvals
+          <span class="badge hidden" id="nav-approval-badge"></span>
+        </button>
+      </nav>
+
       <div class="spacer"></div>
-      <button id="kill-switch" class="kill-switch">
-        ⏹ STOP ALL
-      </button>
-      <div id="connection-status" class="connection-status">● Runtime unavailable</div>
-    </nav>
 
-    <main class="main">
-      <!-- Dashboard -->
-      <section id="view-dashboard" class="view active">
-        <h1>Dashboard</h1>
-        <div id="task-cards" class="task-cards"></div>
-      </section>
+      <div class="engine-card">
+        <div class="engine-row">
+          <span class="dot" id="engine-dot"></span>
+          <div>
+            <div class="engine-name">Lumi Engine</div>
+            <div class="engine-state" id="engine-state">Checking…</div>
+          </div>
+        </div>
+        <button class="btn btn-danger-outline btn-block" id="kill-switch">⏹ Stop Agent</button>
+      </div>
+    </aside>
 
-      <!-- Approvals -->
-      <section id="view-approvals" class="view">
-        <h1>Approvals</h1>
-        <p class="subtitle">Actions requiring your explicit approval before execution.</p>
-        <div id="approval-cards" class="cards"></div>
-      </section>
+    <!-- ============ Main ============ -->
+    <div class="main">
+      <header class="topbar">
+        <div class="breadcrumb" id="breadcrumb">
+          <span class="crumb current">Projects</span>
+        </div>
+        <button class="searchbox" id="search-open" title="Search (⌘K)">
+          <span class="search-ico">🔍</span>
+          <span class="search-ph">Search projects, files, tasks, or ask Lumi…</span>
+          <span class="kbd">⌘K</span>
+        </button>
+        <div class="topbar-right">
+          <button class="btn btn-danger-outline btn-sm" id="stop-agent">■ Stop Agent</button>
+          <div class="avatar" title="Local user">LU</div>
+        </div>
+      </header>
 
-      <!-- Exceptions -->
-      <section id="view-exceptions" class="view">
-        <h1>Exceptions</h1>
-        <p class="subtitle">Blocked steps that need your attention.</p>
-        <div id="exception-cards" class="cards"></div>
-      </section>
-
-      <!-- Evidence -->
-      <section id="view-evidence" class="view">
-        <h1>Evidence</h1>
-        <p class="subtitle">Trust-labeled action history. "Attempted" is not "done".</p>
-        <div id="evidence-list" class="evidence-list"></div>
-      </section>
-
-      <!-- Permissions -->
-      <section id="view-permissions" class="view">
-        <h1>Permissions</h1>
-        <p class="subtitle">OS permissions required for native execution.</p>
-        <div id="permission-list" class="permission-list"></div>
-      </section>
-    </main>
+      <main class="content" id="content">
+        <!-- Views render here -->
+      </main>
+    </div>
   </div>
 
+  <!-- ============ Command palette ============ -->
+  <div class="palette-overlay hidden" id="palette">
+    <div class="palette">
+      <div class="palette-input-row">
+        <span class="search-ico">🔍</span>
+        <input id="palette-input" type="text" placeholder="Search projects, files, tasks…" />
+        <span class="kbd">esc</span>
+      </div>
+      <div class="palette-chips" id="palette-chips"></div>
+      <div class="palette-results" id="palette-results"></div>
+      <div class="palette-ask">
+        <input id="palette-ask" type="text" placeholder="Ask Lumi to do anything…" />
+        <button class="btn btn-primary btn-sm" id="palette-ask-send">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Toasts ============ -->
+  <div class="toasts" id="toasts"></div>
+
+  <script>
+    // DEV ONLY: ?devmock serves fixture data for visual previews.
+    // The packaged app never receives this query parameter.
+    if (new URLSearchParams(location.search).has("devmock")) {
+      document.write('<script src="dev-preview.js"><\/script>');
+    }
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
