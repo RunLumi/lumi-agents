@@ -54,6 +54,11 @@ fn unique_dir(tag: &str) -> PathBuf {
 fn dirty_repo(tag: &str) -> PathBuf {
     let root = unique_dir(tag);
     git(&root, &["init", "--initial-branch=main"]);
+    // Repository-local identity: the Lumi git wrapper deliberately does
+    // not inherit host env (beyond PATH/HOME), so repo config is the
+    // identity source - exactly the real-project configuration.
+    git(&root, &["config", "user.name", "Lumi Test"]);
+    git(&root, &["config", "user.email", "lumi-test@example.com"]);
     std::fs::write(root.join("README.md"), b"# demo\n").unwrap();
     std::fs::write(root.join("src.txt"), b"committed content\n").unwrap();
     std::fs::create_dir_all(root.join("src")).unwrap();
