@@ -3,9 +3,11 @@
    Controls use shadcn/ui primitives (Button, AlertDialog, Tooltip)
    themed to the Lumi design system. */
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { RefObject } from "react";
 import { Glyph } from "./Icons";
 import { t } from "../lib/i18n";
 import type { Lang } from "../lib/i18n";
+import type { NavKey } from "../lib/navigation";
 import { setRoute } from "../lib/ui";
 import type { OperationsSnapshot } from "../ipc/types";
 import { Button } from "@/components/ui/button";
@@ -35,10 +37,6 @@ export function TrafficLights() {
     </div>
   );
 }
-
-export type NavKey =
-  | "projects" | "tasks" | "files" | "changes" | "git"
-  | "artifacts" | "evidence" | "approvals";
 
 const NAV: { key: NavKey; glyph: string; i18n: string }[] = [
   { key: "projects", glyph: "project", i18n: "nav.projects" },
@@ -146,12 +144,13 @@ export function StopButton({ small = false, onStop }: { small?: boolean; onStop:
   );
 }
 
-export function Topbar({ crumbs, onSearch, onStop, lang, onSwitch, right }: {
+export function Topbar({ crumbs, onSearch, onStop, lang, onSwitch, searchRef, right }: {
   crumbs: { label: string; go?: string }[];
   onSearch: () => void;
   onStop: () => void;
   lang: Lang;
   onSwitch: (lang: Lang) => void;
+  searchRef?: RefObject<HTMLButtonElement | null>;
   right?: React.ReactNode;
 }) {
   return (
@@ -168,7 +167,7 @@ export function Topbar({ crumbs, onSearch, onStop, lang, onSwitch, right }: {
           ),
         )}
       </div>
-      <button className="searchbox" onClick={onSearch} title={t("misc.searchTitle")}>
+      <button ref={searchRef} className="searchbox" onClick={onSearch} title={t("misc.searchTitle")}>
         <Glyph name="search" className="search-ico" />
         <span className="search-ph">{t("misc.searchPlaceholder")}</span>
         <span className="kbd">⌘K</span>

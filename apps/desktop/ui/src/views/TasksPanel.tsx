@@ -7,6 +7,7 @@ import { Glyph } from "../components/Icons";
 import { t } from "../lib/i18n";
 import { timeAgo, toast } from "../lib/ui";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/overlays";
@@ -103,9 +104,15 @@ export function TasksPanel({ projectId, tasks, onChanged }: Props) {
             <span className="small" style={{ flex: 1 }}>{t("provider.notConfigured")}</span>
           </div>
           <div className="inline-form">
-            <Input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder={t("provider.endpoint")} />
-            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("provider.model")} />
-            <Input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={t("provider.apiKey")} type="password" />
+            <Field id="provider-endpoint" label={t("provider.endpointLabel")}>
+              <Input id="provider-endpoint" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder={t("provider.endpoint")} />
+            </Field>
+            <Field id="provider-model" label={t("provider.modelLabel")}>
+              <Input id="provider-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("provider.model")} />
+            </Field>
+            <Field id="provider-api-key" label={t("provider.apiKeyLabel")}>
+              <Input id="provider-api-key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={t("provider.apiKey")} type="password" />
+            </Field>
             <Button variant="secondary" size="sm" onClick={saveProvider}>{t("provider.save")}</Button>
           </div>
           <p className="muted small">{t("provider.desc")}</p>

@@ -4,7 +4,7 @@ import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent } from "./overlays";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./overlays";
 
 function Command({
   className,
@@ -25,15 +25,21 @@ function Command({
 function CommandDialog({
   open,
   onOpenChange,
+  title,
+  description,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title: React.ReactNode;
+  description: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden p-0 sm:max-w-xl">
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <DialogDescription className="sr-only">{description}</DialogDescription>
         <Command className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:tracking-[var(--tracking-wide)] [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:size-4">
           {children}
         </Command>
@@ -54,7 +60,7 @@ function CommandInput({
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "flex h-11 w-full bg-transparent py-3 text-sm text-[var(--color-ink)] outline-none",
+          "flex h-11 w-full bg-transparent py-3 text-base text-[var(--color-ink)] outline-none",
           "placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-55",
           className,
         )}

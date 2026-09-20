@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { Sidebar, Topbar } from "./components/chrome";
-import type { NavKey } from "./components/chrome";
 import { ProjectsHome } from "./views/ProjectsHome";
 import { ProjectDetail } from "./views/ProjectDetail";
 import type { FileRequest } from "./views/FilesTab";
@@ -13,6 +12,7 @@ import { toast } from "./lib/ui";
 import { t, detect } from "./lib/i18n";
 import { setLang } from "./lib/i18n";
 import type { Lang } from "./lib/i18n";
+import { activeNavFor, type NavKey } from "./lib/navigation";
 import {
   emergencyStop, getOperationsSnapshot, projectListRecent, projectOpenFolder,
   projectOverview, gitStatus, taskList, changeSets, artifactsList,
@@ -50,6 +50,7 @@ export default function App() {
   const [detailTab, setDetailTab] = useState("home");
   const [fileRequest, setFileRequest] = useState<FileRequest | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem("lumi-sidebar-collapsed") === "1"; } catch { return false; }
   });
@@ -134,6 +135,11 @@ export default function App() {
     setLangState(next);
   }, []);
 
+  const setPaletteVisibility = useCallback((open: boolean) => {
+    setPaletteOpen(open);
+    if (!open) window.requestAnimationFrame(() => searchTriggerRef.current?.focus());
+  }, []);
+
   const stopAll = useCallback(() => {
     emergencyStop().then(() => {
       toast(t("misc.stopped"), "success");
@@ -141,7 +147,7 @@ export default function App() {
     }).catch(() => toast(t("misc.stopFail"), "error"));
   }, []);
 
-  const activeNav: NavKey = projectId ? "tasks" : "projects";
+  const activeNav: NavKey = activeNavFor(projectId, detailTab);
   const badgeTasks = data?.tasks.filter(
     (task) => !["COMPLETED", "FAILED", "CANCELLED"].includes(task.status),
   ).length ?? 0;
@@ -156,7 +162,7 @@ export default function App() {
       <Toaster position="bottom-right" />
       <Palette
         open={paletteOpen}
-        onOpenChange={setPaletteOpen}
+        onOpenChange={setPaletteVisibility}
         projects={projects ?? []}
         projectId={projectId}
         tasks={data?.tasks ?? []}
@@ -180,6 +186,7 @@ export default function App() {
         <Topbar
           crumbs={crumbs}
           onSearch={() => setPaletteOpen(true)}
+          searchRef={searchTriggerRef}
           onStop={stopAll}
           lang={lang}
           onSwitch={switchLanguage}

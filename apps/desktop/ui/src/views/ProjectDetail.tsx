@@ -8,6 +8,7 @@ import { Glyph } from "../components/Icons";
 import { t } from "../lib/i18n";
 import { fmtSize, timeAgo, toast } from "../lib/ui";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger,
@@ -256,12 +257,15 @@ export function ProjectDetail({
         <TabsContent value="tasks">
           <div className="card">
             <div className="inline-form">
-              <Input
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                placeholder={t("tasks.placeholder")}
-                onKeyDown={(e) => e.key === "Enter" && createTask()}
-              />
+              <Field id="task-goal" label={t("tasks.goalLabel")}>
+                <Input
+                  id="task-goal"
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  placeholder={t("tasks.placeholder")}
+                  onKeyDown={(e) => e.key === "Enter" && createTask()}
+                />
+              </Field>
               <Button size="sm" onClick={createTask}>{t("tasks.create")}</Button>
             </div>
             <Separator style={{ margin: "12px 0" }} />
@@ -328,11 +332,14 @@ export function ProjectDetail({
                     </div>
                   )}
                 <div className="inline-form">
-                  <Input
-                    value={commitMsg}
-                    onChange={(e) => setCommitMsg(e.target.value)}
-                    placeholder={t("git.commitMsg")}
-                  />
+                  <Field id="git-commit-message" label={t("git.commitMsgLabel")}>
+                    <Input
+                      id="git-commit-message"
+                      value={commitMsg}
+                      onChange={(e) => setCommitMsg(e.target.value)}
+                      placeholder={t("git.commitMsg")}
+                    />
+                  </Field>
                   <Button size="sm" onClick={commitPicked}>{t("git.commitSelected")}</Button>
                 </div>
                 <p className="muted small">{t("git.pathScoped")}</p>
@@ -341,7 +348,9 @@ export function ProjectDetail({
                 <div className="card">
                   <h3>{t("git.branches")}</h3>
                   <div className="inline-form">
-                    <Input value={branchName} onChange={(e) => setBranchName(e.target.value)} placeholder={t("git.newBranch")} />
+                    <Field id="git-new-branch" label={t("git.newBranchLabel")}>
+                      <Input id="git-new-branch" value={branchName} onChange={(e) => setBranchName(e.target.value)} placeholder={t("git.newBranch")} />
+                    </Field>
                   </div>
                   <div className="mini-list">
                     {(branches ?? []).map((b) => (
@@ -478,11 +487,14 @@ export function ProjectDetail({
               </ul>
               <h3 style={{ marginTop: 16 }}>{t("settings.relink")}</h3>
               <div className="inline-form">
-                <Input
-                  value={relinkPath}
-                  onChange={(e) => setRelinkPath(e.target.value)}
-                  placeholder={t("settings.relinkPrompt")}
-                />
+                <Field id="settings-relink-path" label={t("settings.relinkLabel")}>
+                  <Input
+                    id="settings-relink-path"
+                    value={relinkPath}
+                    onChange={(e) => setRelinkPath(e.target.value)}
+                    placeholder={t("settings.relinkPrompt")}
+                  />
+                </Field>
                 <Button
                   variant="secondary"
                   size="sm"

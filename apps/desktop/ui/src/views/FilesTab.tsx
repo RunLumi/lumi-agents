@@ -8,6 +8,7 @@ import { Glyph } from "../components/Icons";
 import { t } from "../lib/i18n";
 import { fmtSize, toast } from "../lib/ui";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -140,12 +141,15 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
         </div>
 
         <div className="inline-form">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={mode === "filename" ? t("files.searchPlaceholder") : t("files.searchContent")}
-            onKeyDown={(e) => e.key === "Enter" && runSearch()}
-          />
+          <Field id="files-search" label={t("files.searchLabel")}>
+            <Input
+              id="files-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={mode === "filename" ? t("files.searchPlaceholder") : t("files.searchContent")}
+              onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            />
+          </Field>
           <Button variant="secondary" size="sm" onClick={() => setMode(mode === "filename" ? "text" : "filename")}>
             {mode === "filename" ? t("files.fileName") : t("files.textContent")}
           </Button>
@@ -180,12 +184,15 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
         </div>
 
         <div className="inline-form">
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder={t("files.newFilePlaceholder")}
-            onKeyDown={(e) => e.key === "Enter" && createFile()}
-          />
+          <Field id="files-new-file" label={t("files.newFileLabel")}>
+            <Input
+              id="files-new-file"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder={t("files.newFilePlaceholder")}
+              onKeyDown={(e) => e.key === "Enter" && createFile()}
+            />
+          </Field>
           <Button variant="secondary" size="sm" onClick={createFile}>{t("files.newFile")}</Button>
         </div>
       </div>
