@@ -44,14 +44,29 @@ test('brand tokens and original folded-L geometry are retained', async () => {
   for (const color of ['#006093', '#102A43', '#F4F0E8', '#FFFFFF', '#E7EAF0', '#5E6677', '#F4A62A', '#C2410C', '#1F7A4D']) assert.ok(css.includes(color), color);
   assert.match(css, /color-scheme: light/);
   assert.match(css, /prefers-reduced-motion/);
-  const logo = await readFile('public/brand/lumi-logo.svg', 'utf8');
-  assert.match(logo, /M99\.4558/);
+  assert.match(await readFile('public/brand/lumi-logo.svg', 'utf8'), /M99\.4558/);
 });
-test('the browser receives no framework runtime and stays within a small JS budget', async () => {
+test('all executable browser JS, external and inline, stays below 16 KB', async () => {
   const files = await readdir('dist/_astro');
-  const scripts = files.filter(file => file.endsWith('.js'));
   let total = 0;
-  for (const file of scripts) total += (await stat(`dist/_astro/${file}`)).size;
+  for (const file of files.filter(file => file.endsWith('.js'))) total += (await stat(`dist/_astro/${file}`)).size;
+  for (const [, attributes, content] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    if (!/\bsrc\s*=/.test(attributes) && !/application\/ld\+json/.test(attributes)) total += Buffer.byteLength(content);
+  }
   assert.ok(total < 16000, `JavaScript budget exceeded: ${total} bytes`);
   assert.doesNotMatch(html, /astro-island|react-dom/);
+});
+test('Pages cache rules do not collide and shipped font licenses are retained', async () => {
+  const headers = await readFile('dist/_headers', 'utf8');
+  assert.ok(headers.split('\n').every(line => line.length <= 2000));
+  const globalRule = headers.split('\n\n')[0];
+  assert.doesNotMatch(globalRule, /Cache-Control:/);
+  assert.match(headers, /\/_astro\/\*\n  Cache-Control: public, max-age=31536000, immutable/);
+  assert.match(headers, /https:\/\/:project\.pages\.dev\/\*/);
+  for (const font of ['geist', 'geist-mono']) assert.match(await readFile(`dist/licenses/${font}.txt`, 'utf8'), /OPEN FONT LICENSE/i);
+});
+test('every local stylesheet, image and downloadable link exists in the output', async () => {
+  for (const [, path] of html.matchAll(/(?:src|href)="(\/[^"#?]+)"/g)) {
+    assert.ok((await stat(`dist${path}`)).isFile(), `Missing generated asset: ${path}`);
+  }
 });
