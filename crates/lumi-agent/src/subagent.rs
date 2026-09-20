@@ -40,12 +40,27 @@ pub struct SubagentSpec {
 }
 
 /// The delegation outcome (§24.11: the parent integrates results).
+///
+/// Carries the §24.13 economics fields the parent needs to judge
+/// whether delegation paid for itself: wall-clock duration, executed
+/// action count, and model spend are measured, not self-reported.
 #[derive(Debug, Clone)]
 pub struct SubagentOutcome {
     pub completed: bool,
     pub answer: Option<String>,
     pub failure: Option<String>,
     pub turns: u32,
+    /// Wall-clock duration of the delegation (§24.13 latency).
+    pub duration_ms: u64,
+    /// Actions the child actually executed (§24.13 cost proxy).
+    pub actions: u32,
+    /// Model spend attributed to the child (§24.13 cost).
+    pub model_cost_micro_usd: u64,
+    /// Executed actions that touched vision (§24.13 quality signal:
+    /// high vision share suggests a missing semantic adapter).
+    pub vision_actions: u32,
+    /// External writes the child performed (blast-radius signal).
+    pub external_writes: u32,
 }
 
 /// Runs one bounded subagent. The caller keeps parent responsibility for
@@ -94,12 +109,24 @@ pub fn run_subagent<S: StateStore>(
     );
     child.max_turns = spec.max_turns;
 
-    match child.run() {
+    let started = std::time::Instant::now();
+    let outcome = child.run();
+    let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    // §24.13: economics come from the loop's own consumption ledger,
+    // not from the model's claims.
+    let consumed = *child.consumed();
+
+    match outcome {
         AgentRunOutcome::Completed { answer, turns } => SubagentOutcome {
             completed: true,
             answer: Some(answer),
             failure: None,
             turns,
+            duration_ms,
+            actions: consumed.actions,
+            model_cost_micro_usd: consumed.model_cost_micro_usd,
+            vision_actions: consumed.vision_actions,
+            external_writes: consumed.external_writes,
         },
         AgentRunOutcome::WaitingApproval { reason, .. } => SubagentOutcome {
             completed: false,
@@ -109,12 +136,22 @@ pub fn run_subagent<S: StateStore>(
             // of this delegation, for the human queue.
             failure: Some(format!("subagent needs approval: {reason}")),
             turns: child.turns(),
+            duration_ms,
+            actions: consumed.actions,
+            model_cost_micro_usd: consumed.model_cost_micro_usd,
+            vision_actions: consumed.vision_actions,
+            external_writes: consumed.external_writes,
         },
         AgentRunOutcome::Failed { reason, .. } => SubagentOutcome {
             completed: false,
             answer: None,
             failure: Some(reason),
             turns: child.turns(),
+            duration_ms,
+            actions: consumed.actions,
+            model_cost_micro_usd: consumed.model_cost_micro_usd,
+            vision_actions: consumed.vision_actions,
+            external_writes: consumed.external_writes,
         },
     }
 }

@@ -182,6 +182,15 @@ fn subagent_completes_within_narrowed_toolset_and_budget() {
         std::fs::read_to_string(ws.root().join("copy.txt")).unwrap(),
         "hello sub"
     );
+
+    // §24.13 economics are measured from the loop's consumption
+    // ledger: exactly the two executed actions, no vision, no
+    // external writes, honest wall-clock duration.
+    assert_eq!(outcome.actions, 2, "{outcome:?}");
+    assert_eq!(outcome.vision_actions, 0);
+    assert_eq!(outcome.external_writes, 0);
+    assert_eq!(outcome.model_cost_micro_usd, 0);
+    assert_eq!(outcome.turns, 3);
 }
 
 #[test]
@@ -232,6 +241,10 @@ fn subagent_budget_carve_out_stops_excess_actions() {
     );
 
     assert!(!outcome.completed, "budget carve-out must stop the child");
+
+    // Economics reflect the carve-out: exactly one action landed
+    // before the budget stopped the child (§24.13 failure accounting).
+    assert_eq!(outcome.actions, 1, "{outcome:?}");
     assert!(outcome.failure.unwrap().contains("budget"));
     assert!(ws.root().join("a.txt").is_file());
     assert!(!ws.root().join("b.txt").exists());
