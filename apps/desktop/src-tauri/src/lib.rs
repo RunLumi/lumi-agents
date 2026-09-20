@@ -41,6 +41,11 @@ pub struct AppState {
     /// Secrets broker: credential values live here (OS keyring) and are
     /// resolved at the narrowest boundary only.
     pub broker: Arc<SecretBroker<KeyringBackend>>,
+    /// Automation schedules (Spec 27): JSON beside the runtime state,
+    /// ticked by the shell every 30s.
+    pub automations_path: std::path::PathBuf,
+    /// The scheduler policy engine backing automation admissions.
+    pub scheduler: Arc<Mutex<lumi_scheduler::Scheduler>>,
 }
 
 impl AppState {
@@ -67,6 +72,8 @@ impl AppState {
             broker: Arc::new(SecretBroker::new(KeyringBackend::with_service(
                 "Lumi Agents",
             ))),
+            automations_path: state_dir.join("automations.json"),
+            scheduler: Arc::new(Mutex::new(lumi_scheduler::Scheduler::new(true))),
         }
     }
 
@@ -837,6 +844,122 @@ fn connections_connect(
     )
 }
 
+// ===== Project automations (Spec 27) =====
+
+#[tauri::command]
+fn automations_list(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+) -> Result<Vec<lumi_desktop::AutomationRecord>, String> {
+    let records = lumi_desktop::load_automations(&state.automations_path)?;
+    Ok(records
+        .into_iter()
+        .filter(|a| a.project_id.as_str() == project_id)
+        .collect())
+}
+
+#[tauri::command]
+fn automations_create(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    goal: String,
+    cron: String,
+) -> Result<lumi_desktop::AutomationRecord, String> {
+    let projects = state
+        .projects
+        .lock()
+        .expect("project service lock poisoned");
+    let overview = projects.overview(&project_id)?;
+    let tenant = lumi_protocol::TenantId::parse(lumi_desktop::DesktopRuntime::LOCAL_TENANT)
+        .map_err(|e| e.to_string())?;
+    let pid = lumi_protocol::ProjectId::parse(&project_id).map_err(|e| e.to_string())?;
+    lumi_desktop::create_automation(
+        &state.automations_path,
+        tenant,
+        pid,
+        overview.primary_root.clone(),
+        &goal,
+        &cron,
+    )
+}
+
+#[tauri::command]
+fn automations_set_enabled(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    automation_id: String,
+    enabled: bool,
+) -> Result<lumi_desktop::AutomationRecord, String> {
+    lumi_desktop::set_automation_enabled(
+        &state.automations_path,
+        &project_id,
+        &automation_id,
+        enabled,
+    )
+}
+
+#[tauri::command]
+fn automations_delete(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    automation_id: String,
+) -> Result<bool, String> {
+    lumi_desktop::delete_automation(&state.automations_path, &project_id, &automation_id)
+}
+
+/// One scheduler tick: fires every enabled automation whose cron
+/// matches the local wall clock. The webview supplies the device's
+/// current UTC offset (same device, local authority). When a Work-mode
+/// run holds the runtime, the tick is skipped honestly — the schedule's
+/// catch-up policy governs the missed window.
+#[tauri::command]
+fn automations_tick(
+    state: tauri::State<'_, AppState>,
+    local_offset_seconds: i32,
+) -> Result<TickResultDto, String> {
+    let records = lumi_desktop::load_automations(&state.automations_path)?;
+    let now = lumi_protocol::Timestamp::now();
+    let due = lumi_desktop::due_automations(&records, now, local_offset_seconds);
+    let mut fired = Vec::new();
+    let mut refused = Vec::new();
+    if due.is_empty() {
+        return Ok(TickResultDto { fired, refused });
+    }
+    let mut runtime_guard = match state.runtime.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return Ok(TickResultDto {
+                fired,
+                refused: due.clone(),
+            });
+        }
+    };
+    let mut scheduler = state.scheduler.lock().expect("scheduler lock poisoned");
+    for automation_id in due {
+        match lumi_desktop::fire_automation(
+            &mut runtime_guard,
+            &mut scheduler,
+            &records,
+            &automation_id,
+            now,
+            0,
+        ) {
+            Ok(task) => fired.push(task.task_id.to_string()),
+            Err(e) => {
+                log::warn!("automation {automation_id} not fired: {e}");
+                refused.push(automation_id);
+            }
+        }
+    }
+    Ok(TickResultDto { fired, refused })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TickResultDto {
+    pub fired: Vec<String>,
+    pub refused: Vec<String>,
+}
+
 #[tauri::command]
 fn connections_verify(
     state: tauri::State<'_, AppState>,
@@ -933,6 +1056,11 @@ pub fn run() {
             connections_connect,
             connections_disconnect,
             connections_verify,
+            automations_list,
+            automations_create,
+            automations_set_enabled,
+            automations_delete,
+            automations_tick,
             file_create_base64,
             file_edit_base64,
             provider_get_config,

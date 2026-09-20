@@ -161,3 +161,115 @@ pub fn due_automations(
     }
     due
 }
+
+/// The default trigger identity fields for shell-created automations:
+/// one tenant-scoped cron source with the automation itself as the
+/// template ref (Spec 27: project-native automations).
+fn shell_trigger(tenant_id: lumi_protocol::TenantId, cron: &str) -> lumi_scheduler::TriggerRequest {
+    lumi_scheduler::TriggerRequest {
+        tenant_id,
+        principal_id: "u-automation".to_owned(),
+        template_id: "automation".to_owned(),
+        payload_refs: serde_json::json!({}),
+        triggered_at: lumi_protocol::Timestamp::now(),
+        deduplication: None,
+        source: lumi_scheduler::TriggerSource {
+            kind: lumi_scheduler::TriggerKind::Cron,
+            identity: format!("cron:{cron}"),
+        },
+        timezone: None,
+        device_availability: lumi_scheduler::DeviceAvailability::WaitForDevice,
+        deadline: None,
+        max_actions: 20,
+        lease_id: "lease-desktop-automation".to_owned(),
+    }
+}
+
+/// Creates one automation: validates the goal and the cron expression
+/// (5-field, as-authored) BEFORE persisting, so a malformed schedule
+/// never reaches the tick loop. The record starts enabled.
+///
+/// # Errors
+/// Empty goal, malformed cron, or store failures.
+pub fn create_automation(
+    records_path: &Path,
+    tenant_id: lumi_protocol::TenantId,
+    project_id: lumi_protocol::ProjectId,
+    workspace_root: String,
+    goal: &str,
+    cron_expression: &str,
+) -> Result<AutomationRecord, String> {
+    let goal = goal.trim();
+    if goal.is_empty() {
+        return Err("automation goal is required".to_owned());
+    }
+    let cron = cron_expression.trim();
+    lumi_scheduler::cron::CronExpr::parse(cron)
+        .map_err(|e| format!("invalid cron expression: {e}"))?;
+    let mut records = load_automations(records_path)?;
+    let automation_id = format!("auto-{}", lumi_protocol::TaskId::generate());
+    let record = AutomationRecord {
+        automation_id: automation_id.clone(),
+        schedule: Schedule {
+            schedule_id: ScheduleId::new(automation_id),
+            cron_expression: cron.to_owned(),
+            timezone: "local".to_owned(),
+            catch_up: lumi_scheduler::CatchUpPolicy::RunOnce,
+            quiet_hours: None,
+            critical: false,
+            enabled: true,
+            trigger: shell_trigger(tenant_id, cron),
+        },
+        project_id,
+        workspace_root,
+        goal: goal.to_owned(),
+        enabled: true,
+    };
+    records.push(record.clone());
+    save_automations(records_path, &records)?;
+    Ok(record)
+}
+
+/// Enables/disables one project automation. Disabled automations are
+/// never admitted by the tick loop (fire_automation refuses them).
+///
+/// # Errors
+/// Unknown automation or store failures.
+pub fn set_automation_enabled(
+    records_path: &Path,
+    project_id: &str,
+    automation_id: &str,
+    enabled: bool,
+) -> Result<AutomationRecord, String> {
+    let mut records = load_automations(records_path)?;
+    let record = records
+        .iter_mut()
+        .find(|a| a.project_id.as_str() == project_id && a.automation_id == automation_id)
+        .ok_or_else(|| format!("unknown automation {automation_id:?}"))?;
+    record.enabled = enabled;
+    let updated = record.clone();
+    save_automations(records_path, &records)?;
+    Ok(updated)
+}
+
+/// Deletes one project automation. Returns false when nothing matched.
+///
+/// # Errors
+/// Store failures.
+pub fn delete_automation(
+    records_path: &Path,
+    project_id: &str,
+    automation_id: &str,
+) -> Result<bool, String> {
+    let records = load_automations(records_path)?;
+    let position = records
+        .iter()
+        .position(|a| a.project_id.as_str() == project_id && a.automation_id == automation_id);
+    let Some(position) = position else {
+        return Ok(false);
+    };
+    let mut rest = records;
+    rest.remove(position);
+    save_automations(records_path, &rest)?;
+    Ok(true)
+}
