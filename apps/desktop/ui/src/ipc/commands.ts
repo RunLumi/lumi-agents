@@ -21,6 +21,25 @@ import type {
   ValidationRecord,
 } from "./types.ts";
 
+// provider session (in-memory only; the key never round-trips)
+export interface ProviderConfigDto {
+  configured: boolean;
+  family?: string | null;
+  endpoint?: string | null;
+  model?: string | null;
+}
+export const providerGetConfig = () =>
+  getTransport().invoke<ProviderConfigDto>("provider_get_config");
+export const providerSetConfig = (config: {
+  family: string; endpoint: string; model: string; apiKey: string;
+}) => getTransport().invoke<ProviderConfigDto>("provider_set_config", config);
+export const providerClearConfig = () =>
+  getTransport().invoke<ProviderConfigDto>("provider_clear_config");
+
+// task execution
+export const taskRun = (taskId: string) =>
+  getTransport().invoke<{ started: boolean; task_id: string }>("task_run", { taskId });
+
 // operations
 export const getKillSwitch = () => getTransport().invoke<KillSwitchDto>("get_kill_switch");
 export const emergencyStop = () => getTransport().invoke<KillSwitchDto>("emergency_stop");
@@ -135,4 +154,8 @@ export const COMMAND_NAMES = [
   "memory_remember",
   "memory_list",
   "memory_invalidate",
+  "provider_get_config",
+  "provider_set_config",
+  "provider_clear_config",
+  "task_run",
 ] as const;

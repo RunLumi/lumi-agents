@@ -11,6 +11,7 @@
 pub mod api;
 pub mod permissions;
 pub mod projects;
+pub mod runner;
 pub mod runtime;
 
 pub use api::{
@@ -21,4 +22,5 @@ pub use permissions::{PermissionCheckResult, PermissionState, PermissionStatus};
 pub use projects::{
     FileContent, MemorySubmission, OpenedProject, ProjectOverview, ProjectService, ProjectSummary,
 };
-pub use runtime::DesktopRuntime;
+pub use runner::{is_runnable, run_desktop_task, run_desktop_task_with_provider, ProviderSession};
+pub use runtime::{DesktopRuntime, ProjectTaskSpec};

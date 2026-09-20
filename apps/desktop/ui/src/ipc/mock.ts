@@ -304,6 +304,22 @@ export function createMockTransport(): Transport {
         }
         case "file_search":
           return searchFixture(args?.query as string, args?.mode as string) as T;
+        case "provider_get_config":
+          return { configured: true, family: "openai-compatible", endpoint: "http://localhost:11434/v1", model: "llama3.1" } as T;
+        case "provider_set_config":
+          return { configured: true, family: "openai-compatible", endpoint: args?.endpoint as string, model: args?.model as string } as T;
+        case "provider_clear_config":
+          return { configured: false } as T;
+        case "task_run": {
+          const id = args?.taskId as string;
+          const task = tasks.find((t) => t.task_id === id);
+          if (task) task.status = "RUNNING";
+          setTimeout(() => {
+            const t = tasks.find((x) => x.task_id === id);
+            if (t) t.status = "COMPLETED";
+          }, 4000);
+          return { started: true, task_id: id } as T;
+        }
         case "emergency_stop":
           return { stopped: true } as T;
         case "get_kill_switch":
