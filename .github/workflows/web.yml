@@ -1,0 +1,54 @@
+name: Web landing page
+on:
+  pull_request:
+    paths: ['web/**', '.github/workflows/web.yml', 'DESIGN.md', 'ICON.md']
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/web.yml', 'DESIGN.md', 'ICON.md']
+permissions:
+  contents: read
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  landing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: web/.node-version
+      - name: Install dependencies
+        run: |
+          if test -f package-lock.json; then
+            npm ci --ignore-scripts
+          else
+            npm install --ignore-scripts --before=2026-09-13T00:00:00Z
+          fi
+      - name: Build static site and check contracts
+        run: npm run build && npm test
+      - name: Install test browser
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Browser, accessibility and responsive tests
+        run: npm run test:e2e
+      - name: Package review evidence
+        if: always()
+        working-directory: .
+        run: tar --exclude=node_modules --exclude=dist --exclude=.astro --exclude=test-results --exclude=playwright-report -czf web-source.tar.gz web
+      - name: Upload build and review evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lumi-agents-web-${{ github.sha }}
+          path: |
+            web-source.tar.gz
+            web/package-lock.json
+            web/dist/
+            web/test-results/
+            web/playwright-report/
+          retention-days: 7
+          if-no-files-found: error

@@ -1,0 +1,4 @@
+campaign,status,recommendation,budget_changes,note
+MAU-A,within_threshold,Keep monitoring,0,Synthetic demonstration only
+MAU-B,needs_review,Ask owner to review performance,0,No live platform connection
+MAU-C,insufficient_data,Request missing source data,0,Do not infer performance
