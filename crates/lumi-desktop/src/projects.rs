@@ -321,6 +321,7 @@ impl ProjectService {
                 .create_file(Path::new(path), content.as_bytes())
                 .map(|o| vec![o])
         })
+        .map(|_| ())
     }
 
     /// Checksum-guarded edit (§26.24): refuses when the file changed
@@ -337,6 +338,7 @@ impl ProjectService {
                 .edit_file(Path::new(path), expected_sha256, content.as_bytes())
                 .map(|o| vec![o])
         })
+        .map(|_| ())
     }
 
     /// Reversible delete with checksum guard.
@@ -351,6 +353,7 @@ impl ProjectService {
                 .delete_file(Path::new(path), expected_sha256, false)
                 .map(|o| vec![o])
         })
+        .map(|_| ())
     }
 
     /// Bounded filename/text search (§26.11).
@@ -368,7 +371,7 @@ impl ProjectService {
         lumi_project::search(&record, query, resolved_mode, 200).map_err(|e| e.to_string())
     }
 
-    fn mutate(
+    pub(crate) fn mutate(
         &self,
         project_id: &str,
         task_id: &str,
@@ -376,7 +379,7 @@ impl ProjectService {
             &ProjectFiles<'_>,
         )
             -> Result<Vec<lumi_project::MutationOutcome>, lumi_project::FileOpsError>,
-    ) -> Result<(), String> {
+    ) -> Result<Vec<lumi_project::MutationOutcome>, String> {
         let record = self.record(project_id)?;
         let files = ProjectFiles::new(&record);
         let outcomes = op(&files).map_err(|e| e.to_string())?;
@@ -386,10 +389,10 @@ impl ProjectService {
             .load(project_id, &task)
             .map_err(|e| e.to_string())?;
         let now = Timestamp::now();
-        for outcome in outcomes {
+        for outcome in &outcomes {
             set.push(
                 lumi_project::ChangeEntry {
-                    kind: kind_of(&outcome),
+                    kind: kind_of(outcome),
                     source: lumi_project::ChangeSource::Agent,
                     path: outcome.path.clone(),
                     from_path: outcome.from_path.clone(),
@@ -402,7 +405,8 @@ impl ProjectService {
                 now,
             );
         }
-        self.changes.save(&set).map_err(|e| e.to_string())
+        self.changes.save(&set).map_err(|e| e.to_string())?;
+        Ok(outcomes)
     }
 
     /// Git status for the project (§26.16); `None` when the project has

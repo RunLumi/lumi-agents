@@ -23,5 +23,8 @@ pub use projects::{
     FileContent, FileContentBase64, MemorySubmission, OpenedProject, ProjectOverview,
     ProjectService, ProjectSummary,
 };
-pub use runner::{is_runnable, run_desktop_task, run_desktop_task_with_provider, ProviderSession};
+pub use runner::{
+    gated_file_save, is_runnable, run_desktop_task, run_desktop_task_with_provider, FileSaveOp,
+    ProviderSession,
+};
 pub use runtime::{DesktopRuntime, ProjectTaskSpec};

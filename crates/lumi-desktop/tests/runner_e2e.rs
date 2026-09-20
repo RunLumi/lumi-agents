@@ -348,3 +348,99 @@ fn desktop_runner_rerun_carries_durable_progress_from_the_prior_attempt() {
         "both attempts' verified actions surface as evidence: {evidence:?}"
     );
 }
+
+#[test]
+fn ui_file_saves_traverse_the_gate_and_verify() {
+    let guard = DepotGuard(depot("gated-save"));
+    let repo = guard.0.join("repo");
+    seed_repo(&repo);
+    let state_path = guard.0.join("runtime-state.json");
+    let tenant = TenantId::parse(DesktopRuntime::LOCAL_TENANT).unwrap();
+
+    let mut runtime =
+        lumi_desktop::DesktopRuntime::new_for_tenant(state_path.clone(), tenant.clone()).unwrap();
+    let projects_dir = guard.0.join("projects");
+    std::fs::create_dir_all(&projects_dir).unwrap();
+    let mut projects = lumi_desktop::ProjectService::open(&projects_dir).unwrap();
+    let opened = projects
+        .open_folder(repo.to_str().unwrap(), Some("Gate Repo".to_owned()))
+        .unwrap();
+    let project_id = opened.project.project_id.clone();
+
+    // Create through the gate.
+    lumi_desktop::gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &lumi_desktop::FileSaveOp::Create {
+            path: "docs/gated.txt".to_owned(),
+            content: "gated save".to_owned(),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(repo.join("docs/gated.txt")).unwrap(),
+        "gated save"
+    );
+
+    // Edit through the gate with the correct checksum.
+    lumi_desktop::gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &lumi_desktop::FileSaveOp::Edit {
+            path: "docs/gated.txt".to_owned(),
+            expected_sha256: lumi_protocol::canonical::sha256_hex(b"gated save"),
+            content: "gated save v2".to_owned(),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(repo.join("docs/gated.txt")).unwrap(),
+        "gated save v2"
+    );
+
+    // Stale checksum: the executor refuses, the run fails honestly, and
+    // the file keeps its on-disk (newer) content.
+    let err = lumi_desktop::gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &lumi_desktop::FileSaveOp::Edit {
+            path: "docs/gated.txt".to_owned(),
+            expected_sha256: "stale".to_owned(),
+            content: "lost write".to_owned(),
+        },
+    )
+    .unwrap_err();
+    assert!(err.contains("stale write"), "{err}");
+    assert_eq!(
+        std::fs::read_to_string(repo.join("docs/gated.txt")).unwrap(),
+        "gated save v2",
+        "the newer on-disk content wins (fail closed)"
+    );
+
+    // Durable trail: every save has a task/run record and the ledger
+    // verified each successful write.
+    let persisted = runtime.orchestrator.store.read().unwrap();
+    let save_tasks = persisted
+        .tasks
+        .iter()
+        .filter(|t| {
+            t.goal.starts_with("Edit docs/gated.txt") || t.goal.starts_with("Create docs/gated.txt")
+        })
+        .count();
+    assert!(save_tasks >= 3, "each save is its own durable task");
+    let project_id = lumi_protocol::ProjectId::parse(&opened.project.project_id).unwrap();
+    let evidence = runtime.project_evidence(&project_id).unwrap();
+    assert!(
+        evidence
+            .iter()
+            .any(|e| e.operation == "edit_file" && e.trust_label == "Verified"),
+        "gated edits surface as verified evidence: {evidence:?}"
+    );
+    assert!(matches!(
+        runtime.orchestrator.audit.verify_chain(),
+        lumi_audit::ChainVerification::Intact { .. }
+    ));
+}
