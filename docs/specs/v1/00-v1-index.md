@@ -2,7 +2,7 @@
 
 Status: **Normative baseline for v1 implementation**  
 Version: **1.0**  
-Date: **2026-09-19**
+Date: **2026-09-20**
 
 ## 0.1 Purpose
 
@@ -38,6 +38,9 @@ V1 covers one trusted runtime supporting:
 - evidence and verification;
 - workflow packs;
 - scheduling/background triggers;
+- global and project-filtered Automations views over the same records;
+- project-local Skills/Plugins with reviewed install/activation and pinned run dependencies;
+- project-scoped connections backed by protected secret storage, not repository token files;
 - extensibility through connectors/MCP;
 - macOS and Windows employee-facing deployment;
 - evals, observability, and workflow economics.
@@ -47,6 +50,9 @@ V1 does **not** require:
 - a public marketplace;
 - a full IDE replacement;
 - whole-disk indexing;
+- a second global scheduler or global super-project;
+- a custom project-local credential vault or automatic credential synchronization;
+- universal foreign plugin-runtime compatibility;
 - autonomous financial/legal execution without approval;
 - Linux desktop parity;
 - first-party replacements for all upstream computer-use engines;
@@ -83,6 +89,9 @@ V1 does **not** require:
 | 24 | skills-subagents | reusable skills and bounded subagent orchestration |
 | 25 | v1-implementation-order | implementation dependency graph and sequencing |
 | 26 | project-workspace-folder-as-project | durable Project, folder roots, files, Git, shell, indexing, task binding |
+| 27 | [global-and-project-automations](27-global-and-project-automations.md) | global menu, project view, shared CRUD, read state, resource concurrency |
+| 28 | [project-skills-plugins](28-project-skills-plugins.md) | project directories, install/activation, compatibility, locks, update/revocation |
+| 29 | [project-connections-secrets](29-project-connections-secrets.md) | portable requirements, protected credentials, broker isolation, Git hygiene, migration |
 
 ## 0.5 Global invariants
 
@@ -110,6 +119,10 @@ All v1 components MUST preserve these invariants:
 20. An Automation MUST NOT gain authority from its prompt, Skill, repository changes, trigger payload, retry, or reroute.
 21. Every admitted Automation run MUST create durable run history even when its semantic outcome is NO_ACTION/NO_ALERT or delivery is intentionally silent.
 22. Automation delivery success and task execution success MUST remain separate facts.
+23. Global and project Automations views MUST use the same identities and authorization; read markers never approve actions or resolve incidents.
+24. Installing a Skill/Plugin MUST NOT imply activation, execution permission, authentication or cross-project availability.
+25. Credentials MUST be protected outside the project working tree; portable requirements and opaque references are not secret grants, and .gitignore is not a security boundary.
+26. Copied project IDs, package caches, connection references and worktrees MUST NOT transfer credential authority.
 
 ## 0.6 Conformance
 
@@ -121,8 +134,17 @@ A component is v1-conformant only if:
 - it participates in the required audit/policy/verification flow;
 - it declares unsupported capabilities instead of silently degrading.
 
+Specifications describe targets, not evidence that features have shipped.
+
 ## 0.7 Source of truth
 
 If this suite conflicts with older v0 specs, **v1 wins**.
 
 If this suite conflicts with an ADR, the conflict MUST be resolved by updating one of them before implementation is merged.
+
+Spec 27 specializes the UI requirements in Specs 13 and 23: a global Automations
+entry and project-filtered entry are required, not alternative implementations.
+Spec 28 specializes installation/loading in Specs 14 and 24. Spec 29 specializes
+project credentials in Specs 17 and 26: being inside an authorized root does not
+make protected local state or credential material readable to an agent. These
+specializations preserve the existing scheduler and policy contracts.
