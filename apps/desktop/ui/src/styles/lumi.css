@@ -145,6 +145,7 @@
 html, body { margin: 0; height: 100%; }
 body {
   font-family: var(--font-sans);
+  font-size: var(--text-base);
   color: var(--color-ink);
   background: var(--color-paper-white);
   background-image: var(--canvas-glow);
@@ -311,14 +312,14 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
   border-bottom: 1px solid var(--color-border);
   user-select: none;
 }
-.breadcrumb { display: flex; align-items: center; gap: 6px; min-width: 170px; font-size: 13px; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; }
 .crumb { color: var(--color-soft-slate); font-weight: 500; cursor: pointer; padding: 0; }
 .crumb:hover { color: var(--color-lumi-blue); }
 .crumb.current { color: var(--color-civic-navy); font-weight: 650; }
 .crumb-sep { color: var(--color-border-strong); }
 
 .searchbox {
-  flex: 1; min-width: 0; max-width: 540px; margin: 0 auto;
+  flex: 1 1 240px; min-width: 0; max-width: 540px; margin: 0 auto;
   display: flex; align-items: center; gap: 8px;
   background: var(--color-surface-white);
   border: 1px solid var(--color-border);
@@ -605,7 +606,7 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
 }
 .tabs::-webkit-scrollbar { display: none; }
 .tab {
-  padding: 8px 12px;
+  min-height: 40px; padding: 10px 12px;
   font-weight: 600; color: var(--color-soft-slate); font-size: 13px;
   border-radius: var(--radius-control) var(--radius-control) 0 0;
   white-space: nowrap;
@@ -646,7 +647,16 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
 .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-bottom: 13px; }
 .two-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
 @media (max-width: 920px) {
+  .action-cards, .recent-grid, .stat-cards { grid-template-columns: 1fr; }
+  .project-layout { grid-template-columns: 1fr; }
+  .context-panel { position: static; }
   .two-cards { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .topbar { gap: 8px; padding-inline: 12px; }
+  .searchbox { flex-basis: 160px; }
+  .topbar-right { min-width: 0; gap: 6px; }
 }
 
 .progress-track { height: 6px; border-radius: var(--radius-pill); background: var(--color-paper-white); border: 1px solid var(--color-border-subtle); overflow: hidden; margin: 10px 0 4px; }
@@ -704,6 +714,7 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
 
 .task-row {
   display: flex; align-items: center; gap: 12px;
+  min-height: 52px;
   padding: 9px 6px;
   border-bottom: 1px solid var(--color-border-subtle);
   cursor: pointer; border-radius: var(--radius-sm);

@@ -66,3 +66,11 @@ test("selected project tabs have an explicit visible state", () => {
     "selected tabs must expose the selected rail",
   );
 });
+
+test("desktop keeps the shared job usable at the minimum window size", () => {
+  assert(css.includes("font-size: var(--text-base)"), "body text must use the canonical base scale");
+  assert(css.includes("min-height: 40px; padding: 10px 12px"), "tabs must retain the documented control rhythm");
+  assert(css.includes("min-height: 52px"), "task rows must retain a readable minimum height");
+  assert(css.includes(".action-cards, .recent-grid, .stat-cards { grid-template-columns: 1fr; }"), "dense grids must stack on narrow windows");
+  assert(css.includes(".topbar { gap: 8px; padding-inline: 12px; }"), "topbar must reflow within the minimum window");
+});
