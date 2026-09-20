@@ -395,3 +395,28 @@ app rebuilt on merged main:
 Remaining open items: the MPL-2.0 decision (external blocker, user decides);
 Spec 06/07/14 executor breadth (workflow-conditional per plan); Spec 19
 control-plane is absent-by-design (local-first, documented).
+
+## 2026-09-20 (session 4): office basic edit — #129, spec30-docx-edit
+
+Spec 30's remaining preview/basic-edit gap closed for Office formats (PPTX
+stays deliberately blocked on the MPL-2.0 license decision):
+
+- **#129 — XLSX basic edit (Spec 30.9/30.12)**: literal cells editable in
+  the grid; formula cells keep their read-only "last saved result" contract.
+  Saving serializes the workbook and traverses the same gate as every other
+  UI write via new base64 binary save ops (`CreateBinary`/`EditBinary`) —
+  decoded BEFORE any durable record exists, so a malformed payload fails
+  closed with no task/run/action and the file untouched (e2e-enforced:
+  round-trip through every byte value, checksum postcondition over real
+  bytes, verified evidence, intact audit chain).
+- **DOCX basic text edit (this PR)**: body paragraphs (first 400) editable
+  in an Edit-text mode; JSZip rewrites word/document.xml in place and the
+  save traverses the identical gated path. Disclosed semantics: an edited
+  paragraph takes its first text run's formatting; headers/footers and
+  text-box tables stay preview-only. jszip (already present transitively
+  via docx-preview) is now a declared direct dependency — MIT option
+  elected, recorded in the OSS research doc.
+
+Verification per PR: rustfmt/clippy clean; desktop suites green; frontend
+99/99 (i18n EN/VI parity, command-surface drift, token hygiene); tsc +
+eslint clean. App rebuilt on merged main after both land.
