@@ -5,15 +5,18 @@
 //! approvals, or executor state.
 
 use lumi_desktop::{
-    gated_file_save, is_runnable, run_desktop_task_with_provider, DesktopRuntime,
-    FileSaveOp, KillSwitchState, OperationsSnapshot, ProjectService, ProviderSession,
+    gated_file_save, is_runnable, run_desktop_task_with_provider, ConnectionRecord,
+    ConnectionsStore, DesktopRuntime, FileSaveOp, KillSwitchState, OperationsSnapshot,
+    ProjectService, ProviderSession,
 };
+use lumi_secrets::{KeyringBackend, SecretBroker};
 use lumi_models::ureq_transport::UreqTransport;
 use lumi_state::CancelToken;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
+use std::path::PathBuf;
 
 /// Shared application state managed by Tauri.
 pub struct AppState {
@@ -33,11 +36,20 @@ pub struct AppState {
     /// Durable state file path, for lock-free task reads while a run
     /// holds the runtime mutex.
     pub state_path: std::path::PathBuf,
+    /// Project connection registry (metadata) — Spec 29.
+    pub connections: Arc<Mutex<ConnectionsStore>>,
+    /// Secrets broker: credential values live here (OS keyring) and are
+    /// resolved at the narrowest boundary only.
+    pub broker: Arc<SecretBroker<KeyringBackend>>,
 }
 
 impl AppState {
     #[must_use]
-    pub fn new(runtime: DesktopRuntime, projects: ProjectService) -> Self {
+    pub fn new(
+        runtime: DesktopRuntime,
+        projects: ProjectService,
+        state_dir: PathBuf,
+    ) -> Self {
         let cancel = runtime.cancellation_token();
         let stop_marker = runtime.stop_marker_path().to_path_buf();
         let state_path = runtime.state_path().to_path_buf();
@@ -49,6 +61,12 @@ impl AppState {
             running: Arc::new(AtomicBool::new(false)),
             provider: Arc::new(Mutex::new(None)),
             state_path,
+            connections: Arc::new(Mutex::new(ConnectionsStore::new(
+                state_dir.join("connections.json"),
+            ))),
+            broker: Arc::new(SecretBroker::new(KeyringBackend::with_service(
+                "Lumi Agents",
+            ))),
         }
     }
 
@@ -728,6 +746,54 @@ fn task_run(
     })
 }
 
+
+// ===== Project connections (Spec 29) =====
+//
+// Metadata via ConnectionsStore (JSON beside runtime state); credential
+// values via the secrets broker (OS keyring). The UI never receives or
+// persists credential values — only references.
+
+#[tauri::command]
+fn connections_list(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+) -> Result<Vec<ConnectionRecord>, String> {
+    Ok(state.connections.lock().expect("connections lock poisoned").list(&project_id))
+}
+
+#[tauri::command]
+fn connections_connect(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    name: String,
+    kind: String,
+    endpoint: String,
+    credential: String,
+) -> Result<ConnectionRecord, String> {
+    let connections = state.connections.lock().expect("connections lock poisoned");
+    connections.connect(
+        &state.broker,
+        &project_id,
+        &name,
+        &kind,
+        &endpoint,
+        &credential,
+    )
+}
+
+#[tauri::command]
+fn connections_disconnect(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    connection_id: String,
+) -> Result<bool, String> {
+    state
+        .connections
+        .lock()
+        .expect("connections lock poisoned")
+        .disconnect(&state.broker, &project_id, &connection_id)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -761,7 +827,7 @@ pub fn run() {
                 Err(error) => return Err(std::io::Error::other(error.to_string()).into()),
             }
             let projects = ProjectService::open(&state_dir).map_err(std::io::Error::other)?;
-            app.manage(AppState::new(runtime, projects));
+            app.manage(AppState::new(runtime, projects, state_dir));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -797,6 +863,9 @@ pub fn run() {
             memory_invalidate,
             artifacts_list,
             project_evidence,
+            connections_list,
+            connections_connect,
+            connections_disconnect,
             provider_get_config,
             provider_set_config,
             provider_clear_config,
@@ -823,7 +892,7 @@ mod tests {
             std::process::id()
         ));
         let projects = ProjectService::open(&projects_dir).unwrap();
-        let state = AppState::new(runtime, projects);
+        let state = AppState::new(runtime, projects, projects_dir.clone());
         assert!(!state.cancellation_token().is_cancelled());
         let _ = std::fs::remove_dir_all(&projects_dir);
         state.cancel.cancel();
@@ -847,7 +916,11 @@ mod tests {
             std::process::id()
         ));
         let projects = ProjectService::open(&projects_dir).unwrap();
-        let state = AppState::new(DesktopRuntime::new(path.clone()).unwrap(), projects);
+        let state = AppState::new(
+            DesktopRuntime::new(path.clone()).unwrap(),
+            projects,
+            path.with_extension("connections"),
+        );
         let snapshot = state.runtime.lock().unwrap().snapshot();
         assert_eq!(
             snapshot.connection,

@@ -10,6 +10,7 @@
 
 pub mod api;
 pub mod automations;
+pub mod connections;
 pub mod permissions;
 pub mod projects;
 pub mod runner;
@@ -21,6 +22,9 @@ pub use api::{
 };
 pub use automations::{
     due_automations, fire_automation, load_automations, save_automations, AutomationRecord,
+};
+pub use connections::{
+    connect_connection, disconnect_connection, list_connections, ConnectionRecord, ConnectionsStore,
 };
 pub use permissions::{PermissionCheckResult, PermissionState, PermissionStatus};
 pub use projects::{

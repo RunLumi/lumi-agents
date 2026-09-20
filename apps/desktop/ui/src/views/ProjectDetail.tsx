@@ -20,8 +20,11 @@ import { Separator } from "@/components/ui/overlays";
 import { FilesTab, type FileRequest } from "./FilesTab";
 import { TasksPanel } from "./TasksPanel";
 import {
-  gitBranches, gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
+  connectionsConnect, connectionsDisconnect, connectionsList, gitBranches,
+  gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
 } from "../ipc/commands";
+import type { ConnectionRecord } from "../ipc/commands";
+import { useCallback } from "react";
 import { projectEvidence, type EvidenceSummaryEntry } from "../ipc/commands";
 import type {
   ArtifactEntry, ChangeSet, CommitInfo, GitStatus,
@@ -127,6 +130,43 @@ export function ProjectDetail({
 }: Props) {
   const [relinkPath, setRelinkPath] = useState("");
   const [goal, setGoal] = useState("");
+  const [connections, setConnections] = useState<ConnectionRecord[]>([]);
+  const [connName, setConnName] = useState("");
+  const [connKind, setConnKind] = useState("api_key");
+  const [connEndpoint, setConnEndpoint] = useState("");
+  const [connCredential, setConnCredential] = useState("");
+
+  const refreshConnections = useCallback(() => {
+    connectionsList(overview.project_id).then(setConnections).catch(() => {});
+  }, [overview.project_id]);
+
+  useEffect(() => {
+    refreshConnections();
+  }, [refreshConnections]);
+
+  const connectConnection = () => {
+    if (!connName.trim() || !connEndpoint.trim() || !connCredential.trim()) {
+      toast(t("connections.missingFields"), "error");
+      return;
+    }
+    connectionsConnect(overview.project_id, {
+      name: connName.trim(),
+      kind: connKind,
+      endpoint: connEndpoint.trim(),
+      credential: connCredential.trim(),
+    }).then(() => {
+      setConnName(""); setConnEndpoint(""); setConnCredential("");
+      toast(t("connections.saved"), "success");
+      refreshConnections();
+    }).catch((e) => toast(String(e), "error"));
+  };
+
+  const disconnectConnection = (record: ConnectionRecord) => {
+    connectionsDisconnect(overview.project_id, record.connection_id).then(() => {
+      toast(t("connections.disconnected"), "success");
+      refreshConnections();
+    }).catch((e) => toast(String(e), "error"));
+  };
   const [commitMsg, setCommitMsg] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [branchName, setBranchName] = useState("");
@@ -467,6 +507,47 @@ export function ProjectDetail({
                 <span className="kv-key">{t("settings.instructions")}</span>
                 <span className="kv-val">{overview.instructions.length ? overview.instructions.join(", ") : t("settings.noneFound")}</span>
               </div>
+              <h3 style={{ marginTop: 16 }}>{t("connections.title")}</h3>
+              {connections.length === 0 ? (
+                <p className="muted small">{t("connections.empty")}</p>
+              ) : (
+                <div className="mini-list">
+                  {connections.map((record) => (
+                    <div key={record.connection_id} className="mini-row">
+                      <Glyph name="branch" />
+                      <span style={{ flex: 1, minWidth: 0 }} className="small">{record.name}</span>
+                      <span className="mono muted small" style={{ maxWidth: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {record.endpoint}
+                      </span>
+                      <StatusBadge variant="status-done">{t("connections.connected")}</StatusBadge>
+                      <Button variant="secondary" size="sm" onClick={() => disconnectConnection(record)}>
+                        {t("connections.disconnect")}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <h3 style={{ marginTop: 16 }}>{t("connections.add")}</h3>
+              <p className="muted small">{t("connections.desc")}</p>
+              <div className="inline-form">
+                <Input value={connName} onChange={(e) => setConnName(e.target.value)} placeholder={t("connections.name")} />
+                <select
+                  className="input"
+                  value={connKind}
+                  onChange={(e) => setConnKind(e.target.value)}
+                  aria-label={t("connections.kind")}
+                >
+                  <option value="api_key">api_key</option>
+                  <option value="basic">basic</option>
+                  <option value="custom">custom</option>
+                </select>
+              </div>
+              <div className="inline-form">
+                <Input value={connEndpoint} onChange={(e) => setConnEndpoint(e.target.value)} placeholder={t("connections.endpoint")} />
+                <Input value={connCredential} onChange={(e) => setConnCredential(e.target.value)} placeholder={t("connections.credential")} type="password" />
+                <Button size="sm" onClick={connectConnection}>{t("connections.add")}</Button>
+              </div>
+              <p className="muted small">{t("connections.kind")}: {connKind}</p>
             </div>
             <div className="card">
               <h3>{t("settings.caps")}</h3>

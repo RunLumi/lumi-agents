@@ -102,6 +102,25 @@ export const changeSet = (projectId: string, taskId: string) =>
 export const changeSets = (projectId: string) =>
   getTransport().invoke<ChangeSet[]>("change_sets", { projectId });
 
+// project connections (Spec 29: metadata here, credential in broker)
+export interface ConnectionRecord {
+  connection_id: string;
+  project_id: string;
+  name: string;
+  kind: string;
+  endpoint: string;
+  credential_ref: string;
+  created_at: string;
+}
+export const connectionsList = (projectId: string) =>
+  getTransport().invoke<ConnectionRecord[]>("connections_list", { projectId });
+export const connectionsConnect = (
+  projectId: string,
+  input: { name: string; kind: string; endpoint: string; credential: string },
+) => getTransport().invoke<ConnectionRecord>("connections_connect", { projectId, ...input });
+export const connectionsDisconnect = (projectId: string, connectionId: string) =>
+  getTransport().invoke<boolean>("connections_disconnect", { projectId, connectionId });
+
 // preview (Spec 30 phase A: binary formats via bounded base64)
 export interface FileContentBase64 {
   path: string;
@@ -184,4 +203,7 @@ export const COMMAND_NAMES = [
   "task_run",
   "project_evidence",
   "file_read_base64",
+  "connections_list",
+  "connections_connect",
+  "connections_disconnect",
 ] as const;
