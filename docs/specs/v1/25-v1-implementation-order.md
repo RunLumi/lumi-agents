@@ -33,11 +33,15 @@ After the trust/execution vertical slice is reliable:
 14. Spec 26 — Project workspace / Folder-as-Project
 15. Spec 10 — context/memory with Project scoping
 16. Spec 13 — Project-native Automations / scheduler / run history
-17. Spec 14 — MCP/connectors/extensions
-18. Spec 15 — desktop app/device distribution with Project entry points
-19. Spec 23 — user experience/handoff with Project + Automations/Review Queue UX
+17. Spec 14 — MCP/connectors/extensions, with Spec 24 Skill contracts
+18. Spec 29 — protected project connections / broker scoping / safe initialization
+19. Spec 28 — project Skill/Plugin install, activation and dependency snapshots
+20. Spec 15 — desktop app/device distribution with Project entry points
+21. Specs 23 and 27 — shared global/project Automations management and review UX
 
 Spec 26 is intentionally placed immediately after filesystem/shell primitives.
+Specs 28–29 reuse Spec 14/17/24 boundaries; they are not a second extension runtime
+or secret store. Spec 27 uses Spec 13 identities and admission, not another scheduler.
 
 Do not build "Open Folder" as a UI-only feature before Project identity, root boundaries, task binding, conflict handling, and change-set semantics exist.
 
@@ -45,12 +49,12 @@ Do not build "Open Folder" as a UI-only feature before Project identity, root bo
 
 Then:
 
-20. Spec 17 — full security/privacy hardening throughout implementation
-21. Spec 19 — control plane/sync
-22. Spec 20 — versioning/migrations
-23. Spec 21 — release certification automation
-24. Spec 24 — skills/subagents
-25. Spec 22 — v1 final acceptance
+22. Spec 17 — full security/privacy hardening throughout implementation
+23. Spec 19 — control plane/sync
+24. Spec 20 — versioning/migrations
+25. Spec 21 — release certification automation
+26. Spec 24 — remaining bounded subagent behavior
+27. Spec 22 — v1 final acceptance, including 22.8 Automations and 22.14 project extensions/connections
 
 Spec 17 security is cross-cutting and MUST be applied continuously; its position here describes broader product hardening, not permission to defer security basics.
 
@@ -82,18 +86,22 @@ Spec 17 security is cross-cutting and MUST be applied continuously; its position
           ↓
 26 Project Workspace
    ├─→ 10 Context/Memory
-   ├─→ 15 Desktop
-   └─→ 23 UX/Handoff
-13 Scheduler
-14 Extensions
-          ↓
+   ├─→ 13 Scheduler/Automations
+   └─→ 14 Extensions + 24 Skills + 17 Secret/policy boundaries
+                         ↓
+                 29 Project Connections
+                         ↓
+                 28 Project Skills/Plugins
+                         ↓
+       15 Desktop + 23 Handoff + 27 Global/Project Automations
+                         ↓
 17 Security hardening
 19 Control Plane
 20 Versioning
 21 Certification
-24 Skills/Subagents
+24 Remaining Subagents
           ↓
-22 V1 Done
+22 V1 Done (including 22.8 and 22.14)
 ```
 
 ## 25.6 First seven-day slice
@@ -186,7 +194,7 @@ Recommended order:
 6. task source resolution + source hashes;
 7. unattended authority lease/current-policy intersection;
 8. durable AutomationRun history;
-9. dedup + overlap;
+9. dedup + per-automation overlap + shared browser/resource arbitration (Spec 27);
 10. missed-run policy;
 11. retry/backoff + auto-pause;
 12. semantic outcome contract;
@@ -194,8 +202,10 @@ Recommended order:
 14. manual Run Now / test mode;
 15. EVENT + follow-up offsets;
 16. repo-native `.lumi/automations.yaml` import/diff;
-17. Ads Agents intraday/daily fixture;
-18. launch-watch/post-change event-offset fixture.
+17. global and project-filtered list/editor over shared records, per-user read state (Spec 27);
+18. dependency snapshot and connection readiness checks (Specs 28–29);
+19. Ads Agents intraday/daily fixture;
+20. launch-watch/post-change event-offset fixture.
 
 Do not begin with a visual DAG editor or arbitrary scheduler scripts.
 
@@ -205,9 +215,11 @@ The acceptance spine is:
 Import Ads Agents automation
 → Run Test
 → Enable
+→ appears once globally and in its Project
 → restart Lumi
 → due occurrence creates durable Task/Run
-→ correct Project/browser environment
+→ approved dependency snapshot and project connection ready
+→ correct Project/browser environment with exclusive conflicting control
 → externally read-only authority
 → report/worklog persisted
 → NO_ALERT stays silent but visible in History
@@ -221,3 +233,23 @@ Do not start a new architectural layer because the roadmap lists it.
 Start it when the previous layer's contract tests and vertical-slice evidence make it necessary.
 
 For Project mode, optimize for the shortest path from **Open Folder** to **verified useful change**, not for IDE feature breadth.
+
+## 25.11 Project extension and connection implementation slice
+
+Track the bounded slice in #76; integrate its readiness checks with Automations #73.
+
+1. Reuse project/state/policy/secret contracts; add registered-project and authenticated
+   caller/account/destination authorization at the broker boundary.
+2. Add safe initialization and effective Git/tracked-state checks, including local
+   `.lumi/project.json` exclusion and explicit foreign-marker recovery under Spec 29.
+3. Prove metadata-only native/compatibility Skill discovery and unambiguous naming.
+4. Install one versioned local/first-party bundle with separate enable/connect states,
+   exact content locks and immutable active-run snapshots.
+5. Add one enforceably sandboxed or brokered integration; refuse unsupported isolation.
+6. Wire project Connections/Skills/Plugins UX, update/disable/revoke dependencies,
+   and cross-project isolation into the shared automation editor/admission path.
+7. Run Specs 28–29 adversarial fixtures and supported-platform canaries; record
+   evidence for Spec 22.14 separately from existing component tests.
+
+No public marketplace or custom credential vault is prerequisite. Existing Keychain
+plumbing and a configuration file do not pass the new isolation/activation gates.

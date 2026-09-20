@@ -156,6 +156,18 @@ automation activation, or browser sessions. A checked-in/copied Project marker i
 not proof of secret ownership. Register the project against trusted local identity
 and root information outside the checkout before any binding can resolve.
 
+The existing `.lumi/project.json` marker is local identity metadata, not portable
+project configuration. Exclude it from Git and project exports. If already tracked,
+show its tracked status and require explicit consent to remove it from the index
+without deleting the local marker. Do not silently rewrite published history.
+
+A clone/archive carrying a foreign marker MUST offer a deliberate `Register as new
+project` recovery: validate the selected root and local registry claims, preserve
+the old marker for recovery, issue a fresh local identity atomically, and leave all
+connections, grants and automation activation unbound. Do not auto-rekey a root
+that may be an existing/moved project. An identity marker alone is not a leaked
+secret; rotate credentials only when credential material was actually exposed.
+
 A legitimate moved folder can retain identity after explicit relink and validation.
 A fork/new device requires new connection binding. An isolated worktree created by
 the runtime MAY use the parent Project's explicitly allowed connection through the
@@ -179,6 +191,7 @@ setup error and no hidden rewrite.
 
 ```gitignore
 # BEGIN Lumi local-only state
+/.lumi/project.json
 /.lumi/local/
 /.lumi/runtime/
 /.lumi/cache/
@@ -270,6 +283,9 @@ Test with synthetic canary secrets; never real customer values in CI:
   not bypass broker authorization.
 - Removing/negating `.gitignore` does not expose secrets through read/search/shell/
   plugin/export paths; pre-existing tracked files trigger remediation.
+- The project marker is excluded from new Git adds/exports; tracked markers are
+  handled explicitly; a foreign-marker clone can register a fresh local identity
+  without gaining old credentials, leases, or enabled schedules.
 - Initialization is idempotent, preserves unrelated ignore rules, handles non-Git
   and read-only folders, and refuses symlink/negation/stale-write pitfalls.
 - Vault locked/unavailable never falls back to plaintext; restart works only with
