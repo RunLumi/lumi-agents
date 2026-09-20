@@ -1,62 +1,31 @@
-/* Document preview (Spec 30 phase A): format-detected read surfaces over
-   the bounded file read IPC. Markdown renders through react-markdown +
-   remark-gfm with raw HTML disabled; links are inert. Images render via
-   inert <img> data URLs. CSV/TSV is a literal bounded table — no type
-   coercion, duplicate headers and ragged rows preserved. Unsupported
-   formats state so explicitly instead of faking a viewer. */
+/* Document preview (Spec 30): format-detected read surfaces over the
+   bounded file read IPC. Markdown renders through react-markdown +
+   remark-gfm with raw HTML disabled; links are inert. Images render
+   via inert <img> data URLs; media via <video>/<audio> with an honest
+   decode-failure state; zip containers list their entries read-only.
+   CSV/TSV is a literal bounded table — no type coercion, duplicate
+   headers and ragged rows preserved. Kind detection lives in
+   lib/previewKinds.ts (pure, unit-tested). Unsupported formats state
+   so explicitly instead of faking a viewer. */
 import { lazy, memo, Suspense, useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { t } from "../lib/i18n";
 import { fileReadBase64 } from "../ipc/commands";
+import {
+  extensionOf,
+  mimeFor,
+  previewKindFor,
+  type PreviewKind,
+} from "../lib/previewKinds";
+
+export { extensionOf, previewKindFor };
+export type { PreviewKind };
 
 const PdfPreview = lazy(() => import("./PdfPreview"));
 const DocxPreview = lazy(() => import("./DocxPreview"));
 const XlsxPreview = lazy(() => import("./XlsxPreview"));
-
-const IMAGE_TYPES: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  gif: "image/gif",
-  svg: "image/svg+xml",
-};
-
-const OFFICE_TYPES = new Set([
-  "pptx", "doc", "xls", "ppt",
-  "docm", "xlsm", "pptm", "heic", "tiff",
-]);
-
-export type PreviewKind =
-  | "text"
-  | "markdown"
-  | "image"
-  | "csv"
-  | "pdf"
-  | "docx"
-  | "xlsx"
-  | "unsupported";
-
-export function extensionOf(path: string): string {
-  const base = path.split("/").pop() ?? path;
-  const dot = base.lastIndexOf(".");
-  return dot === -1 ? "" : base.slice(dot + 1).toLowerCase();
-}
-
-/** Content sniffing overrides the filename (Spec 30.3: never trust the
-    extension alone); the extension drives only the rendering choice. */
-export function previewKindFor(path: string, isTextFile: boolean): PreviewKind {
-  const ext = extensionOf(path);
-  if (ext === "md" || ext === "markdown") return "markdown";
-  if (ext in IMAGE_TYPES) return "image";
-  if (ext === "csv" || ext === "tsv") return "csv";
-  if (ext === "pdf") return "pdf";
-  if (ext === "docx") return "docx";
-  if (ext === "xlsx") return "xlsx";
-  if (OFFICE_TYPES.has(ext)) return "unsupported";
-  return isTextFile ? "text" : "unsupported";
-}
+const ZipPreview = lazy(() => import("./ZipPreview"));
 
 function MarkdownPreview({ content }: { content: string }) {
   const [view, setView] = useState<"rendered" | "source" | "split">("rendered");
@@ -98,25 +67,55 @@ function MarkdownPreview({ content }: { content: string }) {
   );
 }
 
-export function ImagePreview({ path, project }: { path: string; project: string }) {
+export function DataUrlPreview({ path, project, kind }: { path: string; project: string; kind: "image" | "media" }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [decodeFailed, setDecodeFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
     setDataUrl(null);
+    setDecodeFailed(false);
     setError(null);
     fileReadBase64(project, path).then((fc) => {
       if (!alive) return;
-      const mime = IMAGE_TYPES[extensionOf(path)] ?? "application/octet-stream";
-      setDataUrl(`data:${mime};base64,${fc.content_base64}`);
+      setDataUrl(`data:${mimeFor(path)};base64,${fc.content_base64}`);
     }).catch((e) => alive && setError(String(e)));
     return () => { alive = false; };
   }, [path, project]);
   if (error) return <div className="empty-state">{error}</div>;
   if (!dataUrl) return <div className="muted small">{t("misc.loading")}</div>;
+  if (kind === "image") {
+    return (
+      <div style={{ overflow: "auto", maxHeight: 520 }}>
+        <img
+          src={dataUrl}
+          alt={t("preview.image")}
+          style={{ maxWidth: "100%", display: "block" }}
+          onError={() => setDecodeFailed(true)}
+        />
+        {decodeFailed && <p className="muted small">{t("preview.decodeFail")}</p>}
+      </div>
+    );
+  }
+  const isVideo = mimeFor(path).startsWith("video/");
   return (
     <div style={{ overflow: "auto", maxHeight: 520 }}>
-      <img src={dataUrl} alt={t("preview.image")} style={{ maxWidth: "100%", display: "block" }} />
+      {isVideo ? (
+        <video
+          src={dataUrl}
+          controls
+          style={{ maxWidth: "100%", display: "block" }}
+          onError={() => setDecodeFailed(true)}
+        />
+      ) : (
+        <audio
+          src={dataUrl}
+          controls
+          style={{ width: "100%" }}
+          onError={() => setDecodeFailed(true)}
+        />
+      )}
+      {decodeFailed && <p className="muted small">{t("preview.decodeFail")}</p>}
     </div>
   );
 }
@@ -128,38 +127,36 @@ function CsvPreview({ content }: { content: string }) {
   const MAX_ROWS = 300;
   const MAX_COLS = 24;
   const firstLine = content.split(/\r?\n/, 1)[0] ?? "";
-  const tabs = (firstLine.match(/\t/g) ?? []).length;
-  const commas = (firstLine.match(/,/g) ?? []).length;
-  const delimiter = tabs > commas ? "\t" : ",";
-  const rows = content
-    .split(/\r?\n/)
-    .filter((line, i, arr) => !(i === arr.length - 1 && line === ""))
-    .slice(0, MAX_ROWS)
-    .map((line) => line.split(delimiter));
-  const cols = Math.min(MAX_COLS, Math.max(...rows.map((r) => r.length), 0));
+  const sep = (firstLine.includes("\t") ? "\t" : ",") as string;
+  const lines = content.split(/\r?\n/).filter((_, i, all) => i < MAX_ROWS || i === all.length - 1);
+  if (lines.length > MAX_ROWS) lines.length = MAX_ROWS;
   return (
     <div style={{ overflow: "auto", maxHeight: 520 }}>
-      <p className="muted small">{t("preview.csv")}</p>
       <table className="tabular" style={{ borderCollapse: "collapse", fontSize: 12 }}>
         <tbody>
-          {rows.map((row, ri) => (
+          {lines.map((line, ri) => (
             <tr key={ri}>
-              {Array.from({ length: cols }, (_, ci) => (
-                <td key={ci} style={{ border: "1px solid var(--color-border-subtle)", padding: "3px 8px", whiteSpace: "pre" }}>
-                  {row[ci] ?? ""}
+              {line.split(sep).slice(0, MAX_COLS).map((cell, ci) => (
+                <td
+                  key={ci}
+                  style={{
+                    border: "1px solid var(--color-border-subtle)",
+                    padding: "3px 8px",
+                    whiteSpace: "pre",
+                    background: ri === 0 ? "var(--color-surface-white)" : undefined,
+                    fontWeight: ri === 0 ? 600 : undefined,
+                  }}
+                >
+                  {cell}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      {content.split(/\r?\n/).length > MAX_ROWS && (
-        <p className="muted small">…</p>
-      )}
     </div>
   );
 }
-
 
 function UnsupportedPreview({ ext }: { ext: string }) {
   return (
@@ -186,7 +183,8 @@ export const DocumentPreview = memo(function DocumentPreview({
     case "markdown":
       return <MarkdownPreview content={content} />;
     case "image":
-      return <ImagePreview path={path} project={project} />;
+    case "media":
+      return <DataUrlPreview path={path} project={project} kind={kind} />;
     case "csv":
       return <CsvPreview content={content} />;
     case "pdf":
@@ -207,11 +205,19 @@ export const DocumentPreview = memo(function DocumentPreview({
           <XlsxPreview path={path} project={project} />
         </Suspense>
       );
+    case "zip":
+      return (
+        <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+          <ZipPreview path={path} project={project} />
+        </Suspense>
+      );
     case "unsupported": {
       const ext = extensionOf(path);
       // Readable text (e.g. .gitignore-style or unknown text) still gets
-      // the text surface; truly binary Office/PDF stay unsupported.
-      const looksBinary = content.includes("\u0000");
+      // the text surface; truly binary Office/PDF stay unsupported. An
+      // empty content means the file was routed binary (self-fetching
+      // viewers take their own path) — that is a binary too.
+      const looksBinary = content === "" || content.includes("\u0000");
       return looksBinary ? <UnsupportedPreview ext={ext} /> : <pre className="code-body" style={{ maxHeight: 520, overflow: "auto" }}>{content}</pre>;
     }
     default:

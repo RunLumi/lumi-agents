@@ -17,13 +17,10 @@ import {
 import {
   fileCreate, fileDelete, fileEdit, fileList, fileRead, fileSearch,
 } from "../ipc/commands";
-import { DocumentPreview, ImagePreview, previewKindFor } from "./DocumentPreview";
-
-
+import { DocumentPreview, previewKindFor } from "./DocumentPreview";
+import { isBinaryKind } from "../lib/previewKinds";
 
 const CodeEditor = lazy(() => import("./CodeEditor"));
-const PdfPreview = lazy(() => import("./PdfPreview"));
-const XlsxPreview = lazy(() => import("./XlsxPreview"));
 import type { ListedEntry, SearchHit } from "../ipc/types";
 
 export interface FileRequest {
@@ -69,9 +66,9 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
       return;
     }
     const kind = previewKindFor(path, true);
-    // Binary preview formats self-fetch via the bounded base64 IPC
-    // (XLSX is a binary container too — its viewer parses the workbook).
-    if (kind === "image" || kind === "pdf" || kind === "xlsx") {
+    // Binary preview formats self-fetch via the bounded base64 IPC —
+    // the text read refuses binaries, so route them before it.
+    if (isBinaryKind(kind)) {
       setSelected({ path, binary: true });
       setEditing(false);
       return;
@@ -80,7 +77,7 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
       setSelected({ path: fc.path, content: fc.content, sha256: fc.sha256, binary: false });
       setEditing(false);
       setDraft(fc.content);
-    }).catch(() => toast(t("files.saveFail"), "error"));
+    }).catch(() => toast(t("files.openFail"), "error"));
   }, [projectId]);
 
   const refresh = useCallback((dir: string) => {
@@ -256,17 +253,7 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
             </div>
             <p className="muted small">{t("files.contextGuard")}</p>
             {selected.binary ? (
-              previewKindFor(selected.path, true) === "pdf" ? (
-                <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
-                  <PdfPreview path={selected.path} project={projectId} />
-                </Suspense>
-              ) : previewKindFor(selected.path, true) === "xlsx" ? (
-                <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
-                  <XlsxPreview path={selected.path} project={projectId} />
-                </Suspense>
-              ) : (
-                <ImagePreview path={selected.path} project={projectId} />
-              )
+              <DocumentPreview path={selected.path} project={projectId} content="" />
             ) : editing ? (
               <>
                 {/* Spec 30.7: CodeMirror editing surface — undo/redo
