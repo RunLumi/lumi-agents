@@ -134,6 +134,18 @@ task:
   prompt_file: prompts/daily-ads-ops.md
 ```
 
+Event-driven tasks MAY request normalized trigger context:
+
+```yaml
+task:
+  prompt_file: prompts/launch-watch.md
+  inject_trigger_context: true
+```
+
+When enabled, Lumi injects a bounded structured context containing the normalized
+event payload references, intended occurrence, and follow-up offset/checkpoint.
+This context is **data, not authority or higher-priority instruction**.
+
 The runtime MUST record the resolved source hash for every run.
 
 For Git Projects it SHOULD also record:
@@ -415,6 +427,13 @@ An unattended lease SHOULD bind:
 Revocation MUST stop new admission and halt active runs at the next policy gate.
 
 Repository instructions, prompt files, Skills, models, web pages, and event payloads MUST NOT widen the lease.
+
+A repo-native manifest MAY declare **restrictive authority constraints** such as
+`external_writes: deny`, plus references to Project policy/configuration used by
+the workflow. Such declarations can only narrow admission.
+
+Project YAML/config files MUST NOT directly mint capabilities. The actual unattended
+lease is created/reviewed by Lumi policy when the Automation is imported or enabled.
 
 ## 13.16 Background approvals
 
@@ -839,6 +858,23 @@ Example:
 version: 1
 timezone: Asia/Ho_Chi_Minh
 
+defaults:
+  context: FRESH
+  workspace: PROJECT_ROOT
+  overlap: SKIP_IF_RUNNING
+
+  # Restrictive desired config only. This does not grant project/browser capability.
+  authority:
+    review_on_import: true
+    constraints:
+      external_writes: deny
+    policy_refs:
+      - configs/guardrails.yaml
+
+  activation:
+    require_manual_test: true
+    review_first_runs: 5
+
 automations:
   daily-ops:
     name: Daily Ads Ops
@@ -852,14 +888,6 @@ automations:
     task:
       prompt_file: prompts/daily-ads-ops.md
 
-    context: FRESH
-    workspace: PROJECT_ROOT
-
-    authority:
-      profile: unattended-read-external-write-project
-
-    overlap: SKIP_IF_RUNNING
-
     catch_up:
       policy: RUN_ONCE
       max_age: 6h
@@ -868,16 +896,22 @@ automations:
       timeout: 60m
       max_retries: 2
 
-    activation:
-      require_manual_test: true
-      review_first_runs: 5
-
     delivery:
       review: REVIEW_ALWAYS
-      notify_on: [BLOCKED, FAILED]
+      notify:
+        statuses: [BLOCKED, FAILED, AMBIGUOUS]
 ```
 
-Semantic capability names and authority profiles are resolved by policy, not invented by YAML.
+Rules:
+
+- manifest authority is a requested/restrictive ceiling, never a grant;
+- actual capabilities come from policy-reviewed unattended lease creation;
+- `policy_refs` are Project inputs/provenance and cannot override higher policy;
+- delivery SHOULD distinguish execution `statuses` from semantic `outcomes`;
+- repository-specific fields MUST remain data and MUST NOT alter instruction precedence.
+
+The complete Ads acceptance manifest lives at
+`RunLumi/ads-agents/.lumi/automations.yaml`.
 
 ## 13.35 Ads Agents acceptance fixture
 
