@@ -1,4 +1,5 @@
 /* Shared UI helpers. */
+import { toast as sonnerToast } from "sonner";
 import { t } from "./i18n";
 
 export function timeAgo(rfc3339: string | undefined): string {
@@ -40,12 +41,12 @@ export function gitIsClean(git: { staged: unknown[]; unstaged: unknown[]; untrac
   return !!git && gitChanged(git) === 0;
 }
 
+/** Toast notifications via the shadcn/sonner Toaster (mounted in App).
+    Existing (message, kind) call sites keep working. */
 export function toast(message: string, kind: "" | "error" | "success" = ""): void {
-  const el = document.createElement("div");
-  el.className = `toast ${kind}`;
-  el.textContent = message;
-  document.getElementById("toasts")?.appendChild(el);
-  setTimeout(() => el.remove(), 4200);
+  if (kind === "success") sonnerToast.success(message);
+  else if (kind === "error") sonnerToast.error(message);
+  else sonnerToast(message);
 }
 
 export function setRoute(hash: string): void {

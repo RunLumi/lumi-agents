@@ -1,5 +1,7 @@
 import { Glyph } from "../components/Icons";
+import { t } from "../lib/i18n";
 import { timeAgo } from "../lib/ui";
+import { StatusBadge } from "@/components/ui/badge";
 import type { ProjectSummary } from "../ipc/types";
 
 interface Props {
@@ -10,10 +12,10 @@ interface Props {
 export function ProjectsHome({ projects, onOpen }: Props) {
   return (
     <div>
-      <div className="section-head"><h2>Recent Projects</h2></div>
-      <p className="section-sub">Your recently opened projects.</p>
+      <div className="section-head"><h2>{t("home.recentTitle")}</h2></div>
+      <p className="section-sub">{t("home.recentSub")}</p>
       {!projects.length ? (
-        <div className="empty-state">No projects yet.</div>
+        <div className="empty-state">{t("home.empty")}</div>
       ) : (
         <div className="recent-grid">
           {projects.map((p) => (
@@ -24,9 +26,9 @@ export function ProjectsHome({ projects, onOpen }: Props) {
                   <div className="recent-name">{p.display_name}</div>
                   <div className="recent-desc">{p.detected_source} · {timeAgo(p.last_opened_at)}</div>
                 </span>
-                <span className={`pill ${p.health === "available" ? "pill-green" : "pill-amber"}`}>
-                  {p.health === "available" ? "Available" : "Unavailable"}
-                </span>
+                {p.health === "available"
+                  ? <StatusBadge variant="status-done">{t("status.available")}</StatusBadge>
+                  : <StatusBadge variant="status-overdue">{t(p.health === "moved" ? "status.moved" : "status.notAvailable")}</StatusBadge>}
               </div>
               <div className="recent-meta">
                 <span className="chip">{p.primary_root}</span>

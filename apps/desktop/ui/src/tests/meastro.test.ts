@@ -106,7 +106,24 @@ const cssFiles = ["styles/lumi.css", "styles/index.css"]
   .join("\n");
 const cssClasses = new Set([...cssFiles.matchAll(/\.([a-zA-Z][a-zA-Z0-9_-]*)/g)].map((m) => m[1]));
 
-test("meastro/css: every static className exists in the Lumi stylesheets", () => {
+/* Tailwind utilities are generated on demand from source; a class like
+   `hover:bg-primary` resolves through the framework, not lumi.css.
+   Recognize utilities by their (variant-stripped) stem so the gate can
+   keep enforcing "no invisible SEMANTIC classes". */
+const UTILITY_STEMS =
+  /^(p|px|py|pt|pb|pl|pr|ps|pe|m|mx|my|mt|mb|ml|mr|gap|w|h|min-w|max-w|size|top|bottom|left|right|inset|text|bg|border|border-b|border-t|border-l|border-r|rounded|font|leading|tracking|shadow|opacity|ring|ring-offset|transition|duration|ease|translate|translate-y|translate-x|z|col|row|order|flex|grid|items|justify|content|self|place|overflow|whitespace|outline|scrollbar|animate|filter|brightness|underline|selection|group|data|aria|from|to|via|list|object|aspect|columns|divide|space|table|cursor|select|resize|appearance|pointer-events|fill|stroke|sr)-|^(flex|grid|block|inline|inline-flex|hidden|relative|absolute|fixed|sticky|static|truncate|tabular-nums|sr-only|isolate|container|subgrid|antialiased|italic|uppercase|lowercase|capitalize|underline|line-through|no-underline|border-collapse|outline-none|appearance-none|overflow-ellipsis)$/;
+function isTailwindUtility(cls: string): boolean {
+  // Arbitrary values/properties and stacked variants are utilities.
+  if (cls.includes("[") || cls.includes("(")) return true;
+  const stem = cls.split(":").pop() ?? cls;
+  return UTILITY_STEMS.test(stem);
+}
+
+/* Classes a library requires on its own root (sonner's toast group
+   contract). Not layout styles we own. */
+const EXTERNAL_CLASS_CONTRACTS = new Set(["toaster", "group"]);
+
+test("meastro/css: every static className exists in the Lumi stylesheets or is a Tailwind utility", () => {
   const used: string[] = [];
   for (const f of tsxFiles) {
     const text = readFileSync(f, "utf8");
@@ -120,7 +137,12 @@ test("meastro/css: every static className exists in the Lumi stylesheets", () =>
     }
   }
   const unknown = [...new Set(used)].filter(
-    (c) => c && !c.includes("$") && !cssClasses.has(c),
+    (c) =>
+      c &&
+      !c.includes("$") &&
+      !cssClasses.has(c) &&
+      !isTailwindUtility(c) &&
+      !EXTERNAL_CLASS_CONTRACTS.has(c),
   );
   assert.deepEqual(unknown, [], `classNames with no CSS rule: ${unknown.join(", ")}`);
 });
@@ -156,6 +178,13 @@ test("meastro/honesty: no placeholder or demo text ships in the UI", () => {
     text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
   const offenders = tsxFiles.filter((f) => banned.test(stripComments(readFileSync(f, "utf8"))));
   assert.deepEqual(offenders, [], `placeholder/demo text in: ${offenders.join(", ")}`);
+});
+
+test("meastro/badges: status chips use the §10.4 lit-token Badge, not hand-rolled pills", () => {
+  // DESIGN.md §10.4: "Never hand-roll a statusColors map on a page."
+  // The legacy `.pill-*` classes are superseded by <StatusBadge>.
+  const offenders = tsxFiles.filter((f) => /className=\{?["`][^"`}]*\bpill\b/.test(readFileSync(f, "utf8")));
+  assert.deepEqual(offenders, [], `hand-rolled status pills in: ${offenders.join(", ")}`);
 });
 
 test("meastro/a11y: icon-only buttons expose an accessible name", () => {

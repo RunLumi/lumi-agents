@@ -1,2 +1,91 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "./lumi.css";
+
+/* ==================================================================
+   Tailwind adapter (DESIGN.md §20) — shadcn/ui semantic tokens mapped
+   onto the canonical §19 layer in lumi.css. No palette values live
+   here; every mapping references the token layer so the §19.1
+   cross-platform parity contract stays the single source of truth.
+   ================================================================== */
+
+:root {
+  /* shadcn semantic names -> Lumi §19 tokens */
+  --background: var(--color-paper-white);
+  --foreground: var(--color-ink);
+  --card: var(--color-surface-white);
+  --card-foreground: var(--color-civic-navy);
+  --popover: var(--color-surface-white);
+  --popover-foreground: var(--color-civic-navy);
+  --primary: var(--color-lumi-blue);
+  --primary-foreground: var(--color-surface-white);
+  --secondary: var(--color-paper-white);
+  --secondary-foreground: var(--color-civic-navy);
+  --muted: var(--color-paper-white);
+  --muted-foreground: var(--color-soft-slate);
+  --accent: var(--color-lumi-blue-soft);
+  --accent-foreground: var(--color-lumi-blue-active);
+  --destructive: var(--color-risk-red);
+  --destructive-foreground: var(--color-surface-white);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-lumi-blue);
+
+  /* Badge lit-token quads (DESIGN.md §10.4): five families, each a
+     surface + same-hue inset ring + saturated dot + AA strong ink.
+     Components reference these tokens; never inline values. */
+  --badge-neutral-surface: var(--color-archive-gray);
+  --badge-neutral-ring: color-mix(in oklch, var(--color-soft-slate) 16%, transparent);
+  --badge-neutral-dot: var(--color-soft-slate);
+  --badge-neutral-text: var(--color-civic-navy);
+
+  --badge-info-surface: var(--color-lumi-blue-soft);
+  --badge-info-ring: color-mix(in oklch, var(--color-lumi-blue) 20%, transparent);
+  --badge-info-dot: var(--color-lumi-blue);
+  --badge-info-text: var(--color-lumi-blue);
+
+  --badge-success-surface: var(--color-green-soft);
+  --badge-success-ring: color-mix(in oklch, var(--color-success-green) 20%, transparent);
+  --badge-success-dot: var(--color-success-green);
+  --badge-success-text: var(--color-success-green);
+
+  --badge-warning-surface: var(--color-amber-soft);
+  --badge-warning-ring: color-mix(in oklch, var(--color-signal-amber) 28%, transparent);
+  --badge-warning-dot: var(--color-signal-amber);
+  --badge-warning-text: color-mix(in oklch, var(--color-signal-amber) 62%, var(--color-civic-navy));
+
+  --badge-danger-surface: var(--color-red-soft);
+  --badge-danger-ring: color-mix(in oklch, var(--color-risk-red) 22%, transparent);
+  --badge-danger-dot: var(--color-risk-red);
+  --badge-danger-text: var(--color-risk-red);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary-hover: var(--color-lumi-blue-hover);
+  --color-primary-active: var(--color-lumi-blue-active);
+
+  /* Radius scale per the §20 example; values are the §19 tokens. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}

@@ -1,14 +1,23 @@
 /* App chrome: borderless-window traffic lights, collapsible sidebar,
-   topbar (drag region + search + stop + language switch + avatar). */
+   topbar (drag region + search + stop + language switch + avatar).
+   Controls use shadcn/ui primitives (Button, AlertDialog, Tooltip)
+   themed to the Lumi design system. */
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Glyph } from "./Icons";
 import { t } from "../lib/i18n";
 import type { Lang } from "../lib/i18n";
 import { setRoute } from "../lib/ui";
 import type { OperationsSnapshot } from "../ipc/types";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/overlays";
 
 const WIN = () => getCurrentWindow();
 
+/* macOS window chrome — bespoke dots, not product buttons (§10.1 does
+   not govern titlebar controls). */
 export function TrafficLights() {
   return (
     <div className="titlebar-strip">
@@ -93,17 +102,47 @@ export function Sidebar({ active, badgeTasks, badgeApprovals, snapshot, collapse
 export function LangSwitch({ lang, onSwitch }: { lang: Lang; onSwitch: (lang: Lang) => void }) {
   return (
     <div className="lang-switch" role="group" aria-label={t("misc.language")}>
-      <button className={`lang-opt${lang === "en" ? " active" : ""}`} onClick={() => onSwitch("en")}>EN</button>
-      <button className={`lang-opt${lang === "vi" ? " active" : ""}`} onClick={() => onSwitch("vi")}>VI</button>
+      {(["en", "vi"] as const).map((code) => (
+        <Button
+          key={code}
+          size="sm"
+          variant={lang === code ? "secondary" : "ghost"}
+          aria-pressed={lang === code}
+          onClick={() => onSwitch(code)}
+        >
+          {code.toUpperCase()}
+        </Button>
+      ))}
     </div>
   );
 }
 
+/** Stop is consequential: it halts all agent work, so the shadcn
+    AlertDialog asks for the explicit decision first (§4: approvals are
+    UX). The confirm action keeps the destructive outline weight. */
 export function StopButton({ small = false, onStop }: { small?: boolean; onStop: () => void }) {
   return (
-    <button className={`btn btn-danger-outline${small ? " btn-sm" : ""}`} onClick={onStop}>
-      <Glyph name="stop" /> {t("nav.stop")}
-    </button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size={small ? "sm" : "default"}>
+          <Glyph name="stop" /> {t("nav.stop")}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogTitle>{t("nav.stop")}</AlertDialogTitle>
+        <AlertDialogDescription>{t("misc.stopConfirm")}</AlertDialogDescription>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <AlertDialogCancel asChild>
+            <Button variant="secondary" size="sm">{t("files.cancel")}</Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button variant="destructive" size="sm" onClick={onStop}>
+              <Glyph name="stop" /> {t("nav.stop")}
+            </Button>
+          </AlertDialogAction>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

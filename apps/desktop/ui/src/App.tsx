@@ -5,6 +5,8 @@ import { Sidebar, Topbar } from "./components/chrome";
 import type { NavKey } from "./components/chrome";
 import { ProjectsHome } from "./views/ProjectsHome";
 import { ProjectDetail } from "./views/ProjectDetail";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
 import { toast } from "./lib/ui";
 import { t, detect } from "./lib/i18n";
 import { setLang } from "./lib/i18n";
@@ -110,6 +112,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <Toaster position="bottom-right" />
       <Sidebar
         active={activeNav}
         badgeTasks={badgeTasks}
@@ -130,9 +133,9 @@ export default function App() {
           lang={lang}
           onSwitch={switchLanguage}
           right={
-            <button className="btn btn-primary btn-sm" onClick={openFolder}>
+            <Button size="sm" onClick={openFolder}>
               {t("projects.openFolder")}
-            </button>
+            </Button>
           }
         />
         <main className="content">
