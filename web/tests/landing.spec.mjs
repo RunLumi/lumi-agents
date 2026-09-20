@@ -28,7 +28,15 @@ for (const [name, width, height] of [['mobile', 375, 812], ['small-mobile', 320,
     await mkdir('test-results/screenshots', { recursive: true });
     await page.screenshot({ path: `test-results/screenshots/${name}.png`, fullPage: true });
     if (name === 'desktop') await page.screenshot({ path: 'test-results/screenshots/desktop-fold.png' });
-    await page.locator('#thong-tin').screenshot({ path: `test-results/screenshots/facts-${name}.png` });
+    const labelColumnRatio = await page.locator('#thong-tin table').evaluate(table =>
+      table.querySelector('thead th').getBoundingClientRect().width / table.getBoundingClientRect().width);
+    expect(Math.abs(labelColumnRatio - (width <= 600 ? 0.32 : 0.28))).toBeLessThan(0.025);
+    // The complete page above retains all chrome. Hide unrelated fixed chrome
+    // only for this tall section crop, so it does not obscure the fact sheet.
+    await page.locator('#thong-tin').screenshot({
+      path: `test-results/screenshots/facts-${name}.png`,
+      style: '.site-header, .skip-link { visibility: hidden !important; }',
+    });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(244, 240, 232)');
     expect(await page.evaluate(() => document.fonts.check('600 32px "Geist Variable"', 'Giữ quyền làm chủ'))).toBe(true);
