@@ -153,6 +153,58 @@ const artifacts = [
   },
 ];
 
+/* In-memory fixture filesystem for the Files tab and palette search.
+   sha256 is a djb2 stand-in: the devmock never leaves the browser. */
+const fixtureFiles = new Map<string, string>([
+  ["README.md", "# PrintUp\n\nReconciliation workspace for the Q3 ledger close.\n"],
+  ["docs/runbook.md", "# Runbook\n\n1. Pull the CRM export.\n2. Reconcile totals.\n3. File the summary.\n"],
+  ["src/index.ts", "import { reconcile } from \"./invoice/reconcile\";\n\nconsole.log(\"printup ready\");\n"],
+  ["src/invoice/reconcile.ts", "export function reconcile(rows: string[]): number {\n  return rows.length * 42;\n}\n"],
+  ["ledger.csv", "month,total\nJuly,1200\nAugust,1350\nSeptember,1480\n"],
+]);
+
+const sha = (content: string): string => {
+  let h = 5381;
+  for (let i = 0; i < content.length; i++) h = ((h << 5) + h + content.charCodeAt(i)) >>> 0;
+  return `dm${h.toString(16).padStart(8, "0")}`;
+};
+
+function listDir(path: string): Array<Record<string, unknown>> {
+  const prefix = path === "." ? "" : `${path}/`;
+  const dirs = new Set<string>();
+  const files: Array<Record<string, unknown>> = [];
+  for (const full of fixtureFiles.keys()) {
+    if (!full.startsWith(prefix)) continue;
+    const rest = full.slice(prefix.length);
+    const slash = rest.indexOf("/");
+    if (slash === -1) {
+      files.push({ name: rest, path: full, is_dir: false, size: fixtureFiles.get(full)!.length });
+    } else {
+      dirs.add(rest.slice(0, slash));
+    }
+  }
+  return [
+    ...[...dirs].map((d) => ({ name: d, path: prefix ? `${prefix}${d}` : d, is_dir: true })),
+    ...files,
+  ];
+}
+
+function searchFixture(query: string, mode: string): Array<Record<string, unknown>> {
+  const q = query.toLowerCase();
+  const hits: Array<Record<string, unknown>> = [];
+  for (const [path, content] of fixtureFiles) {
+    if (mode !== "text") {
+      const name = path.split("/").pop()!;
+      if (name.toLowerCase().includes(q)) hits.push({ path });
+      continue;
+    }
+    content.split("\n").forEach((line, i) => {
+      if (line.toLowerCase().includes(q)) hits.push({ path, line: i + 1, snippet: line.trim().slice(0, 90) });
+    });
+  }
+  return hits.slice(0, 200);
+}
+
 export function createMockTransport(): Transport {
   return {
     async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -220,6 +272,38 @@ export function createMockTransport(): Transport {
             economics: null,
             permissions: null,
           } as T;
+        case "file_list":
+          return listDir((args?.path as string) ?? ".") as T;
+        case "file_read": {
+          const path = args?.path as string;
+          const content = fixtureFiles.get(path);
+          if (content === undefined) throw new Error("devmock: file not found");
+          return { path, content, sha256: sha(content) } as T;
+        }
+        case "file_create": {
+          const path = args?.path as string;
+          if (fixtureFiles.has(path)) throw new Error("devmock: file exists");
+          fixtureFiles.set(path, (args?.content as string) ?? "");
+          return null as T;
+        }
+        case "file_edit": {
+          const path = args?.path as string;
+          const current = fixtureFiles.get(path);
+          if (current === undefined) throw new Error("devmock: file not found");
+          if (sha(current) !== args?.expectedSha256) throw new Error("devmock: stale write refused");
+          fixtureFiles.set(path, (args?.content as string) ?? "");
+          return null as T;
+        }
+        case "file_delete": {
+          const path = args?.path as string;
+          const current = fixtureFiles.get(path);
+          if (current === undefined) throw new Error("devmock: file not found");
+          if (args?.expectedSha256 && sha(current) !== args.expectedSha256) throw new Error("devmock: stale delete refused");
+          fixtureFiles.delete(path);
+          return null as T;
+        }
+        case "file_search":
+          return searchFixture(args?.query as string, args?.mode as string) as T;
         case "emergency_stop":
           return { stopped: true } as T;
         case "get_kill_switch":
