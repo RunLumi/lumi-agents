@@ -15,7 +15,7 @@ import type { Lang } from "./lib/i18n";
 import { activeNavFor, type NavKey } from "./lib/navigation";
 import {
   emergencyStop, getOperationsSnapshot, projectListRecent, projectOpenFolder,
-  projectOverview, gitStatus, taskList, changeSets, artifactsList,
+  projectOverview, gitStatus, taskList, changeSets, artifactsList, automationsTick,
 } from "./ipc/commands";
 import type {
   ArtifactEntry, ChangeSet, GitStatus, OperationsSnapshot,
@@ -80,6 +80,18 @@ export default function App() {
     const timer = setInterval(() => {
       getOperationsSnapshot().then(setSnapshot).catch(() => {});
     }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Automation tick (Spec 27): every 30s the shell checks due project
+  // schedules; the webview supplies the device's local UTC offset. A
+  // tick while a run holds the runtime is skipped honestly by the shell.
+  useEffect(() => {
+    const tick = () => {
+      automationsTick(-new Date().getTimezoneOffset() * 60).catch(() => {});
+    };
+    tick();
+    const timer = setInterval(tick, 30_000);
     return () => clearInterval(timer);
   }, []);
 

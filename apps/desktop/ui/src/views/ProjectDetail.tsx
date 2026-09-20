@@ -21,6 +21,8 @@ import { FilesTab, type FileRequest } from "./FilesTab";
 import { TasksPanel } from "./TasksPanel";
 import {
   connectionsConnect, connectionsDisconnect, connectionsList, connectionsVerify, gitBranches,
+  automationsList, automationsCreate, automationsSetEnabled, automationsDelete,
+  type AutomationRecord,
   gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
 } from "../ipc/commands";
 import type { ConnectionRecord } from "../ipc/commands";
@@ -175,6 +177,40 @@ export function ProjectDetail({
     connectionsVerify(overview.project_id, record.connection_id).then((present) => {
       setVerifyState((prev) => ({ ...prev, [record.connection_id]: present }));
       toast(present ? t("connections.verifyOk") : t("connections.verifyMissing"), present ? "success" : "error");
+    }).catch((e) => toast(String(e), "error"));
+  };
+
+  // Project automations (Spec 27): schedules whose admitted firings
+  // materialize durable project-bound tasks.
+  const [automations, setAutomations] = useState<AutomationRecord[]>([]);
+  const [autoGoal, setAutoGoal] = useState("");
+  const [autoCron, setAutoCron] = useState("");
+  const refreshAutomations = useCallback(() => {
+    automationsList(overview.project_id).then(setAutomations).catch(() => {});
+  }, [overview.project_id]);
+  useEffect(() => {
+    refreshAutomations();
+  }, [refreshAutomations]);
+  const createAutomation = () => {
+    if (!autoGoal.trim() || !autoCron.trim()) {
+      toast(t("automations.missingFields"), "error");
+      return;
+    }
+    automationsCreate(overview.project_id, autoGoal.trim(), autoCron.trim()).then(() => {
+      setAutoGoal(""); setAutoCron("");
+      toast(t("automations.created"), "success");
+      refreshAutomations();
+    }).catch((e) => toast(String(e), "error"));
+  };
+  const toggleAutomation = (record: AutomationRecord) => {
+    automationsSetEnabled(overview.project_id, record.automation_id, !record.enabled).then(() => {
+      refreshAutomations();
+    }).catch((e) => toast(String(e), "error"));
+  };
+  const removeAutomation = (record: AutomationRecord) => {
+    automationsDelete(overview.project_id, record.automation_id).then(() => {
+      toast(t("automations.deleted"), "success");
+      refreshAutomations();
     }).catch((e) => toast(String(e), "error"));
   };
   const [commitMsg, setCommitMsg] = useState("");
@@ -572,6 +608,43 @@ export function ProjectDetail({
                 <Button size="sm" onClick={connectConnection}>{t("connections.add")}</Button>
               </div>
               <p className="muted small">{t("connections.kind")}: {connKind}</p>
+            </div>
+            <div className="card">
+              <h3 style={{ marginTop: 16 }}>{t("automations.title")}</h3>
+              <p className="muted small">{t("automations.desc")}</p>
+              {automations.length === 0 ? (
+                <p className="muted small">{t("automations.empty")}</p>
+              ) : (
+                <div className="mini-list">
+                  {automations.map((record) => (
+                    <div key={record.automation_id} className="mini-row">
+                      <span style={{ flex: 1, minWidth: 0 }} className="small">
+                        {record.goal}
+                        <span className="mono muted small" style={{ marginLeft: 6 }}>
+                          {record.schedule.cron_expression}
+                        </span>
+                      </span>
+                      {record.enabled ? (
+                        <StatusBadge variant="status-done">{t("automations.enabled")}</StatusBadge>
+                      ) : (
+                        <StatusBadge variant="status-open">{t("automations.disabled")}</StatusBadge>
+                      )}
+                      <Button variant="secondary" size="sm" onClick={() => toggleAutomation(record)}>
+                        {record.enabled ? t("automations.disable") : t("automations.enable")}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => removeAutomation(record)}>
+                        {t("automations.delete")}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <h3 style={{ marginTop: 16 }}>{t("automations.add")}</h3>
+              <div className="inline-form">
+                <Input value={autoGoal} onChange={(e) => setAutoGoal(e.target.value)} placeholder={t("automations.goal")} />
+                <Input value={autoCron} onChange={(e) => setAutoCron(e.target.value)} placeholder={t("automations.cron")} className="mono" />
+                <Button size="sm" onClick={createAutomation}>{t("automations.add")}</Button>
+              </div>
             </div>
             <div className="card">
               <h3>{t("settings.caps")}</h3>

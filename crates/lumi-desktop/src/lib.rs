@@ -21,7 +21,8 @@ pub use api::{
     IssuedApproval, KillSwitchState, OperationsSnapshot, PendingApproval,
 };
 pub use automations::{
-    due_automations, fire_automation, load_automations, save_automations, AutomationRecord,
+    create_automation, delete_automation, due_automations, fire_automation, load_automations,
+    save_automations, set_automation_enabled, AutomationRecord,
 };
 pub use connections::{
     connect_connection, disconnect_connection, list_connections, ConnectionRecord, ConnectionsStore,

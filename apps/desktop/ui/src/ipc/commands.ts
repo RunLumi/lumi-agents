@@ -141,6 +141,38 @@ export const fileEditBase64 = (
     contentBase64,
   });
 
+// project automations (Spec 27: schedules materialize durable tasks)
+export interface AutomationRecord {
+  automation_id: string;
+  schedule: { cron_expression: string; timezone: string; enabled: boolean };
+  project_id: string;
+  workspace_root: string;
+  goal: string;
+  enabled: boolean;
+}
+export const automationsList = (projectId: string) =>
+  getTransport().invoke<AutomationRecord[]>("automations_list", { projectId });
+export const automationsCreate = (projectId: string, goal: string, cron: string) =>
+  getTransport().invoke<AutomationRecord>("automations_create", { projectId, goal, cron });
+export const automationsSetEnabled = (
+  projectId: string,
+  automationId: string,
+  enabled: boolean,
+) =>
+  getTransport().invoke<AutomationRecord>("automations_set_enabled", {
+    projectId,
+    automationId,
+    enabled,
+  });
+export const automationsDelete = (projectId: string, automationId: string) =>
+  getTransport().invoke<boolean>("automations_delete", { projectId, automationId });
+export interface TickResult {
+  fired: string[];
+  refused: string[];
+}
+export const automationsTick = (localOffsetSeconds: number) =>
+  getTransport().invoke<TickResult>("automations_tick", { localOffsetSeconds });
+
 // preview (Spec 30 phase A: binary formats via bounded base64)
 export interface FileContentBase64 {
   path: string;
@@ -229,4 +261,9 @@ export const COMMAND_NAMES = [
   "connections_verify",
   "file_create_base64",
   "file_edit_base64",
+  "automations_list",
+  "automations_create",
+  "automations_set_enabled",
+  "automations_delete",
+  "automations_tick",
 ] as const;

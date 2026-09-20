@@ -162,3 +162,92 @@ fn automation_firing_respects_policy_refusals() {
     let persisted = runtime.orchestrator.store.read().unwrap();
     assert!(persisted.tasks.is_empty(), "no side effects on refusal");
 }
+
+#[test]
+fn automation_crud_roundtrip_validates_cron_and_scopes_per_project() {
+    let guard = DepotGuard(depot("crud"));
+    let records_path = guard.0.join("automations.json");
+    let tenant = TenantId::parse("tenant-automations").unwrap();
+    let project_a = ProjectId::generate();
+    let project_b = ProjectId::generate();
+
+    // Malformed cron refuses BEFORE persisting anything.
+    let err = lumi_desktop::create_automation(
+        &records_path,
+        tenant.clone(),
+        project_a.clone(),
+        "/tmp/ws-a".to_owned(),
+        "Summarize the ledger",
+        "not a cron",
+    )
+    .unwrap_err();
+    assert!(err.contains("invalid cron"), "{err}");
+    assert!(
+        !records_path.exists(),
+        "nothing persisted for a refused create"
+    );
+
+    // Empty goal refuses too.
+    assert!(lumi_desktop::create_automation(
+        &records_path,
+        tenant.clone(),
+        project_a.clone(),
+        "/tmp/ws-a".to_owned(),
+        "  ",
+        "30 6 * * *",
+    )
+    .is_err());
+
+    // Valid create round-trips.
+    let record = lumi_desktop::create_automation(
+        &records_path,
+        tenant.clone(),
+        project_a.clone(),
+        "/tmp/ws-a".to_owned(),
+        "Summarize the ledger",
+        "30 6 * * *",
+    )
+    .unwrap();
+    assert!(record.enabled);
+    assert_eq!(record.goal, "Summarize the ledger");
+
+    // Project scoping: project B sees nothing; disable/delete by id on
+    // the wrong project refuse honestly.
+    assert!(lumi_desktop::set_automation_enabled(
+        &records_path,
+        project_b.as_str(),
+        &record.automation_id,
+        false
+    )
+    .is_err());
+    assert!(!lumi_desktop::delete_automation(
+        &records_path,
+        project_b.as_str(),
+        &record.automation_id
+    )
+    .unwrap());
+
+    // Disable flips the flag and persists.
+    let updated = lumi_desktop::set_automation_enabled(
+        &records_path,
+        project_a.as_str(),
+        &record.automation_id,
+        false,
+    )
+    .unwrap();
+    assert!(!updated.enabled);
+    let reloaded = lumi_desktop::load_automations(&records_path).unwrap();
+    assert_eq!(reloaded.len(), 1);
+    assert!(!reloaded[0].enabled);
+
+    // Delete removes.
+    assert!(lumi_desktop::delete_automation(
+        &records_path,
+        project_a.as_str(),
+        &record.automation_id
+    )
+    .unwrap());
+    assert!(lumi_desktop::load_automations(&records_path)
+        .unwrap()
+        .is_empty());
+}
