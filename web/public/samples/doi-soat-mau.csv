@@ -1,0 +1,15 @@
+sample_id,order_amount_vnd,transaction_amount_vnd,status,note
+MAU-001,100000,100000,matched,Du lieu gia lap
+MAU-002,150000,150000,matched,Du lieu gia lap
+MAU-003,200000,200000,matched,Du lieu gia lap
+MAU-004,250000,250000,matched,Du lieu gia lap
+MAU-005,300000,300000,matched,Du lieu gia lap
+MAU-006,350000,350000,matched,Du lieu gia lap
+MAU-007,400000,400000,matched,Du lieu gia lap
+MAU-008,450000,450000,matched,Du lieu gia lap
+MAU-009,500000,500000,matched,Du lieu gia lap
+MAU-010,550000,550000,matched,Du lieu gia lap
+MAU-011,600000,600000,matched,Du lieu gia lap
+MAU-012,650000,650000,matched,Du lieu gia lap
+MAU-013,250000,240000,amount_mismatch,Chenh lech 10000 VND
+MAU-014,,180000,missing_order_id,Khong du ma don de doi chieu

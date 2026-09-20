@@ -1,0 +1,42 @@
+---
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
+import '../styles/global.css';
+import { site, previewBuild } from '../data/site.mjs';
+interface Props { title?: string; description?: string; noindex?: boolean }
+const { title = site.title, description = site.description, noindex = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, site.origin).href;
+const schema = JSON.stringify({
+  '@context': 'https://schema.org', '@type': 'WebSite', name: site.name,
+  url: site.origin, inLanguage: 'vi-VN', description,
+  publisher: { '@type': 'Organization', name: 'RunLumi', url: 'https://runlumi.app' },
+}).replace(/</g, '\\u003c');
+---
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#F4F0E8" />
+    <meta name="color-scheme" content="light" />
+    <meta name="description" content={description} />
+    <meta name="robots" content={noindex || previewBuild ? 'noindex, nofollow' : 'index, follow'} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/brand/lumi-logo.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="vi_VN" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={`${site.origin}/og.png`} />
+    <meta property="og:image:alt" content="Lumi Agents — Giao việc cho AI. Giữ quyền làm chủ." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={`${site.origin}/og.png`} />
+    <title>{title}</title>
+    <script type="application/ld+json" set:html={schema} />
+  </head>
+  <body><slot /></body>
+</html>

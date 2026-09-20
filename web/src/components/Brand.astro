@@ -1,0 +1,8 @@
+---
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;
+---
+<span class:list={['brand', { 'brand-compact': compact }]}>
+  <img src="/brand/lumi-logo.svg" width="44" height="44" alt="" decoding="async" />
+  <span class="brand-name">Lumi<span class="brand-product">Agents</span></span>
+</span>

@@ -1,0 +1,64 @@
+---
+import Glyph from './Glyph.astro';
+import { workflows } from '../data/site.mjs';
+---
+<section class="demo-section" id="san-pham" aria-labelledby="demo-title">
+  <div class="demo-topline">
+    <h2 id="demo-title"><span class="annotation-dot" aria-hidden="true"></span> Từ lời giao việc đến tệp kết quả</h2>
+    <div class="demo-tabs" role="tablist" aria-label="Chọn ví dụ công việc" data-demo-tabs hidden>
+      {workflows.map((flow, index) => (
+        <button type="button" id={`tab-${flow.id}`} role="tab" aria-controls={`panel-${flow.id}`} aria-selected={index === 0 ? 'true' : 'false'} tabindex={index === 0 ? 0 : -1} data-demo-tab={flow.id}>
+          <Glyph name={flow.glyph} size={17} /><span>{flow.label}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+  <p class="sr-only" role="status" data-demo-status></p>
+  <div class="work-window">
+    <div class="window-bar" aria-hidden="true">
+      <span class="window-dots"><i></i><i></i><i></i></span>
+      <span>Lumi Agents <span class="window-divider">/</span> Không gian làm việc</span>
+      <span class="window-label">Bản mô phỏng</span>
+    </div>
+    {workflows.map((flow, index) => (
+      <div class="demo-panel" id={`panel-${flow.id}`} role="tabpanel" aria-labelledby={`tab-${flow.id}`} tabindex="0" hidden={index !== 0}>
+        <aside class="demo-sidebar" aria-label={`Ngữ cảnh mẫu: ${flow.project}`}>
+          <div class="sidebar-workspace"><Glyph name="folder" /><span>Dự án của bạn</span></div>
+          <div class="sidebar-project"><span class="project-square" aria-hidden="true"></span><span>{flow.project}</span></div>
+          <p class="sidebar-label">Tệp trong phạm vi</p>
+          <ul class="source-files">{flow.files.map(file => <li><Glyph name="file" size={16} /><span>{file}</span></li>)}</ul>
+          <div class="sidebar-separator"></div>
+          <p class="sidebar-label">Kết quả</p>
+          <div class="sidebar-output"><Glyph name="file" size={16} /><span>{flow.artifact}</span></div>
+          <div class="scope-note"><Glyph name="lock" size={16} /><span>Một thư mục.<br />Phạm vi rõ ràng.</span></div>
+        </aside>
+        <div class="demo-task">
+          <div class="task-breadcrumb"><Glyph name="folder" size={15} /><span>{flow.folder}</span><span aria-hidden="true">/</span><span>Tác vụ mẫu</span></div>
+          <h3>{flow.task}</h3>
+          <div class="task-badges"><span><Glyph name="lock" size={13} /> Nguồn chỉ đọc</span><span>Bản nháp cục bộ</span></div>
+          <div class="prompt-sheet"><span class="prompt-label">Bạn giao việc</span><p>{flow.prompt}</p></div>
+          <div class="agent-heading"><img src="/brand/lumi-logo.svg" width="30" height="30" alt="" /><span>Lumi<span class="muted"> / Luồng minh họa</span></span></div>
+          <ol class="task-steps">{flow.steps.map(step => <li><span class="step-check"><Glyph name="check" size={13} /></span><span>{step}</span></li>)}</ol>
+          <div class="result-note"><strong>{flow.result}</strong><p>{flow.summary}</p></div>
+          <p class="task-limit"><Glyph name="shield" size={14} /> Không gửi ra ngoài. Không sửa dữ liệu gốc.</p>
+        </div>
+        <aside class="artifact-area" aria-label={`Kết quả minh họa: ${flow.artifactLabel}`}>
+          <div class="artifact-caption"><Glyph name="file" size={16} /><span>Tệp kết quả mẫu</span></div>
+          <div class="artifact-paper">
+            <div class="paper-fold" aria-hidden="true"></div>
+            <span class="paper-kicker">{flow.artifactLabel}</span>
+            <p class="artifact-metric">{flow.metric}</p>
+            <p class="artifact-metric-label">{flow.metricLabel}</p>
+            <div class="artifact-rule"></div>
+            <ul class="artifact-rows">{flow.rows.map(([label, value, state]) => <li><span>{label}</span><span class={`row-status ${state}`}>{value}</span></li>)}</ul>
+            <div class="artifact-source"><Glyph name="evidence" size={15} /><span>Nguồn mẫu<br /><span class="source-name">{flow.source}</span></span></div>
+          </div>
+          <a class="artifact-download" href={`/samples/${flow.artifact}`} download><Glyph name="download" size={16} /> Tải tệp minh họa <Glyph name="arrow" size={16} /></a>
+          <details class="demo-exception"><summary>{flow.exceptionTitle}<Glyph name="plus" size={15} /></summary><p>{flow.exception}</p></details>
+        </aside>
+      </div>
+    ))}
+  </div>
+  <div class="demo-footnote"><p>Demo tương tác · dữ liệu giả lập · không chạy agent trên trang này.</p><a href="#cach-hoat-dong">Hiểu cách Lumi làm việc <Glyph name="arrow" size={15} /></a></div>
+  <noscript><p class="fine-print">JavaScript đang tắt. Ví dụ đối soát và các tệp minh họa vẫn xem được; bật JavaScript để chuyển giữa ba ví dụ.</p></noscript>
+</section>
