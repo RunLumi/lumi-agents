@@ -6,6 +6,7 @@
    bundle (§30.15). */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "../lib/i18n";
+import { Field } from "@/components/ui/field";
 
 const MAX_SEARCH_PAGES = 200;
 
@@ -119,13 +120,16 @@ export default function PdfPreview({
   return (
     <div>
       <div className="inline-form">
-        <input
-          className="input"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t("preview.pdfSearch")}
-          onKeyDown={(e) => e.key === "Enter" && search()}
-        />
+        <Field id="pdf-search" label={t("preview.pdfSearchLabel")}>
+          <input
+            id="pdf-search"
+            className="input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("preview.pdfSearch")}
+            onKeyDown={(e) => e.key === "Enter" && search()}
+          />
+        </Field>
         <button className="btn btn-sm" onClick={search}>{t("preview.pdfSearchGo")}</button>
         <span className="muted small">
           {numPages > 0 ? `${numPages} pages` : t("misc.loading")}

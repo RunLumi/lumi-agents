@@ -61,11 +61,17 @@ export function Palette({
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("palette.title")}
+      description={t("palette.description")}
+    >
       <CommandInput
         value={query}
         onValueChange={setQuery}
         placeholder={t("palette.placeholder")}
+        aria-label={t("palette.placeholder")}
       />
       <CommandList>
         <CommandEmpty>{t("palette.noMatches")}</CommandEmpty>
