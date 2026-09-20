@@ -1,0 +1,161 @@
+/* Lumi desktop UI — Tailwind v4 theme built mechanically from DESIGN.md §19.
+   This file is the ONLY place raw token values appear in ui/src (§6 rule). */
+
+@import "tailwindcss";
+
+@theme {
+  /* Brand — OKLCH blue ramp anchors (§5.1/§19) */
+  --color-lumi-blue: #006093;
+  --color-lumi-blue-hover: #004F80;
+  --color-lumi-blue-active: #003E6A;
+  --color-lumi-blue-soft: #E4F3FC;
+
+  /* Text */
+  --color-civic-navy: #102A43;
+  --color-ink: #172033;
+  --color-soft-slate: #5E6677;
+
+  /* Surfaces */
+  --color-paper-white: #F4F0E8;
+  --color-surface-white: #FFFFFF;
+  --color-archive-gray: #E7EAF0;
+  --color-border-subtle: #E7EAF0;
+  --color-border-lumi: #D9DEE8;
+  --color-border-strong: #C8D0DE;
+
+  /* States */
+  --color-signal-amber: #F4A62A;
+  --color-amber-soft: #FFF4DC;
+  --color-risk-red: #C2410C;
+  --color-red-soft: #FFF1EC;
+  --color-success-green: #1F7A4D;
+  --color-green-soft: #E9F7EF;
+
+  /* Typography — Geist, one family, two voices by weight (§6.1) */
+  --font-sans: Geist, "Noto Sans", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: Geist, "Noto Sans", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  /* Radius (§8.1) */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-card: 8px;
+  --radius-control: 8px;
+  --radius-popover: 12px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Elevation — navy-tinted 4-tier ramp (§8.3) */
+  --shadow-elevation-1: 0 1px 2px rgba(16, 42, 67, 0.05);
+  --shadow-elevation-2: 0 8px 24px -6px rgba(16, 42, 67, 0.10),
+    0 2px 6px -2px rgba(16, 42, 67, 0.06);
+  --shadow-elevation-3: 0 16px 40px -8px rgba(16, 42, 67, 0.14),
+    0 4px 10px -4px rgba(16, 42, 67, 0.08);
+  --shadow-elevation-4: 0 28px 60px -12px rgba(16, 42, 67, 0.20),
+    0 8px 18px -6px rgba(16, 42, 67, 0.10);
+
+  /* Motion (§14) */
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-slow: 260ms;
+  --ease-out-lumi: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root {
+  color-scheme: light;
+
+  /* Lit shadows (§8.3) — consumed by material recipes */
+  --shadow-lit: inset 0 1px 0 0 color-mix(in oklch, white 70%, transparent),
+    inset 0 -1px 1px 0 color-mix(in oklch, var(--color-civic-navy) 5%, transparent);
+  --shadow-card: inset 0 1px 0 0 color-mix(in oklch, white 60%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-civic-navy) 8%, transparent),
+    0 8px 20px -10px color-mix(in oklch, var(--color-civic-navy) 10%, transparent);
+  --shadow-card-hover: inset 0 1px 0 0 color-mix(in oklch, white 68%, transparent),
+    0 2px 6px -2px color-mix(in oklch, var(--color-civic-navy) 10%, transparent),
+    0 12px 28px -14px color-mix(in oklch, var(--color-civic-navy) 14%, transparent);
+  --shadow-raised: inset 0 1px 0 0 color-mix(in oklch, white 72%, transparent),
+    0 8px 24px -6px color-mix(in oklch, var(--color-civic-navy) 10%, transparent),
+    0 2px 6px -2px color-mix(in oklch, var(--color-civic-navy) 6%, transparent);
+  --shadow-button: inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent),
+    0 1px 2px 0 color-mix(in oklch, var(--color-civic-navy) 22%, transparent);
+  --shadow-input: inset 0 1px 1px 0 color-mix(in oklch, var(--color-civic-navy) 4%, transparent);
+  --shadow-overlay: inset 0 1px 0 0 color-mix(in oklch, white 75%, transparent),
+    0 16px 40px -8px color-mix(in oklch, var(--color-civic-navy) 14%, transparent),
+    0 4px 10px -4px color-mix(in oklch, var(--color-civic-navy) 8%, transparent);
+  --shadow-modal: inset 0 1px 0 0 color-mix(in oklch, white 80%, transparent),
+    0 28px 60px -12px color-mix(in oklch, var(--color-civic-navy) 20%, transparent),
+    0 8px 18px -6px color-mix(in oklch, var(--color-civic-navy) 10%, transparent);
+
+  --gradient-primary: linear-gradient(180deg,
+    color-mix(in oklch, white 10%, var(--color-lumi-blue)) 0%,
+    var(--color-lumi-blue) 52%,
+    var(--color-lumi-blue-hover) 100%);
+
+  --canvas-glow: radial-gradient(115% 50% at 50% -6%,
+    color-mix(in oklch, white 60%, transparent) 0%, transparent 58%);
+
+  /* Liquid glass — translucent floating-chrome materials (§8.0, amended
+     2026-09-20). Glass is chrome-only; content stays on opaque recipes. */
+  --glass-tint: color-mix(in oklch, var(--color-surface-white) 72%, transparent);
+  --glass-tint-strong: color-mix(in oklch, var(--color-surface-white) 88%, transparent);
+  --glass-border: color-mix(in oklch, var(--color-border) 60%, transparent);
+  --glass-blur: 18px;
+  --glass-blur-strong: 32px;
+  --glass-saturate: 1.4;
+}
+
+/* Material recipes (§8.0): glass is floating chrome only. */
+@utility glass-chrome {
+  background: var(--glass-tint);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-raised);
+}
+@utility glass-overlay {
+  background: var(--glass-tint-strong);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-overlay);
+}
+@utility glass-modal {
+  background: var(--glass-tint-strong);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+}
+
+/* §5.3 degradation: glass collapses to its opaque twin when the user opts
+   out of transparency or the webview lacks backdrop-filter. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-chrome, .glass-overlay, .glass-modal {
+    background: var(--color-surface-white);
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-chrome, .glass-overlay, .glass-modal {
+    background: var(--color-surface-white);
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background-color: var(--color-paper-white);
+  background-image: var(--canvas-glow);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}

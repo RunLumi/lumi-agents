@@ -2,6 +2,13 @@
 /* DEV PREVIEW fixture data. Loaded only via index.html?devmock .
    Never wired in the packaged app: no query parameter, no fixture. */
 (function () {
+  window.localStorage = {
+    _s: {},
+    getItem(k) { return this._s[k] != null ? this._s[k] : null; },
+    setItem(k, v) { this._s[k] = String(v); },
+    removeItem(k) { delete this._s[k]; },
+  };
+  window.navigator = window.navigator || {};
   const ago = (mins) => new Date(Date.now() - mins * 60000).toISOString();
   window.__TAURI__ = {
     core: {
