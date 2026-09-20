@@ -357,3 +357,105 @@ For a Project task, completion should answer four questions clearly:
 4. What, if anything, requires the user's next action?
 
 A polished narrative without an inspectable change set and validation state is insufficient for substantial file/repository work.
+
+
+## 23.29 Automations
+
+Desktop SHOULD expose a first-class **Automations** surface.
+
+The default list SHOULD answer:
+
+- What will run?
+- For which Project?
+- When is the next run?
+- Is it enabled, paused, or needs attention?
+- What happened last time?
+- Does anything need review?
+
+Each Automation row SHOULD show:
+
+- name;
+- Project;
+- human-readable schedule;
+- next run;
+- latest semantic outcome;
+- state;
+- review/attention indicator.
+
+The Automation detail SHOULD expose:
+
+- trigger and timezone;
+- task source (prompt / Skill / Workflow);
+- workspace mode;
+- context mode;
+- authority summary;
+- model preference;
+- overlap/catch-up/retry policy;
+- delivery/review policy;
+- recent runs;
+- source revision/hash.
+
+Primary controls:
+
+- Run Now;
+- Pause / Resume;
+- Edit;
+- Archive/Delete.
+
+Users SHOULD see human schedule language by default:
+
+```text
+Every 4 hours
+Daily at 09:00 · Asia/Ho_Chi_Minh
+Every Monday at 10:00
+First weekday monthly at 10:30
+After launch: +1h, +4h, +24h, +48h, +72h
+```
+
+Raw cron/RRULE belongs behind an advanced disclosure.
+
+## 23.30 Automation Review Queue
+
+Automation results SHOULD not flood ordinary task/chat surfaces.
+
+Review Queue SHOULD rank:
+
+1. approval required;
+2. incident / failure / blocked;
+3. actionable recommendation;
+4. completed informational result.
+
+Healthy silent monitor outcomes such as `NO_ALERT` stay in History unless policy asks for review.
+
+Each review item SHOULD show:
+
+- Automation;
+- semantic outcome;
+- concise result;
+- evidence/artifact links;
+- Project;
+- run time;
+- required approval or next action;
+- Continue Interactively.
+
+Continuing interactively MUST preserve the exact run/Project/evidence provenance.
+
+Opening a review item MUST NOT implicitly approve a pending action.
+
+## 23.31 Automation creation
+
+When creating from natural language, UI MUST show the structured definition before enabling:
+
+```text
+WHAT       prompts/daily-ads-ops.md
+WHERE      Ads Agents · local project
+WHEN       Daily at 09:00 · Asia/Ho_Chi_Minh
+WORKSPACE  Project root
+AUTHORITY  External read-only · Project report/worklog writes allowed
+REVIEW     Every run
+FAILURE    Retry twice · auto-pause after repeated failures
+```
+
+“Enable” authorizes only the displayed bounded definition.
+
+The user SHOULD be encouraged to Run Test before enabling.
