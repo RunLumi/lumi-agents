@@ -50,6 +50,16 @@ export default function App() {
   const [detailTab, setDetailTab] = useState("home");
   const [fileRequest, setFileRequest] = useState<FileRequest | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem("lumi-sidebar-collapsed") === "1"; } catch { return false; }
+  });
+
+  // Collapsed rail is a body-level style (lumi.css) and persists across
+  // launches, same contract as the vanilla implementation.
+  useEffect(() => {
+    document.body.classList.toggle("sidebar-collapsed", sidebarCollapsed);
+    try { localStorage.setItem("lumi-sidebar-collapsed", sidebarCollapsed ? "1" : "0"); } catch {}
+  }, [sidebarCollapsed]);
 
   // ⌘K / Ctrl+K opens the palette; the topbar search box opens it too.
   useEffect(() => {
@@ -161,8 +171,8 @@ export default function App() {
         badgeTasks={badgeTasks}
         badgeApprovals={badgeApprovals}
         snapshot={snapshot}
-        collapsed={false}
-        onToggleCollapse={() => {}}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
         onNav={sidebarNav}
         onStop={stopAll}
       />
