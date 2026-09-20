@@ -29,6 +29,7 @@ apps/desktop/src-tauri/icons/*
 !apps/desktop/src-tauri/icons/lumi-development.svg
 !apps/desktop/src-tauri/icons/lumi-development.png
 !apps/desktop/src-tauri/icons/lumi-development.ico
+!apps/desktop/src-tauri/icons/lumi-icon-foreground.png
 !apps/desktop/src-tauri/icons/README.md
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
