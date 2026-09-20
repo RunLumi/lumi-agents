@@ -39,6 +39,8 @@ V1 MUST have:
 - Project-native Automations per spec 13;
 - time/event triggers with explicit timezone and durable run history;
 - automation Review Queue/history with manual run, pause/resume, retry and continue-interactively;
+- global and project-filtered Automations management per spec 27;
+- project Skill/Plugin installation and connection readiness per specs 28–29;
 - background schedule/event support;
 - extension/connector manifest;
 - employee desktop shell;
@@ -147,11 +149,19 @@ V1 MUST demonstrate at least:
 - repeated failure auto-pause;
 - semantic NO_ACTION/NO_ALERT recorded as successful without unnecessary notification;
 - WAITING_APPROVAL with zero material side effect before approval;
-- review/history item that can continue interactively.
+- review/history item that can continue interactively;
+- global and project-filtered views use the same Automation ID/revision and commands;
+- global creation requires a project; copied definitions do not copy connection grants;
+- per-user read/mark-all-read changes no approval, incident or schedule state;
+- recurring success remains Active and Completed correctly means schedule exhaustion;
+- shared-resource admission prevents different automations controlling one browser session concurrently;
+- missing/revoked project connections and changed extension snapshots block unsafe scheduled use.
 
 The `RunLumi/ads-agents` fixture SHOULD prove the intraday and daily cases:
 scheduled Ads work remains externally read-only while still persisting required
-Project reports/worklogs.
+Project reports/worklogs. Public CI uses a sanitized fixture; live private access
+is a separate proof requirement. Detailed management tests are in
+[Spec 27](27-global-and-project-automations.md).
 
 ## 22.9 Distribution gate
 
@@ -171,7 +181,7 @@ Must be current:
 - AGENTS.md;
 - roadmap;
 - architecture;
-- v1 specs including spec 26;
+- v1 specs including specs 26–29;
 - security model;
 - provider docs;
 - release gates;
@@ -203,7 +213,9 @@ Not required:
 - autonomous financial/legal commitments;
 - dozens of providers;
 - agent swarm architecture;
-- language-server parity for every ecosystem.
+- language-server parity for every ecosystem;
+- a custom project-local encrypted vault or automatic credential sync;
+- universal foreign plugin runtime compatibility.
 
 ## 22.13 Final release decision
 
@@ -212,3 +224,23 @@ V1 SHOULD NOT ship because the feature list is complete.
 It ships when the trust/reliability/economics evidence is strong enough that the team would confidently run the same build on its own email, files, CRM, code, Project repositories, and business systems.
 
 For Work mode specifically, the team should be willing to open an important real repository with uncommitted work and delegate a bounded multi-file task without first making a sacrificial copy.
+
+## 22.14 Project extension and connection gate
+
+Before claiming the project extension feature ready, demonstrate
+[Spec 28](28-project-skills-plugins.md) and
+[Spec 29](29-project-connections-secrets.md) through the actual runtime boundary:
+
+- native/compatibility Skill discovery executes no code and cannot silently shadow names;
+- project installation, activation and connection setup are distinct, scoped and reviewable;
+- exact package/source locks and run snapshots survive restart and safe updates;
+- unsupported required sandbox/permission semantics fail closed;
+- credentials stay in the approved broker/backend, not project credentials.json;
+- A/B project, account, caller and destination isolation hold even with copied IDs/refs;
+- authorized setup safely maintains .gitignore, while runtime secret protection remains independent of it;
+- tracked/legacy credentials require explicit remediation; vault unavailability never causes plaintext fallback;
+- refresh/revoke/update/uninstall cannot revive old authority or delete another project's credentials;
+- clone/export/worktree and model/log/trace paths contain no secret values.
+
+Use synthetic adversarial fixtures and separately record supported-platform
+credential/sandbox canaries. Passing document/example checks does not pass this gate.
