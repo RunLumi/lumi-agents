@@ -1,0 +1,40 @@
+name: desktop UI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'DESIGN.md'
+      - 'ICON.md'
+      - '.github/workflows/desktop-ui.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - 'DESIGN.md'
+      - 'ICON.md'
+      - '.github/workflows/desktop-ui.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check desktop JavaScript
+        run: |
+          node --check apps/desktop/src/app.js
+          node --check apps/desktop/src/dev-preview.js
+      - name: Upload static preview for visual review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: desktop-ui-preview
+          path: apps/desktop/src/
+          if-no-files-found: error
+          retention-days: 7
