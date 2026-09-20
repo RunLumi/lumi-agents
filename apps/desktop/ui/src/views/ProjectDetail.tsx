@@ -8,11 +8,16 @@ import { Glyph } from "../components/Icons";
 import { t } from "../lib/i18n";
 import { fmtSize, timeAgo, toast } from "../lib/ui";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/overlays";
 import { Badge, StatusBadge, type BadgeVariant } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FilesTab, type FileRequest } from "./FilesTab";
 import {
-  gitBranches, gitCommit, gitLog, gitSwitch, taskCreate,
+  gitBranches, gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
 } from "../ipc/commands";
 import type {
   ArtifactEntry, ChangeSet, CommitInfo, GitStatus,
@@ -26,14 +31,19 @@ interface Props {
   sets: ChangeSet[];
   artifacts: ArtifactEntry[];
   pendingApprovals: PendingApproval[];
+  tab: string;
+  onTabChange: (tab: string) => void;
+  fileRequest: FileRequest | null;
+  onRequestConsumed: () => void;
+  onProjectRemoved: () => void;
   reload: () => void;
   onReveal: () => void;
 }
 
 const TABS: [string, string][] = [
-  ["home", "nav.home"], ["tasks", "nav.tasks"], ["changes", "nav.changes"],
-  ["git", "nav.git"], ["artifacts", "nav.artifacts"], ["evidence", "nav.evidence"],
-  ["approvals", "nav.approvals"], ["settings", "nav.settings"],
+  ["home", "nav.home"], ["tasks", "nav.tasks"], ["files", "nav.files"],
+  ["changes", "nav.changes"], ["git", "nav.git"], ["artifacts", "nav.artifacts"],
+  ["evidence", "nav.evidence"], ["approvals", "nav.approvals"], ["settings", "nav.settings"],
 ];
 
 const TASK_STATUS_KEY: Record<string, string> = {
@@ -97,8 +107,11 @@ function EntryRow({ e }: { e: ChangeSet["entries"][number] }) {
   );
 }
 
-export function ProjectDetail({ overview, git, tasks, sets, artifacts, pendingApprovals, reload, onReveal }: Props) {
-  const [tab, setTab] = useState<string>("home");
+export function ProjectDetail({
+  overview, git, tasks, sets, artifacts, pendingApprovals,
+  tab, onTabChange, fileRequest, onRequestConsumed, onProjectRemoved, reload, onReveal,
+}: Props) {
+  const [relinkPath, setRelinkPath] = useState("");
   const [goal, setGoal] = useState("");
   const [commitMsg, setCommitMsg] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -177,7 +190,7 @@ export function ProjectDetail({ overview, git, tasks, sets, artifacts, pendingAp
         </Button>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList>
           {TABS.map(([key, i18n]) => (
             <TabsTrigger key={key} value={key}>{t(i18n)}</TabsTrigger>
@@ -230,6 +243,15 @@ export function ProjectDetail({ overview, git, tasks, sets, artifacts, pendingAp
               ? <div className="empty-state">{t("tasks.none")}</div>
               : <div className="mini-list">{tasks.map((task) => <TaskRow key={task.task_id} task={task} />)}</div>}
           </div>
+        </TabsContent>
+
+        <TabsContent value="files">
+          <FilesTab
+            projectId={overview.project_id}
+            request={fileRequest}
+            onRequestConsumed={onRequestConsumed}
+            onMutated={reload}
+          />
         </TabsContent>
 
         <TabsContent value="changes">
@@ -410,6 +432,55 @@ export function ProjectDetail({ overview, git, tasks, sets, artifacts, pendingAp
                   </li>
                 ))}
               </ul>
+              <h3 style={{ marginTop: 16 }}>{t("settings.relink")}</h3>
+              <div className="inline-form">
+                <Input
+                  value={relinkPath}
+                  onChange={(e) => setRelinkPath(e.target.value)}
+                  placeholder={t("settings.relinkPrompt")}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const path = relinkPath.trim();
+                    if (!path) { toast(t("files.saveFail"), "error"); return; }
+                    projectRelink(overview.project_id, path).then(() => {
+                      setRelinkPath("");
+                      toast(t("misc.relabeled"), "success");
+                      reload();
+                    }).catch(() => toast(t("files.saveFail"), "error"));
+                  }}
+                >
+                  {t("settings.relink")}
+                </Button>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">{t("settings.remove")}</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogTitle>{t("settings.remove")}</AlertDialogTitle>
+                    <AlertDialogDescription>{t("settings.removeConfirm")}</AlertDialogDescription>
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                      <AlertDialogCancel asChild>
+                        <Button variant="secondary" size="sm">{t("files.cancel")}</Button>
+                      </AlertDialogCancel>
+                      <AlertDialogAction asChild>
+                        <Button variant="destructive" size="sm" onClick={() => {
+                          projectRemove(overview.project_id).then(() => {
+                            toast(t("misc.removed"), "success");
+                            onProjectRemoved();
+                          }).catch(() => toast(t("files.saveFail"), "error"));
+                        }}>
+                          {t("settings.remove")}
+                        </Button>
+                      </AlertDialogAction>
+                    </div>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           </div>
         </TabsContent>

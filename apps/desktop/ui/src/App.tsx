@@ -5,6 +5,8 @@ import { Sidebar, Topbar } from "./components/chrome";
 import type { NavKey } from "./components/chrome";
 import { ProjectsHome } from "./views/ProjectsHome";
 import { ProjectDetail } from "./views/ProjectDetail";
+import type { FileRequest } from "./views/FilesTab";
+import { Palette } from "./components/palette";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "./lib/ui";
@@ -45,6 +47,21 @@ export default function App() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [data, setData] = useState<ProjectData | null>(null);
   const [snapshot, setSnapshot] = useState<OperationsSnapshot | null>(null);
+  const [detailTab, setDetailTab] = useState("home");
+  const [fileRequest, setFileRequest] = useState<FileRequest | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // ⌘K / Ctrl+K opens the palette; the topbar search box opens it too.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     projectListRecent().then(setProjects).catch(() => {});
@@ -63,12 +80,26 @@ export default function App() {
   const openProject = useCallback((pid: string) => {
     setProjectId(pid);
     setData(null);
+    setDetailTab("home");
   }, []);
 
   const closeProject = useCallback(() => {
     setProjectId(null);
     setData(null);
+    setFileRequest(null);
   }, []);
+
+  const openFileFromPalette = useCallback((path: string) => {
+    if (!projectId) return;
+    setDetailTab("files");
+    setFileRequest({ path, nonce: Date.now() });
+  }, [projectId]);
+
+  const sidebarNav = useCallback((key: NavKey) => {
+    if (key === "projects") { closeProject(); return; }
+    // Every other rail entry is a detail view of the open project.
+    setDetailTab(key);
+  }, [closeProject]);
 
   const reload = useCallback(() => {
     if (projectId) loadProject(projectId).then(setData).catch(() => {});
@@ -113,6 +144,18 @@ export default function App() {
   return (
     <div className="app">
       <Toaster position="bottom-right" />
+      <Palette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        projects={projects ?? []}
+        projectId={projectId}
+        tasks={data?.tasks ?? []}
+        onOpenProject={openProject}
+        onOpenFile={openFileFromPalette}
+        onNavigate={setDetailTab}
+        onOpenFolder={openFolder}
+        onSwitchLang={switchLanguage}
+      />
       <Sidebar
         active={activeNav}
         badgeTasks={badgeTasks}
@@ -120,15 +163,13 @@ export default function App() {
         snapshot={snapshot}
         collapsed={false}
         onToggleCollapse={() => {}}
-        onNav={(key) => {
-          if (key === "projects") closeProject();
-        }}
+        onNav={sidebarNav}
         onStop={stopAll}
       />
       <div className="main">
         <Topbar
           crumbs={crumbs}
-          onSearch={openFolder}
+          onSearch={() => setPaletteOpen(true)}
           onStop={stopAll}
           lang={lang}
           onSwitch={switchLanguage}
@@ -147,6 +188,11 @@ export default function App() {
               sets={data.sets}
               artifacts={data.artifacts}
               pendingApprovals={snapshot?.pending_approvals ?? []}
+              tab={detailTab}
+              onTabChange={setDetailTab}
+              fileRequest={fileRequest}
+              onRequestConsumed={() => setFileRequest(null)}
+              onProjectRemoved={closeProject}
               reload={reload}
               onReveal={() => openPath(data.overview.primary_root).catch(() => {})}
             />
