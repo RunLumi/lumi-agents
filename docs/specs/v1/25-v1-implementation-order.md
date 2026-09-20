@@ -284,3 +284,62 @@ qualification limits are in the [dated research](../../research/document-workspa
 No macro engine, realtime collaboration, full spreadsheet calculation, mandatory
 LibreOffice bundle or remote Office server blocks the first useful slice. A
 preview-only intermediate release must not be called all-format basic editing.
+
+
+## 25.13 Strategy convergence slice
+
+[Spec 31](31-delegated-work-product-contract.md) is a cross-cutting acceptance
+spine, not a new architectural layer. Implement it by closing the shortest path
+through existing components.
+
+### Now: prove trustworthy delegation
+
+1. Close durable-intent/replay and executor/artifact/approval defects.
+2. Make Folder-as-Project work through the shipped desktop path on a dirty real repository.
+3. Wire real model-driven Task planning/execution to persisted Task/Run state.
+4. Make Lumi-only Changes, validation and required evidence visible from real state.
+5. Support at least two concurrent Tasks with isolated workspaces or deterministic conflicts.
+6. Make Review Queue derive from persisted outcomes and separate routine from actionable attention.
+7. Complete the Project-native Automation vertical slice and Task → disabled Automation draft conversion.
+8. Integrate Project Connections/Skills/Plugins at actual admission/execution boundaries.
+9. Record verified success, review/rescue/rework minutes and runtime cost.
+10. Turn every reproducible escaped failure into a regression case.
+
+Do not put this slice behind a marketplace, broad enterprise control plane,
+multi-agent organization layer, full mobile runtime, full IDE features, or broad
+native-computer-use work.
+
+### Next: make delegation retain and spread
+
+Only after the Now gate is credible:
+
+1. remote web/mobile supervision over environment-owned work;
+2. GitHub plus the smallest high-value team/business connectors;
+3. team review routing and shared/private extensions;
+4. private/cloud runner where a real workflow requires it;
+5. MCP compatibility and an ACP interoperability experiment;
+6. qualified Document Workspace expansion;
+7. basic team policy/budget/admin surfaces;
+8. paid design-partner workflow evidence.
+
+### Later: scale proven value
+
+Full enterprise governance, curated/private marketplace, broader Role Pack
+catalog, multi-project agents and richer mobile execution are conditional on
+retained use, safe extension execution, repeatable paid value and deployment
+reuse. Public marketplace and arbitrary agent organizations remain deferred.
+
+### Evidence thresholds
+
+Before broadening beyond Now, target:
+
+- >=50 substantial real Project Tasks on one release build;
+- >=95% verified completion on the certified internal matrix;
+- <5% unexpected rescue on the hardened routine slice;
+- 0 unauthorized side effects, root escapes, lost user edits or crash duplicates;
+- >=100 representative Automation occurrences;
+- 100% of reproducible escaped failures captured as regressions.
+
+If approximately 100 representative runs still show >15% unexpected rescue,
+material ambiguity, linear attention growth, or poor fully loaded economics,
+narrow the workflow or product surface before adding features.
