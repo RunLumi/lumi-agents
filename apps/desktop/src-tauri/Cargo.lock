@@ -2055,6 +2055,7 @@ dependencies = [
  "lumi-policy",
  "lumi-project",
  "lumi-protocol",
+ "lumi-scheduler",
  "lumi-state",
  "lumi-workspaces",
  "serde",
@@ -2152,6 +2153,19 @@ dependencies = [
  "serde_json",
  "sha2",
  "uuid",
+]
+
+[[package]]
+name = "lumi-scheduler"
+version = "0.1.0"
+dependencies = [
+ "lumi-audit",
+ "lumi-orchestrator",
+ "lumi-policy",
+ "lumi-protocol",
+ "lumi-state",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
