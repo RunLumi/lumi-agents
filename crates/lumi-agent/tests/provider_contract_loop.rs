@@ -169,6 +169,7 @@ fn model_planner_drives_the_loop_through_the_openai_capability_contract_offline(
         RunId::generate(),
         Budget::default(),
         "Write out/provider-note.txt",
+        None,
     );
     let outcome = loop_agent.run();
 

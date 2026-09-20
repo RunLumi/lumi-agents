@@ -21,7 +21,8 @@ use lumi_models::transport::HttpTransport;
 use lumi_orchestrator::ExecutorDescriptor;
 use lumi_policy::{CapabilityGrant, GrantSource};
 use lumi_protocol::{
-    Capability, ExecutionTier, ResourceType, RunId, Task, TaskStatus, WorkspaceKind,
+    Capability, ExecutionStatus, ExecutionTier, ResourceType, RunId, Task, TaskStatus,
+    WorkspaceKind,
 };
 use lumi_workspaces::Workspace;
 use std::collections::BTreeSet;
@@ -83,6 +84,53 @@ pub fn provider_parts(session: &ProviderSession) -> Result<ProviderParts, String
         instance,
         auth,
     })
+}
+
+/// Builds a durable progress summary of the task's prior VERIFIED
+/// actions from the audit ledger, so a re-run of an interrupted or
+/// failed task continues instead of redoing work. Failed and ambiguous
+/// prior actions are deliberately omitted: they are not progress.
+/// `None` when the task has no verified action history.
+fn resume_context_from_ledger(
+    orchestrator: &lumi_orchestrator::Orchestrator<lumi_state::JsonStateStore>,
+    task: &Task,
+) -> Option<String> {
+    let events = orchestrator.audit.events_for(&task.tenant_id);
+    let mut lines: Vec<String> = events
+        .iter()
+        .filter(|event| event.task_id == task.task_id)
+        .filter_map(|event| {
+            let lumi_audit::AuditEventKind::Action(details) = &event.kind else {
+                return None;
+            };
+            let verified = matches!(
+                (&details.execution_status, &details.verification),
+                (
+                    Some(ExecutionStatus::Success),
+                    lumi_audit::VerificationStatus::Passed
+                ) | (
+                    Some(ExecutionStatus::Success),
+                    lumi_audit::VerificationStatus::NotRequired
+                ),
+            );
+            verified.then(|| {
+                format!(
+                    "- {} on {} (verified)",
+                    details.operation, details.target.canonical
+                )
+            })
+        })
+        .collect();
+    if lines.is_empty() {
+        return None;
+    }
+    lines.sort();
+    lines.dedup();
+    Some(format!(
+        "DURABLE PROGRESS FROM THE PREVIOUS ATTEMPT (recorded by the runtime;          these verified actions must not be redone, and their files already \
+        exist — extend the work instead of rewriting it):\n{}",
+        lines.join("\n")
+    ))
 }
 
 /// Wires the runtime's deny-by-default orchestrator with the narrow,
@@ -158,6 +206,11 @@ pub fn run_desktop_task(
         Some(WorkspaceKind::ProjectRoot),
     )?;
 
+    // A re-run of a failed/interrupted task carries the previous
+    // attempt's verified progress so the planner continues the work
+    // instead of colliding with its own earlier output.
+    let resume_context = resume_context_from_ledger(&runtime.orchestrator, task);
+
     // Independent verification path: file postconditions read the real
     // disk under the workspace boundary; record/remote checks remain
     // unresolvable and therefore fail closed (AMBIGUOUS), never PASSED.
@@ -174,6 +227,7 @@ pub fn run_desktop_task(
         &workspace,
         &env,
         task,
+        resume_context.as_deref(),
         RunId::generate(),
     )
 }

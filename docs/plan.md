@@ -326,10 +326,15 @@ Deferred, with reasons:
 - ~~**Live-provider evaluation runs**~~ RESOLVED 2026-09-20 (see below): a
   local `qwen2.5:3b` model on an Ollama OpenAI-compatible endpoint planned and
   executed the task through the full gate — no external credential needed.
-- **Deep mid-run resume (`plan_resume` from checkpoints)**: the Work-mode
-  runner does not persist orchestrator checkpoints yet; startup re-arm
-  (RUNNING → crash-marked FAILED, explicit re-run) shipped instead because it
-  is honest about what a crashed run leaves behind.
+- **Deep mid-run resume (`plan_resume` from checkpoints)**: SHIPPED the
+  honest portion 2026-09-20 — a re-run of a failed/interrupted task now
+  carries a **durable progress block** (the prior attempt's verified actions,
+  read from the audit ledger) into the planner's context, so it continues the
+  work instead of colliding with its own earlier output; the stale-write guard
+  remains the backstop. Orchestrator checkpoints stay deferred: `Checkpoint`
+  is workflow-step-shaped (step ids, positions) and does not fit an
+  agent-loop conversation without a dedicated transcript-persistence design;
+  asserted in `runner_e2e::desktop_runner_rerun_carries_durable_progress_from_the_prior_attempt`.
 - **Signing/notarization + SBOM** in the release pipeline; **parallel task
   execution** (single-flight today by design); **automations wiring** — all P1
   rows in the table above, deferred until the live-provider evaluation loop
