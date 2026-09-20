@@ -14,6 +14,7 @@ lumi-orchestrator = { path = "../../../crates/lumi-orchestrator" }
 lumi-handoff = { path = "../../../crates/lumi-handoff" }
 lumi-desktop = { path = "../../../crates/lumi-desktop" }
 lumi-project = { path = "../../../crates/lumi-project" }
+lumi-secrets = { path = "../../../crates/lumi-secrets" }
 lumi-models = { path = "../../../crates/lumi-models" }
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
