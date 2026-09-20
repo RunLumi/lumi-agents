@@ -218,3 +218,20 @@ File/shell implementation MUST expose enough identity to preserve this distincti
 - isolated worktrees;
 - app restart;
 - runtime upgrade/downgrade.
+
+## 8.16 Document Workspace
+
+[Spec 30](30-document-workspace-preview-edit.md) defines local previews and basic
+edits for project files and generated artifacts. Files, Artifacts and Automation
+Review Queue reference the same resource/version, not separate copied documents.
+
+Opening a preview is read-only. Saving a UI or agent edit uses the trusted file
+service: source-version conflict check, bounded staging, format/preservation
+validation, authorized atomic publication and output verification. Unsupported
+Office features cannot be silently discarded. A successful render or a valid ZIP
+is not proof of business correctness or current formula results.
+
+Document renderers receive no general filesystem, shell or secret access. Their
+local resources, output copies, caches and drafts remain project/policy scoped.
+Human edits create new versions and invalidate relevant prior artifact validation;
+viewing an artifact never approves its publication.
