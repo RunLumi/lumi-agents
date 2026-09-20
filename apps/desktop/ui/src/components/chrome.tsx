@@ -1,9 +1,9 @@
 /* App chrome: borderless-window traffic lights, collapsible sidebar,
    topbar (drag region + search + stop + language switch + avatar). */
-import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Glyph } from "./Icons";
-import { t, type Lang } from "../lib/i18n";
+import { t } from "../lib/i18n";
+import type { Lang } from "../lib/i18n";
 import { setRoute } from "../lib/ui";
 import type { OperationsSnapshot } from "../ipc/types";
 

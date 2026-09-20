@@ -4,7 +4,7 @@
 
 export type Lang = "en" | "vi";
 
-const STRINGS = {
+const STRINGS: Record<Lang, Record<string, string>> = {
     en: {
       // sidebar
       "nav.projects": "Projects",
@@ -77,7 +77,6 @@ const STRINGS = {
       "homeTab.active": "Active Task", "homeTab.agentRegistered": "Agent registered",
       "homeTab.stages": "of", "homeTab.understand": "Understand", "homeTab.work": "Work",
       "homeTab.validate": "Validate", "homeTab.review": "Review",
-      "homeTab.stages": "of",
       "homeTab.openTask": "Open task",
       "homeTab.tree": "Working Tree Status",
       "homeTab.treeBranch": "Branch", "homeTab.treeStaged": "Staged files",
