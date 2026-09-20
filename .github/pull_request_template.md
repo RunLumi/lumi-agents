@@ -12,6 +12,15 @@ Describe the customer/runtime behavior changed by this PR.
 - [ ] Architecture changes include an ADR.
 - [ ] Failure/recovery behavior is documented for workflow-facing changes.
 
+## Contribution rights
+
+- [ ] I checked provenance and have authority for the submitted changes; copied or AI-assisted material was reviewed.
+- [ ] Where the base DCO policy applies, genuine sign-offs cover commit authors and named co-authors; no attestation was generated for someone else.
+- [ ] License/scope or distribution changes pass `python3 scripts/check_licensing.py`; any exception is explicit, not a claim of revoked historical rights.
+
+These boxes are review aids, not a substitute for actual license grants, DCO
+trailers, employer permission or executed agreements. See CONTRIBUTING.md.
+
 ## Release impact
 
 State whether this affects macOS permissions/signing, Windows UAC/signing, browser profiles, updater behavior, secrets, or audit evidence.

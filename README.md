@@ -78,11 +78,21 @@ signed release artifacts.
 
 ## License and security
 
-Lumi's open runtime is Apache-2.0. Preserve compatible upstream notices and
+Lumi's community application and runtime are **Apache-2.0**, including commercial
+use, private modifications and independent redistribution. No personal-use-only
+or revenue restriction is added. Read [LICENSING.md](LICENSING.md) and
+[TRADEMARKS.md](TRADEMARKS.md); contribution instructions use
+[Apache inbound/outbound plus DCO](CONTRIBUTING.md#developer-certificate-of-origin).
+
+Preserve compatible upstream notices and
 review dependency, binary and asset licenses separately. See [LICENSE](LICENSE),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [SECURITY.md](SECURITY.md) and the
 [security model](docs/security-model.md).
 
-Commercial control-plane services and premium vertical work may remain outside
-this open repository. The runtime's standard is verified outcomes, recoverable
+Distinct commercial services and premium vertical work stay outside this public
+repository unless explicitly released. No existing Apache rights are withdrawn.
+See the [commercial boundary and rights checklist](docs/licensing/commercial-and-rights-review.md).
+
+Licensing checks: `python3 scripts/check_licensing.py` and
+`python3 -m unittest discover -s scripts -p 'test_licensing*.py'`. The runtime's standard is verified outcomes, recoverable
 failure and measurable value, not a convincing demo.

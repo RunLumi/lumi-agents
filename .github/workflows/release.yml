@@ -89,6 +89,10 @@ jobs:
       - name: Collect release artifacts
         run: |
           mkdir -p release-artifacts
+          cp LICENSE release-artifacts/LICENSE.txt
+          cp NOTICE release-artifacts/NOTICE.txt
+          cp THIRD_PARTY_NOTICES.md release-artifacts/THIRD_PARTY_NOTICES.md
+          cp apps/desktop/THIRD_PARTY_NOTICES.md release-artifacts/DESKTOP_THIRD_PARTY_NOTICES.md
           base="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
           case "${{ matrix.target }}" in
             *apple-darwin*)

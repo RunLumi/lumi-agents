@@ -6,6 +6,10 @@ on:
       - 'apps/desktop/**'
       - 'DESIGN.md'
       - 'ICON.md'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'scripts/copy_product_notices.mjs'
       - '.github/workflows/desktop-ui.yml'
   push:
     branches: [main]
@@ -13,6 +17,10 @@ on:
       - 'apps/desktop/**'
       - 'DESIGN.md'
       - 'ICON.md'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'scripts/copy_product_notices.mjs'
       - '.github/workflows/desktop-ui.yml'
 
 permissions:

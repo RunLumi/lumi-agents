@@ -1,0 +1,43 @@
+name: licensing
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: licensing-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  scope-and-notices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: python3 scripts/check_licensing.py
+      - run: python3 -m unittest discover -s scripts -p 'test_licensing*.py' -v
+  contribution-origin:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Execute only policy already on the target branch, never PR-supplied code.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate new commit sign-offs against base policy
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if ! test -f DCO; then
+            echo 'DCO policy bootstrap: no retrospective certification is asserted.'
+            exit 0
+          fi
+          test -f scripts/check_dco.py
+          git fetch --no-tags origin "$HEAD_SHA"
+          python3 scripts/check_dco.py --base "$BASE_SHA" --head "$HEAD_SHA"

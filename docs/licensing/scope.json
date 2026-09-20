@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "default_license": "Apache-2.0",
+  "baseline_commit": "46d91abfb0649ee08ecf48c88c8d7e99855d56bd",
+  "license_sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+  "notice_sha256": "310e28eab6acfe0c624c69bd7e42a9c51050523e8997a3aa4188cbaa5dc56bce",
+  "dco_sha256": "f7ac75b443f4ca16b503241344b41aeff9503b0c30bedc2b119551d83cb0fa90",
+  "commercial_modules_in_this_repository": [],
+  "first_party_npm_manifests": [
+    "apps/desktop/ui/package.json",
+    "web/package.json",
+    "workers/playwright/package.json"
+  ],
+  "first_party_cargo_manifests": [
+    "Cargo.toml",
+    "apps/desktop/src-tauri/Cargo.toml",
+    "crates/lumi-adversarial/Cargo.toml",
+    "crates/lumi-agent/Cargo.toml",
+    "crates/lumi-audit/Cargo.toml",
+    "crates/lumi-browser/Cargo.toml",
+    "crates/lumi-certification/Cargo.toml",
+    "crates/lumi-connectors/Cargo.toml",
+    "crates/lumi-desktop/Cargo.toml",
+    "crates/lumi-evals/Cargo.toml",
+    "crates/lumi-handoff/Cargo.toml",
+    "crates/lumi-memory/Cargo.toml",
+    "crates/lumi-models/Cargo.toml",
+    "crates/lumi-native/Cargo.toml",
+    "crates/lumi-orchestrator/Cargo.toml",
+    "crates/lumi-packs/Cargo.toml",
+    "crates/lumi-policy/Cargo.toml",
+    "crates/lumi-project/Cargo.toml",
+    "crates/lumi-protocol/Cargo.toml",
+    "crates/lumi-runtime/Cargo.toml",
+    "crates/lumi-scheduler/Cargo.toml",
+    "crates/lumi-secrets/Cargo.toml",
+    "crates/lumi-state/Cargo.toml",
+    "crates/lumi-versioning/Cargo.toml",
+    "crates/lumi-workflows/Cargo.toml",
+    "crates/lumi-workspaces/Cargo.toml"
+  ],
+  "third_party_notice_files": [
+    "THIRD_PARTY_NOTICES.md",
+    "apps/desktop/THIRD_PARTY_NOTICES.md",
+    "web/THIRD_PARTY_NOTICES.md"
+  ],
+  "reference_terms": {
+    "DCO": "Developer Certificate of Origin 1.1; unchanged reference terms, not Apache relicensing"
+  },
+  "scope_note": "Original public product code/docs use Apache-2.0; third-party code/assets and reference terms retain their own licenses. No commercial module is introduced or retroactively restricted.",
+  "baseline_unlocked_packages": [
+    {
+      "manifest": "workers/playwright/package.json",
+      "baseline_commit": "46d91abfb0649ee08ecf48c88c8d7e99855d56bd",
+      "reason": "The existing browser worker has no committed npm lock. Dependency resolution is outside this licensing-only change; do not interpret this exception as dependency or release certification."
+    }
+  ]
+}

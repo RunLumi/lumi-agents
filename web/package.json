@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node scripts/postbuild.mjs",
+    "build": "astro build && node scripts/postbuild.mjs && node ../scripts/copy_product_notices.mjs web",
     "preview": "astro preview",
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test"
@@ -19,5 +21,6 @@
   "devDependencies": {
     "@playwright/test": "1.55.1",
     "@axe-core/playwright": "4.10.2"
-  }
+  },
+  "license": "Apache-2.0"
 }
