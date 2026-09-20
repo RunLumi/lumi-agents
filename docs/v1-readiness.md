@@ -105,8 +105,8 @@ Scoped review against `f0ed14aa6a3833e0520fdc0b1872b852bd9bb3d9`; this is not a
 refresh of the historical test counts or other readiness claims above.
 
 The current desktop README/config and ProjectService IPC were inspected. The
-frontend is vanilla HTML/CSS/JS; a React/TypeScript/Vite document entry is a target,
-not an existing implementation. Spec 30 now defines local Office/text/image/PDF
+packaged frontend is the React/TypeScript/Vite app under `apps/desktop/ui`; the
+former vanilla preview surface has been removed. Spec 30 now defines local Office/text/image/PDF
 preview and bounded basic editing, including safe-save and renderer isolation.
 
 [Issue #82](https://github.com/RunLumi/lumi-agents/issues/82) tracks implementation

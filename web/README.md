@@ -90,8 +90,8 @@ a campaign. No personal data is submitted by this static page.
 
 ### Assets
 
-The folded-L SVG is copied byte-for-byte from
-`apps/desktop/src/assets/brand/lumi-logo.svg`. Its supplied artwork uses
+The folded-L artwork is maintained in the packaged desktop assets at
+`apps/desktop/ui/public/assets/brand/lumi-fulltext.svg`. Its supplied artwork uses
 `#019EDD` / `#0162A4`, whereas DESIGN.md specifies `#006093` for UI authority.
 This existing asset/token drift is preserved, not silently rebranded. All authored
 UI tokens retain the DESIGN.md anchors. The initial Open Graph PNG reuses the

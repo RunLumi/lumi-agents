@@ -1,10 +1,8 @@
 # Lumi desktop UI (React + TypeScript + Tailwind v4)
 
 React 19 + TypeScript (strict) + Tailwind CSS v4 + Vite frontend for the
-Lumi desktop app. PR 1 of the conversion (goal.md, 2026-09-20): toolchain,
-token bridge, glass recipes, glyph port, typed IPC + mock transport, CI.
-Views are ported at parity in the PR 2 cutover; the vanilla `apps/desktop/src`
-still ships until then.
+Lumi desktop app. This is the packaged frontend: Tauri builds it into `dist/`.
+The former vanilla preview surface was removed after the React cutover.
 
 ## Commands
 
@@ -62,5 +60,5 @@ line postdates the policy window; the @vitest/mocker advisory path
 ## Dev preview
 
 `?devmock` on the built/dev app selects the mock transport (same typed
-interface, fixture data). The vanilla `dev-preview.html` harness remains
-until the PR 2 cutover.
+interface and fixture data). The mock transport is development-only and is not
+included in the packaged build.

@@ -26,8 +26,8 @@ cd apps/desktop
 cargo tauri dev
 ```
 
-The Rust backend compiles from `src-tauri/`. The frontend is vanilla
-HTML/CSS/JS in `src/` — no build step needed.
+The Rust backend compiles from `src-tauri/`. The packaged frontend is the
+React/TypeScript app in `ui/`; Tauri builds it into `ui/dist` before packaging.
 
 ## Production build
 

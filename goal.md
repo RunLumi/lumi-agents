@@ -82,8 +82,8 @@ Read at minimum:
 * `docs/specs/v1/23-user-experience-handoff.md`
 * `apps/desktop/src-tauri/src/` — the real command/event surface
 * `apps/desktop/src-tauri/capabilities/default.json`
-* `apps/desktop/src/app.js` — the behavior contract to port
-* `apps/desktop/src/dev-preview.js` — the devmock contract to preserve
+* `apps/desktop/ui/src/` — the packaged frontend and behavior contract
+* `apps/desktop/ui/src/ipc/mock.ts` — the devmock contract to preserve
 * `README.md` — core checks
 
 Do not assume screenshots or docs are aspirational. They describe what ships.
@@ -282,9 +282,8 @@ Port `ICON.md` and the `UTILITY_GLYPHS` / product / marks path data from
 * One `ui/src/ipc/` layer wraps all invokes. Views never call
   `invoke()` directly.
 * Preserve the devmock: `?devmock` query param loads a mock transport
-  implementing the same typed interface with fixture data (port
-  `dev-preview.js`). Never wired in the packaged app: no query parameter,
-  no fixture.
+  implementing the same typed interface with fixture data (`ui/src/ipc/mock.ts`).
+  Never wired in the packaged app: no query parameter, no fixture.
 * Preserve known IPC pitfalls (from prior work): Rust methods that return
   nothing are not serialized (compute client-side); async views need
   skeleton + route guard so stale async results never render.
@@ -330,7 +329,8 @@ Per-section discipline:
   for Lumi tokens, not the visual source of truth.
 * Do not add a component library beyond shadcn/Radix without the
   AGENTS.md dependency test.
-* Do not delete `apps/desktop/src/` (vanilla) until the cutover PR.
+* The React cutover is complete; do not reintroduce the retired vanilla preview
+  surface under `apps/desktop/src/`.
 * Do not touch workflow/policy/runtime crates beyond IPC binding
   registration.
 
@@ -389,7 +389,7 @@ Coherent vertical PRs; each leaves `main` coherent.
 ```text
 PR 1  Foundation: apps/desktop/ui toolchain, token bridge, glass recipes
       + DESIGN.md amendment, glyph port, typed IPC + mock transport,
-      CI wiring. tauri.conf.json unchanged — vanilla app still ships.
+      CI wiring. Completed before the React cutover.
 
 PR 2  Cutover: all views migrated per §9, frontendDist switched,
       vanilla src/ and dev-preview.html/.js removed, screenshots
@@ -421,11 +421,12 @@ atomic cutover: half-React half-vanilla never ships.
 * [ ] All existing CI checks green on the exact PR head.
 * [ ] Verified on macOS; Windows WebView2 result recorded honestly
       (verified or explicitly listed as unverified with reason).
-* [ ] `apps/desktop/src/` vanilla code removed in the cutover PR.
+* [x] `apps/desktop/src/` vanilla code removed in the cutover PR.
 * [ ] Screenshots refreshed per repo convention; old set archived.
 * [ ] No sample data in production UI; empty means empty.
 * [ ] Dependency review recorded; licenses/notice files updated.
-* [ ] Rollback path stated: revert cutover PR restores vanilla app.
+* [ ] Rollback path stated: revert the cutover PR restores the previous release
+  artifact; the retired preview source is not reintroduced.
 
 ---
 
