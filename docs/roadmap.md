@@ -93,7 +93,7 @@ Staging and fixtures cannot establish production capacity replacement.
    approval boundary gaps (#44); reconcile readiness before customer canaries.
 2. Finish Folder-as-Project live dogfood from Spec 26 (#50) on a dirty real
    internal repository through the shipped desktop path.
-3. Implement Project-native Automations from Spec 13 using `RunLumi/ads-agents`
+3. Implement Project-native Automations from Spec 13 (#73) using `RunLumi/ads-agents`
    as the acceptance repository: prompt-file task sources, durable schedules/run
    history, bounded unattended authority, Review Queue, and event follow-up offsets.
 4. Select one queue and obtain actual access and baseline measurements (#40).
