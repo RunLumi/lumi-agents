@@ -5,8 +5,8 @@
 //! approvals, or executor state.
 
 use lumi_desktop::{
-    is_runnable, run_desktop_task_with_provider, DesktopRuntime, KillSwitchState,
-    OperationsSnapshot, ProjectService, ProviderSession,
+    gated_file_save, is_runnable, run_desktop_task_with_provider, DesktopRuntime,
+    FileSaveOp, KillSwitchState, OperationsSnapshot, ProjectService, ProviderSession,
 };
 use lumi_models::ureq_transport::UreqTransport;
 use lumi_state::CancelToken;
@@ -235,11 +235,22 @@ fn file_create(
     path: String,
     content: String,
 ) -> Result<(), String> {
-    state
+    // Spec 30.12: the UI save is a standalone consequential operation —
+    // gate it (USER Task/Run + ActionProposal + verification).
+    let mut runtime = state
+        .runtime
+        .try_lock()
+        .map_err(|_| "A task is running; saves are paused until it finishes.".to_owned())?;
+    let mut projects = state
         .projects
         .lock()
-        .expect("project service lock poisoned")
-        .file_create(&project_id, &path, &content)
+        .expect("project service lock poisoned");
+    gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &FileSaveOp::Create { path, content },
+    )
 }
 
 #[tauri::command]
@@ -250,11 +261,24 @@ fn file_edit(
     expected_sha256: String,
     content: String,
 ) -> Result<(), String> {
-    state
+    let mut runtime = state
+        .runtime
+        .try_lock()
+        .map_err(|_| "A task is running; saves are paused until it finishes.".to_owned())?;
+    let mut projects = state
         .projects
         .lock()
-        .expect("project service lock poisoned")
-        .file_edit(&project_id, &path, &expected_sha256, &content)
+        .expect("project service lock poisoned");
+    gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &FileSaveOp::Edit {
+            path,
+            expected_sha256,
+            content,
+        },
+    )
 }
 
 #[tauri::command]
@@ -264,11 +288,23 @@ fn file_delete(
     path: String,
     expected_sha256: Option<String>,
 ) -> Result<(), String> {
-    state
+    let mut runtime = state
+        .runtime
+        .try_lock()
+        .map_err(|_| "A task is running; saves are paused until it finishes.".to_owned())?;
+    let mut projects = state
         .projects
         .lock()
-        .expect("project service lock poisoned")
-        .file_delete(&project_id, &path, expected_sha256.as_deref())
+        .expect("project service lock poisoned");
+    gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &FileSaveOp::Delete {
+            path,
+            expected_sha256,
+        },
+    )
 }
 
 #[tauri::command]
