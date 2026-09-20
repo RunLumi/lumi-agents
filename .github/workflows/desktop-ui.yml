@@ -14,6 +14,7 @@ on:
       - 'apps/desktop/**'
       - 'DESIGN.md'
       - 'ICON.md'
+      - 'scripts/check-i18n.mjs'
       - '.github/workflows/desktop-ui.yml'
 
 permissions:
@@ -42,3 +43,29 @@ jobs:
           path: apps/desktop/src/
           if-no-files-found: error
           retention-days: 7
+
+  frontend:
+    name: frontend (React/TS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/ui/package-lock.json
+      - name: Install
+        run: npm ci --prefix apps/desktop/ui
+      - name: Typecheck
+        run: npm run typecheck --prefix apps/desktop/ui
+      - name: Lint
+        run: npm run lint --prefix apps/desktop/ui
+      - name: Test
+        run: npm test --prefix apps/desktop/ui
+      - name: Build (production)
+        run: npm run build --prefix apps/desktop/ui

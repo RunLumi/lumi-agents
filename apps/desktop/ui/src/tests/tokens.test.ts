@@ -17,7 +17,7 @@ const REQUIRED_TOKENS = [
   "--glass-tint-strong",
   "--glass-blur: 18px",
   "--glass-blur-strong: 32px",
-  "--elevation-1",
+  "--shadow-elevation-1",
   "--shadow-modal",
 ];
 
