@@ -6,6 +6,10 @@ Status: Normative
 
 Allow extensibility without treating third-party tools as trusted authorities.
 
+Project installation, package identity and lifecycle are specified by
+[Spec 28](28-project-skills-plugins.md). Project connections and protected
+credential handling are specified by [Spec 29](29-project-connections-secrets.md).
+
 ## 14.2 Integration classes
 
 V1 defines:
@@ -15,6 +19,10 @@ V1 defines:
 - EXECUTOR_ADAPTER: browser/native/app execution engine;
 - MODEL_ADAPTER: model provider;
 - ARTIFACT_ADAPTER: artifact generator/validator.
+
+A Plugin is an installable package that may bundle these components and Skills;
+it is not another integration authority. Installation does not imply activation
+or authentication (Spec 28).
 
 ## 14.3 Integration manifest
 
@@ -34,6 +42,9 @@ Every extension MUST declare:
 - platform requirements;
 - update source.
 
+Portable manifests declare logical connection requirements, not live secret
+values or local credential bindings. Actual bindings resolve through Spec 29.
+
 ## 14.4 Trust
 
 Extension output is lower-trust input.
@@ -52,6 +63,11 @@ Extension gets only required credential refs.
 
 A connector needing CRM token MUST NOT receive email/browser secrets.
 
+An opaque reference alone grants no access. Resolution MUST validate the trusted
+caller, project/environment, approved component, account, audience, operation,
+destination and current revocation/lease state under Spec 29. Prefer brokered
+operations over exposing raw tokens to executable plugins.
+
 ## 14.6 Side effects
 
 Side-effecting connector/MCP operations MUST normalize to ActionProposal and pass policy.
@@ -61,6 +77,10 @@ Side-effecting connector/MCP operations MUST normalize to ActionProposal and pas
 MCP tool metadata MAY seed capability mapping.
 
 Lumi SHOULD require admin/user confirmation before enabling newly discovered side-effecting tools.
+
+Tool annotations are not proof of read-only behavior. Material server/tool/schema
+or endpoint drift requires review under Spec 28, including when the local package
+version has not changed.
 
 ## 14.8 Network egress
 
@@ -74,9 +94,18 @@ Production integration SHOULD pin exact compatible version/range.
 
 Auto-update MUST NOT silently introduce new capabilities.
 
+Project installs resolve exact bytes in the extension lock; scheduled runs use
+reviewed dependency snapshots. Updating an active package follows Spec 28 rather
+than replacing executable code in place during a run.
+
 ## 14.10 Extension isolation
 
 Where feasible, untrusted extensions SHOULD run in lower-privilege process/sandbox.
+
+For project-installed third-party executable components, Spec 28 requires an
+enforceable isolation boundary or a refusal. Process separation alone is not a
+sandbox; any explicitly approved trusted-host exception must remain visible and
+cannot silently replace required unattended isolation.
 
 ## 14.11 SDK contracts
 
@@ -184,6 +213,13 @@ A production automation package with explicit policy, postconditions, exceptions
 
 A Workflow Pack MAY compose Tools, Skills, Agents, Hooks, and Connectors.
 
+### PLUGIN
+
+An installable, versioned distribution unit for Skills and optional integration,
+Hook, command or template components. A Plugin is distinct from the authenticated
+connector instance/Connection used by those components. Its project lifecycle is
+specified by Spec 28; its connection grants by Spec 29.
+
 ## 14.15 Extension manifest additions
 
 In addition to section 14.3, extensible packages SHOULD declare:
@@ -251,4 +287,6 @@ V1 MUST additionally test:
 - hook timeout does not hang task runtime;
 - hook rewrite causing material ActionProposal change triggers re-authorization;
 - extension relative paths remain portable across install roots;
-- third-party extension crash is isolated where process isolation is configured.
+- third-party extension crash is isolated where process isolation is configured;
+- project installation/activation and credential scopes remain isolated under Specs 28–29;
+- copied package, guessed credential reference, or material MCP drift cannot reuse old authority.
