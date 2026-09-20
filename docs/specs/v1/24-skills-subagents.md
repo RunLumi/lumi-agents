@@ -6,6 +6,10 @@ Status: Normative
 
 Enable reusable task expertise and bounded parallelism without turning the system into an uncontrolled "agent swarm."
 
+[Spec 28](28-project-skills-plugins.md) defines project-local installation,
+compatibility discovery, namespaces, updates and immutable run snapshots.
+[Spec 29](29-project-connections-secrets.md) defines connection/credential scope.
+
 ## 24.2 Skill
 
 A Skill is a reusable task-oriented instruction/capability bundle.
@@ -21,6 +25,10 @@ Skill MAY include:
 - references.
 
 Skill MUST NOT grant authority beyond task/workflow policy.
+
+A standalone Skill does not require a Plugin. A Plugin may distribute several
+Skills with optional integration components; bundled Skills retain their package
+namespace and are not duplicated into the standalone project directory.
 
 ## 24.3 Skill provenance
 
@@ -40,11 +48,20 @@ Skill content is instruction context, not authorization.
 
 External/community skill MUST be treated as untrusted until approved.
 
+Use metadata-first progressive disclosure. Canonical project authoring is
+`.lumi/skills/<name>/SKILL.md`; compatibility locations and unambiguous resolution
+follow Spec 28. Discovery executes no bundled script and starts no connector.
+Foreign `allowed-tools` fields never mint Lumi capabilities.
+
 ## 24.5 Skill versioning
 
 Workflow pack SHOULD pin compatible skill version/range.
 
 Breaking behavior change requires major version.
+
+A run resolves an exact reviewed source/content snapshot. Do not hot-swap edited
+Skill instructions/scripts into active runs. Scheduled dependency updates follow
+Spec 28 even when capabilities appear unchanged.
 
 ## 24.6 Subagent default
 
@@ -152,6 +169,10 @@ Activation changes context, not authority.
 
 A model deciding "this Skill applies" MUST NOT gain additional filesystem/network/tool permissions.
 
+Only reviewed project-available Skills may enter this selection. A Skill needing
+an unavailable connection returns a readiness blocker; selection cannot launch
+OAuth, read credentials.json, enable a plugin, or borrow another project's account.
+
 ## 24.17 Hook distinction
 
 Hook is a separate deterministic extension primitive defined by spec 14.
@@ -196,4 +217,6 @@ V1 SHOULD additionally test:
 - Skill-relative resources resolve across installation roots;
 - deterministic Hook denial overrides model-selected Skill;
 - multiple independent reviewers disagree -> orchestrator does not fabricate consensus;
-- completion reviewer says done while required verifier fails -> task remains unverified.
+- completion reviewer says done while required verifier fails -> task remains unverified;
+- native and compatibility discovery do not duplicate or silently shadow Skill names;
+- project/package update cannot replace a running Skill snapshot or inherit a connection.
