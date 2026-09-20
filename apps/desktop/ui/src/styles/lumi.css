@@ -627,6 +627,21 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
 }
 .tab.active .count { background: var(--color-lumi-blue-soft); color: var(--color-lumi-blue); border-color: transparent; }
 
+/* Radix tabs expose the selected state through data-state. Keep this rule in
+   the Lumi stylesheet as a deliberate visual contract instead of relying on
+   a generated utility variant: the selected tab must remain unmistakable in
+   narrow windows and in static previews. */
+[data-slot="tabs-trigger"][data-state="active"] {
+  color: var(--color-lumi-blue);
+  background: var(--color-lumi-blue-soft);
+  border-bottom-color: var(--color-lumi-blue);
+  box-shadow: var(--shadow-lit);
+}
+[data-slot="tabs-trigger"][data-state="active"]:hover {
+  color: var(--color-lumi-blue-active);
+  background: var(--color-lumi-blue-soft);
+}
+
 /* ============ Stats / stepper / console ============ */
 .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-bottom: 13px; }
 .two-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }

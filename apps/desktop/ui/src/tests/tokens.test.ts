@@ -51,3 +51,18 @@ test("desktop does not reintroduce screen-specific palette overrides", () => {
   assert(!css.includes("--color-amber-hue:"), "amber must have one canonical token");
   assert(css.includes("height: 100dvh"), "desktop shell must use the stable dynamic viewport height");
 });
+
+test("selected project tabs have an explicit visible state", () => {
+  assert(
+    css.includes('[data-slot="tabs-trigger"][data-state="active"]'),
+    "Radix selected state must have an explicit Lumi CSS rule",
+  );
+  assert(
+    css.includes("background: var(--color-lumi-blue-soft)"),
+    "selected tabs must expose the selected surface",
+  );
+  assert(
+    css.includes("border-bottom-color: var(--color-lumi-blue)"),
+    "selected tabs must expose the selected rail",
+  );
+});
