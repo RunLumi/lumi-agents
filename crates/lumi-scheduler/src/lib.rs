@@ -28,6 +28,7 @@
 //! triggers into the same task/run requests the foreground uses, and all
 //! execution still flows through Orchestrator::execute_step.
 
+pub mod cron;
 pub mod lease;
 pub mod scheduler;
 pub mod trigger;
