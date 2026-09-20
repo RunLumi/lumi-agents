@@ -133,6 +133,10 @@ async function invoke(cmd, args = {}) {
   return window.__TAURI__.core.invoke(cmd, args);
 }
 
+function unavailableHtml() {
+  return `<div class="empty-state"><span class="big">${icon("folder")}</span>${esc(t("misc.runtimeUnavailable"))}</div>`;
+}
+
 // ================= state =================
 const S = {
   route: { view: "projects" },
@@ -165,12 +169,12 @@ function timeAgo(rfc3339) {
   const then = new Date(rfc3339).getTime();
   if (Number.isNaN(then)) return "";
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return t("misc.justNow");
+  if (mins < 60) return `${mins} ${t("misc.minAgo")}`;
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  if (hours < 24) return `${hours} ${t(hours === 1 ? "misc.hourAgo" : "misc.hoursAgo")}`;
   const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
+  return `${days} ${t(days === 1 ? "misc.dayAgo" : "misc.daysAgo")}`;
 }
 function toast(message, kind = "") {
   const el = document.createElement("div");
@@ -222,10 +226,10 @@ async function loadSnapshot() {
   const label = document.getElementById("engine-state");
   if (S.snapshot) {
     dot.className = "dot ok";
-    label.textContent = "Running locally";
+    label.textContent = t("misc.engineRunning");
   } else {
     dot.className = "dot warn";
-    label.textContent = "Unavailable";
+    label.textContent = t("misc.engineUnavailable");
   }
 }
 
@@ -364,9 +368,9 @@ function projectsHomeView() {
   const recents = wrap.querySelector("#recents");
   recents.dataset.mode = "grid";
   if (S.projects === null) {
-    recents.innerHTML = UNAVAILABLE;
+    recents.innerHTML = unavailableHtml();
   } else if (!S.projects.length) {
-    recents.innerHTML = `<div class="empty-state"><span class="big">${icon("folder")}</span>No projects yet. Open a folder to create your first project.</div>`;
+    recents.innerHTML = `<div class="empty-state"><span class="big">${icon("folder")}</span>${esc(t("home.empty"))}</div>`;
   } else {
     renderRecentsInto(recents);
   }
@@ -422,29 +426,30 @@ function recentCard(project, mode) {
   return card;
 }
 function statusPill(health) {
-  if (health === "available") return `<span class="pill pill-green">${icon("checkCircle")} Available</span>`;
-  if (health === "missing") return `<span class="pill pill-gray">${icon("alert")} Not Available</span>`;
-  return `<span class="pill pill-amber">${icon("alert")} Moved — relink needed</span>`;
+  if (health === "available") return `<span class="pill pill-green">${icon("checkCircle")} ${esc(t("status.available"))}</span>`;
+  if (health === "missing") return `<span class="pill pill-gray">${icon("alert")} ${esc(t("status.notAvailable"))}</span>`;
+  return `<span class="pill pill-amber">${icon("alert")} ${esc(t("status.moved"))}</span>`;
 }
 function taskStatusPill(status) {
   const map = {
-    CREATED: ["pill-blue", "Created"], QUEUED: ["pill-blue", "Queued"],
-    RUNNING: ["pill-green", "Running"], WAITING_APPROVAL: ["pill-amber", "Waiting approval"],
-    WAITING_USER: ["pill-amber", "Waiting for you"], WAITING_EXTERNAL: ["pill-amber", "Waiting external"],
-    PAUSED: ["pill-amber", "Paused"], COMPLETED: ["pill-green", "Completed"],
-    FAILED: ["pill-red", "Failed"], AMBIGUOUS: ["pill-amber", "Ambiguous"],
-    CANCELLED: ["pill-gray", "Cancelled"],
+    CREATED: ["pill-blue", t("status.created")], QUEUED: ["pill-blue", t("status.queued")],
+    RUNNING: ["pill-green", t("status.running")], WAITING_APPROVAL: ["pill-amber", t("status.waitingApproval")],
+    WAITING_USER: ["pill-amber", t("status.waitingUser")], WAITING_EXTERNAL: ["pill-amber", t("status.waitingExternal")],
+    PAUSED: ["pill-amber", t("status.paused")], COMPLETED: ["pill-green", t("status.completed")],
+    FAILED: ["pill-red", t("status.failed")], AMBIGUOUS: ["pill-amber", t("status.ambiguous")],
+    CANCELLED: ["pill-gray", t("status.cancelled")],
   };
   const [cls, label] = map[status] || ["pill-gray", status || "Unknown"];
   return `<span class="pill ${cls}">${esc(label)}</span>`;
 }
 function openProjectMenu(project) {
   if (project.health === "missing") {
-    if (confirm(`Project root unavailable:\n${project.primary_root}\n\nRemove this project from Recent Projects? (The folder on disk is not touched.)`)) {
-      invoke("project_remove", { projectId: project.project_id }).then(refresh);
+    if (confirm(`${t("status.moved")}\n${project.primary_root}\n\n${t("settings.removeConfirm")}`)) {
+      invoke("project_remove", { projectId: project.project_id })
+        .then(() => { toast(t("misc.removed"), "success"); refresh(); });
     }
   } else {
-    const newPath = prompt(`The folder at ${project.primary_root} was moved or replaced.\nEnter the project's current folder to relink:`);
+    const newPath = prompt(`${t("settings.relinkPrompt")}\n(${project.primary_root})`);
     if (newPath) {
       invoke("project_relink", { projectId: project.project_id, path: newPath })
         .then(refresh).catch((e) => toast(String(e), "error"));
@@ -452,12 +457,12 @@ function openProjectMenu(project) {
   }
 }
 async function pickAndOpenFolder() {
-  if (!hasTauri()) { toast("Folder picking needs the desktop app.", "error"); return; }
+  if (!hasTauri()) { toast(t("misc.availableInApp"), "error"); return; }
   try {
     const selected = await window.__TAURI__.dialog.open({ directory: true, multiple: false, title: "Open project folder" });
     if (!selected) return;
     const opened = await invoke("project_open_folder", { path: selected });
-    toast(opened.created ? "Project created." : "Project reopened.", "success");
+    toast(opened.created ? t("tasks.created") : t("misc.relabeled"), "success");
     refresh();
     setRoute(`#/p/${encodeURIComponent(opened.project.project_id)}/home`);
   } catch (error) {
@@ -467,7 +472,7 @@ async function pickAndOpenFolder() {
 async function cloneRepositoryFlow() {
   const source = prompt("Repository URL or local path to clone:");
   if (!source) return;
-  if (!hasTauri()) { toast("Folder picking needs the desktop app.", "error"); return; }
+  if (!hasTauri()) { toast(t("misc.availableInApp"), "error"); return; }
   try {
     const parent = await window.__TAURI__.dialog.open({
       directory: true, multiple: false, title: "Choose the parent folder for the clone",
@@ -477,7 +482,7 @@ async function cloneRepositoryFlow() {
     const opened = await invoke("project_clone", {
       source: source.trim(), destinationParent: parent, displayName: name || null,
     });
-    toast("Repository cloned and opened as a project.", "success");
+    toast(t("tasks.created"), "success");
     refresh();
     setRoute(`#/p/${encodeURIComponent(opened.project.project_id)}/home`);
   } catch (error) {
@@ -494,7 +499,7 @@ async function renderProject(content) {
     content.innerHTML = `<div class="empty-state unavailable-note"><b>Project failed to load.</b><br>${esc(String(error))}</div>`;
     return;
   }
-  if (!S.project) { content.innerHTML = UNAVAILABLE; return; }
+  if (!S.project) { content.innerHTML = unavailableHtml(); return; }
   setBreadcrumb([
     { label: "Projects", go: "#/projects" },
     { label: S.project.display_name },
@@ -537,18 +542,18 @@ function projectHeaderView() {
     <div class="project-ico">${icon("folder")}</div>
     <div style="flex:1;min-width:0">
       <h1 class="project-title">${esc(S.project.display_name)}</h1>
-      <p class="project-desc">${esc(S.project.detected_source)} project</p>
+      <p class="project-desc">${esc(S.project.detected_source)} · ${esc(t("project.project_word"))}</p>
       <div class="project-chips">
         <span class="chip">${icon("folder")} ${esc(S.project.primary_root)}</span>
         ${branch ? `<span class="chip">${icon("branch")} ${esc(branch)}</span>` : ""}
-        <span class="pill pill-green">${icon("lock")} Local • Safe</span>
+        <span class="pill pill-green">${icon("lock")} ${esc(t("project.localSafe"))}</span>
       </div>
     </div>
     <div class="project-head-right">
-      <span class="sync-note">${icon("clock")} Opened ${esc(timeAgo(S.project.last_opened_at || new Date().toISOString()))}</span>
+      <span class="sync-note">${icon("clock")} ${esc(t("project.opened"))} ${esc(timeAgo(S.project.last_opened_at || new Date().toISOString()))}</span>
       <div style="display:flex;gap:8px">
         <button class="btn btn-sm" id="open-in-finder">${icon("external")} Open in Finder</button>
-        <button class="btn btn-primary btn-sm" id="new-task-btn">${icon("plus")} New Task</button>
+        <button class="btn btn-primary btn-sm" id="new-task-btn">${icon("plus")} ${esc(t("project.newTask"))}</button>
       </div>
     </div>`;
   head.querySelector("#open-in-finder").addEventListener("click", async () => {
@@ -568,10 +573,11 @@ function tabsView() {
     artifacts: (S.artifacts || []).length,
   };
   const defs = [
-    ["home", "Home"], ["tasks", "Tasks", counts.tasks], ["files", "Files"],
-    ["changes", "Changes", counts.changes], ["git", "Git"],
-    ["artifacts", "Artifacts", counts.artifacts], ["evidence", "Evidence"],
-    ["approvals", "Approvals"], ["settings", "Settings"],
+    ["home", t("tab.home")], ["tasks", t("tab.tasks"), counts.tasks],
+    ["files", t("tab.files")], ["changes", t("tab.changes"), counts.changes],
+    ["git", "Git"], ["artifacts", t("tab.artifacts"), counts.artifacts],
+    ["evidence", t("tab.evidence")], ["approvals", t("tab.approvals")],
+    ["settings", t("tab.settings")],
   ];
   for (const [key, label, count] of defs) {
     const b = document.createElement("button");
@@ -604,7 +610,7 @@ function contextPanel() {
   panel.innerHTML = `
     <div class="card context-card">
       <h4>${icon("folder")} Project Context</h4>
-      <div class="kv"><span class="kv-key">Project Root</span></div>
+      <div class="kv"><span class="kv-key">${esc(t("project.root"))}</span></div>
       <div class="chip mono" style="width:100%;justify-content:space-between">${esc(p.primary_root)}</div>
       <div class="kv" style="margin-top:8px"><span class="kv-key">Environment</span><span class="kv-val mono">${esc(p.environment_id)}</span></div>
       <div class="kv"><span class="kv-key">Branch</span><span class="kv-val mono">${esc((git && git.branch) || "—")}</span></div>
@@ -629,11 +635,11 @@ function contextPanel() {
 function projectRequiredNotice(label) {
   const el = document.createElement("div");
   if (S.projects && S.projects.length) {
-    el.innerHTML = `<div class="empty-state"><span class="big">${icon("folder")}</span>Open a project first to use ${esc(label)}.<div style="margin-top:10px">
-      <button class="btn btn-primary" id="go-projects">Go to Projects</button></div></div>`;
+    el.innerHTML = `<div class="empty-state"><span class="big">${icon("folder")}</span>${esc(t("misc.openProjectFirst"))} ${esc(label)}.<div style="margin-top:10px">
+      <button class="btn btn-primary" id="go-projects">${esc(t("misc.goProjects"))}</button></div></div>`;
     el.querySelector("#go-projects").addEventListener("click", () => setRoute("#/projects"));
   } else {
-    el.innerHTML = UNAVAILABLE;
+    el.innerHTML = unavailableHtml();
   }
   return el;
 }
@@ -666,12 +672,12 @@ function activeTaskCard(task) {
   const pct = Math.round((doneCount / steps.length) * 100);
   card.innerHTML = `
     <h3>${icon("activity")} Active Task
-      <span class="pill pill-blue">${icon("agent")} Agent registered</span>
+      <span class="pill pill-blue">${icon("agent")} ${esc(t("misc.agentRegistered"))}</span>
       <span style="margin-left:auto"><button class="card-link" data-go-task="${esc(task.task_id)}">Open task ${icon("arrowRight")}</button></span>
     </h3>
     <p style="margin:4px 0 0;font-weight:600;color:var(--color-civic-navy)">${esc(task.goal)}</p>
     <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-    <div class="muted small tabular">${doneCount} of ${steps.length} stages · ${pct}%</div>
+    <div class="muted small tabular">${doneCount} ${esc(t("homeTab.stages"))} ${steps.length} · ${pct}%</div>
     <div class="stepper">
       ${steps.map(([label, done]) => `
         <div class="step ${done ? "done" : ""}">
@@ -689,16 +695,16 @@ function workingTreeCard() {
   const git = S.git;
   const clean = gitIsClean(git);
   card.innerHTML = `
-    <h3>${icon("branch")} Working Tree Status
-      ${git ? (clean ? '<span class="pill pill-green">Clean</span>' : '<span class="pill pill-amber">Dirty</span>') : '<span class="pill pill-gray">No Git</span>'}
+    <h3>${icon("branch")} ${esc(t("homeTab.tree"))}
+      ${git ? (clean ? `<span class="pill pill-green">${esc(t("status.clean"))}</span>` : `<span class="pill pill-amber">${esc(t("status.dirty"))}</span>`) : `<span class="pill pill-gray">${esc(t("status.noGit"))}</span>`}
     </h3>
     ${git ? `
-      <div class="kv"><span class="kv-key">Branch</span><span class="kv-val mono">${esc(git.branch || "detached")}</span></div>
-      <div class="kv"><span class="kv-key">Staged files</span><span class="kv-val tabular">${git.staged.length}</span></div>
-      <div class="kv"><span class="kv-key">Modified files</span><span class="kv-val tabular">${git.unstaged.length}</span></div>
-      <div class="kv"><span class="kv-key">Untracked files</span><span class="kv-val tabular">${git.untracked.length}</span></div>`
-      : '<p class="card-sub">This project has no Git repository, so working-tree state is unavailable.</p>'}
-    <button class="card-link" id="wt-link">View in Git ${icon("arrowRight")}</button>`;
+      <div class="kv"><span class="kv-key">${esc(t("project.branch"))}</span><span class="kv-val mono">${esc(git.branch || "—")}</span></div>
+      <div class="kv"><span class="kv-key">${esc(t("homeTab.treeStaged"))}</span><span class="kv-val tabular">${git.staged.length}</span></div>
+      <div class="kv"><span class="kv-key">${esc(t("homeTab.treeModified"))}</span><span class="kv-val tabular">${git.unstaged.length}</span></div>
+      <div class="kv"><span class="kv-key">${esc(t("homeTab.treeUntracked"))}</span><span class="kv-val tabular">${git.untracked.length}</span></div>`
+      : '<p class="card-sub">${esc(t("git.noRepo"))}</p>'}
+    <button class="card-link" id="wt-link">${esc(t("homeTab.viewGit"))} ${icon("arrowRight")}</button>`;
   card.querySelector("#wt-link").addEventListener("click", () => setRoute(`#/p/${S.route.projectId}/git`));
   return card;
 }
@@ -712,21 +718,21 @@ function validationCard() {
   const latest = allValidations().slice(0, 4);
   const allPass = latest.length && latest.every((v) => v.status === "passed");
   card.innerHTML = `
-    <h3>${icon("verification")} Validation Status
-      ${latest.length ? `<span class="pill ${allPass ? "pill-green" : "pill-red"}">${allPass ? icon("checkCircle") : ""} All passing</span>` : ""}</h3>
-    <p class="card-sub">Run the project's real checks. "Files edited" is never "done".</p>
+    <h3>${icon("verification")} ${esc(t("homeTab.validation"))}
+      ${latest.length ? `<span class="pill ${allPass ? "pill-green" : "pill-red"}">${allPass ? icon("checkCircle") : ""} ${esc(t("homeTab.allPassing"))}</span>` : ""}</h3>
+    <p class="card-sub">${esc(t("homeTab.validationSub"))}</p>
     <div class="mini-list">
       ${latest.length ? latest.map((v) => `
         <div class="mini-row">
           <span class="${v.status === "passed" ? "check-yes" : "check-no"}">${v.status === "passed" ? "✓" : "✗"}</span>
           <span style="flex:1"><b>${esc(v.role)}</b> · <span class="mono">${esc(v.command)}</span></span>
           <span class="pill ${v.status === "passed" ? "pill-green" : v.status === "failed" ? "pill-red" : "pill-amber"}">${esc(v.status)}</span>
-        </div>`).join("") : '<div class="empty-state">No validations recorded yet.</div>'}
+        </div>`).join("") : '<div class="empty-state">${esc(t("task.noValidations"))}</div>'}
     </div>
     <div class="inline-form" style="margin-top:10px">
       <input class="input" id="val-command" list="val-proposals" placeholder="${esc(proposals[0] ? proposals[0].command : "cargo test / npm test …")}">
       <datalist id="val-proposals">${proposals.map((p) => `<option value="${esc(p.command)}">${esc(p.role)}</option>`).join("")}</datalist>
-      <button class="btn btn-primary btn-sm" id="val-run">${icon("play")} Run</button>
+      <button class="btn btn-primary btn-sm" id="val-run">${icon("play")} ${esc(t("homeTab.run"))}</button>
     </div>`;
   card.querySelector("#val-run").addEventListener("click", async () => {
     const command = card.querySelector("#val-command").value.trim()
@@ -736,7 +742,7 @@ function validationCard() {
       const record = await invoke("validation_run", {
         projectId: S.route.projectId, taskId: "task-manual-local", command,
       });
-      toast(`Validation ${record.status}.`, record.status === "passed" ? "success" : "error");
+      toast(`${esc(t("task.validations"))}: ${record.status}`, record.status === "passed" ? "success" : "error");
       refresh();
     } catch (e) { toast(String(e), "error"); }
   });
@@ -747,17 +753,17 @@ function recentArtifactsCard() {
   card.className = "card";
   const artifacts = (S.artifacts || []).slice(0, 4);
   card.innerHTML = `
-    <h3>${icon("artifact")} Recent Artifacts
-      ${(S.artifacts || []).length ? `<span class="pill pill-blue tabular">${S.artifacts.length} new</span>` : ""}</h3>
+    <h3>${icon("artifact")} ${esc(t("homeTab.artifacts"))}
+      ${(S.artifacts || []).length ? `<span class="pill pill-blue tabular">${S.artifacts.length} ${esc(t("homeTab.new"))}</span>` : ""}</h3>
     <div class="mini-list">
       ${artifacts.length ? artifacts.map((a) => `
         <div class="mini-row">
           ${icon("fileText")}
           <span style="flex:1" class="mono">${esc(a.name)}</span>
           <span class="muted small">${esc(fmtSize(a.size))}</span>
-        </div>`).join("") : '<div class="empty-state">No artifacts yet.</div>'}
+        </div>`).join("") : '<div class="empty-state">${esc(t("homeTab.noArtifacts"))}</div>'}
     </div>
-    <button class="card-link" id="see-artifacts">View All Artifacts ${icon("arrowRight")}</button>`;
+    <button class="card-link" id="see-artifacts">${esc(t("homeTab.viewAllArtifacts"))} ${icon("arrowRight")}</button>`;
   card.querySelector("#see-artifacts").addEventListener("click", () =>
     setRoute(`#/p/${S.route.projectId}/artifacts`));
   return card;
@@ -767,8 +773,8 @@ function recentChangesCard() {
   card.className = "card";
   const entries = (S.changeSets || []).flatMap((set) => set.entries || []).slice(0, 6);
   card.innerHTML = `
-    <h3>${icon("edit")} Recent Lumi Changes
-      <button class="card-link" id="see-changes" style="margin-left:auto">View in Changes ${icon("arrowRight")}</button></h3>
+    <h3>${icon("edit")} ${esc(t("homeTab.changes"))}
+      <button class="card-link" id="see-changes" style="margin-left:auto">${esc(t("homeTab.viewChanges"))} ${icon("arrowRight")}</button></h3>
     <div class="mini-list">
       ${entries.length ? entries.map((e) => `
         <div class="mini-row">
@@ -776,7 +782,7 @@ function recentChangesCard() {
           <span style="flex:1" class="mono">${esc(e.path)}</span>
           <span class="pill pill-blue">${esc(e.kind)}</span>
           <span class="muted small">${esc(timeAgo(e.recorded_at))}</span>
-        </div>`).join("") : '<div class="empty-state">Lumi has not changed anything in this project yet.</div>'}
+        </div>`).join("") : '<div class="empty-state">${esc(t("homeTab.noChanges"))}</div>'}
     </div>`;
   card.querySelector("#see-changes").addEventListener("click", () =>
     setRoute(`#/p/${S.route.projectId}/changes`));
@@ -786,8 +792,8 @@ function taskHistoryCard() {
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <h3>${icon("list")} Task History
-      <button class="card-link" id="see-tasks" style="margin-left:auto">View All ${icon("arrowRight")}</button></h3>
+    <h3>${icon("list")} ${esc(t("homeTab.history"))}
+      <button class="card-link" id="see-tasks" style="margin-left:auto">${esc(t("homeTab.viewAll"))} ${icon("arrowRight")}</button></h3>
     ${(S.tasks || []).length ? `<div class="mini-list">
       ${S.tasks.slice(0, 6).map((t) => `
         <div class="task-row" data-task="${esc(t.task_id)}">
@@ -795,7 +801,7 @@ function taskHistoryCard() {
           ${taskStatusPill(t.status)}
           <span class="muted small">${esc(timeAgo(t.created_at))}</span>
         </div>`).join("")}
-    </div>` : '<div class="empty-state">No tasks yet. Create one to delegate real work.</div>'}`;
+    </div>` : `<div class="empty-state">${esc(t("homeTab.noTasks"))}</div>`}`;
   card.querySelector("#see-tasks").addEventListener("click", () =>
     setRoute(`#/p/${S.route.projectId}/tasks`));
   card.querySelectorAll("[data-task]").forEach((row) =>
@@ -808,27 +814,27 @@ function tasksView() {
   const wrap = document.createElement("div");
   wrap.innerHTML = `
     <div class="card">
-      <h3>${icon("task")} New Task</h3>
-      <p class="card-sub">Give Lumi a goal for this project. The task is durable and resumes after restart.</p>
-      <div class="field"><textarea class="textarea" id="task-goal" placeholder="e.g. Implement OAuth login and make all tests pass"></textarea></div>
-      <button class="btn btn-primary" id="task-create">${icon("plus")} Create Task</button>
+      <h3>${icon("task")} ${esc(t("tasks.new"))}</h3>
+      <p class="card-sub">${esc(t("tasks.newSub"))}</p>
+      <div class="field"><textarea class="textarea" id="task-goal" placeholder="${esc(t("tasks.placeholder"))}"></textarea></div>
+      <button class="btn btn-primary" id="task-create">${icon("plus")} ${esc(t("tasks.create"))}</button>
     </div>
     <div class="card" style="margin-top:13px">
-      <h3>${icon("list")} Tasks</h3>
+      <h3>${icon("list")} ${esc(t("tab.tasks"))}</h3>
       <div id="task-rows"></div>
     </div>`;
   wrap.querySelector("#task-create").addEventListener("click", async () => {
     const goal = wrap.querySelector("#task-goal").value.trim();
-    if (!goal) { toast("Describe the goal first.", "error"); return; }
+    if (!goal) { toast(t("tasks.describeGoal"), "error"); return; }
     try {
       const task = await invoke("task_create", { projectId: S.route.projectId, goal });
-      toast("Task created.", "success");
+      toast(t("tasks.created"), "success");
       setRoute(`#/p/${S.route.projectId}/task/${encodeURIComponent(task.task_id)}`);
     } catch (e) { toast(String(e), "error"); }
   });
   const rows = wrap.querySelector("#task-rows");
   if (!S.tasks || !S.tasks.length) {
-    rows.innerHTML = `<div class="empty-state">${icon("inbox") && ""}No tasks yet.</div>`;
+    rows.innerHTML = `<div class="empty-state">${icon("inbox")} ${esc(t("tasks.none"))}</div>`;
   } else {
     for (const t of S.tasks) {
       const row = document.createElement("div");
@@ -854,7 +860,7 @@ async function taskDetailView(taskId) {
   const wrap = document.createElement("div");
   if (!task) {
     wrap.className = "card";
-    wrap.innerHTML = `<div class="empty-state">Task not found in this project's durable state.</div>`;
+    wrap.innerHTML = `<div class="empty-state">${esc(t("task.notFound"))}</div>`;
     return wrap;
   }
   const stageDefs = [
@@ -895,10 +901,10 @@ async function taskDetailView(taskId) {
     </div>
     <div class="card">
       <div class="subtabs">
-        <button class="subtab active" data-sub="timeline">Timeline</button>
-        <button class="subtab" data-sub="files">Changed Files <span class="tabular">${entries.length}</span></button>
-        <button class="subtab" data-sub="validations">Validations <span class="tabular">${validations.length}</span></button>
-        <button class="subtab" data-sub="commands">Commands <span class="tabular">${commands.length}</span></button>
+        <button class="subtab active" data-sub="timeline">${esc(t("task.timeline"))}</button>
+        <button class="subtab" data-sub="files">${esc(t("task.files"))} <span class="tabular">${entries.length}</span></button>
+        <button class="subtab" data-sub="validations">${esc(t("task.validations"))} <span class="tabular">${validations.length}</span></button>
+        <button class="subtab" data-sub="commands">${esc(t("task.commands"))} <span class="tabular">${commands.length}</span></button>
       </div>
       <div id="task-sub-content"></div>
     </div>`;
@@ -912,20 +918,20 @@ async function taskDetailView(taskId) {
           <span style="flex:1" class="mono">${esc(e.path)}</span>
           <span class="pill pill-blue">${esc(e.kind)}</span>
           <span class="muted small">${esc(timeAgo(e.recorded_at))}</span>
-        </div>`).join("")}</div>` : '<div class="empty-state">No file changes recorded.</div>';
+        </div>`).join("")}</div>` : '<div class="empty-state">${esc(t("task.noFileChanges"))}</div>';
     } else if (sub === "validations") {
       subContent.innerHTML = validations.length ? `<div class="mini-list">${validations.map((v) => `
         <div class="mini-row">
           <span class="${v.status === "passed" ? "check-yes" : "check-no"}">${v.status === "passed" ? "✓" : "✗"}</span>
           <span style="flex:1" class="mono">${esc(v.command)}</span>
           <span class="pill ${v.status === "passed" ? "pill-green" : v.status === "failed" ? "pill-red" : "pill-amber"}">${esc(v.status)}</span>
-        </div>`).join("")}</div>` : '<div class="empty-state">No validations run for this task yet.</div>';
+        </div>`).join("")}</div>` : '<div class="empty-state">${esc(t("task.noValidations"))}</div>';
     } else if (sub === "commands") {
       subContent.innerHTML = commands.length ? `<div class="mini-list">${commands.map((c) => `
         <div class="mini-row">${icon("play")}
           <span style="flex:1" class="mono">${esc(c.command)}</span>
           <span class="muted small">${esc(c.purpose || "")}</span>
-        </div>`).join("")}</div>` : '<div class="empty-state">No commands recorded.</div>';
+        </div>`).join("")}</div>` : '<div class="empty-state">${esc(t("task.noCommands"))}</div>';
     } else {
       subContent.innerHTML = `<div class="terminal" id="task-console">
         ${consoleTimeline(task, entries, validations, commands)}
@@ -954,7 +960,7 @@ function consoleTimeline(task, entries, validations, commands) {
     const cls = v.status === "passed" ? "t-ok" : v.status === "failed" ? "t-err" : "t-info";
     html += line(v.recorded_at, cls, `${v.status === "passed" ? "✓" : "✗"} ${v.command} → ${v.status}`);
   }
-  html += line(task.created_at, "t-dim", "> Progress is durable — this task survives restart and resumes here.");
+  html += line(task.created_at, "t-dim", "> " + t("task.durable"));
   return html;
 }
 function TimestampNow() { return new Date().toISOString(); }
@@ -965,12 +971,12 @@ async function filesView() {
   wrap.className = "files-layout";
   const treePanel = document.createElement("div");
   treePanel.className = "card tree-panel";
-  treePanel.innerHTML = `<h3>${icon("layers")} Files</h3><div id="tree"></div>`;
+  treePanel.innerHTML = `<h3>${icon("layers")} ${esc(t("tab.files"))}</h3><div id="tree"></div>`;
   const viewer = document.createElement("div");
   viewer.className = "file-viewer";
   const context = document.createElement("div");
   context.className = "card context-card";
-  context.innerHTML = `<h4>${icon("file")} File Context</h4><div class="empty-state">Select a file.</div>`;
+  context.innerHTML = `<h4>${icon("file")} ${esc(t("files.contextTitle"))}</h4><div class="empty-state">${esc(t("files.selectFile"))}</div>`;
   wrap.append(treePanel, viewer, context);
   await loadTreeNode(S.route.projectId, ".", treePanel.querySelector("#tree"), viewer, context);
   return wrap;
@@ -978,9 +984,9 @@ async function filesView() {
 async function loadTreeNode(projectId, relPath, container, viewer, context) {
   const entries = await invoke("file_list", { projectId, path: relPath });
   container.innerHTML = "";
-  if (entries && entries.__unavailable) { container.innerHTML = UNAVAILABLE; return; }
+  if (entries && entries.__unavailable) { container.innerHTML = unavailableHtml(); return; }
   if (!entries || !entries.length) {
-    container.innerHTML = '<div class="empty-state">Empty folder.</div>';
+    container.innerHTML = '<div class="empty-state">${esc(t("files.emptyDir"))}</div>';
     return;
   }
   for (const entry of entries) {
@@ -1066,9 +1072,9 @@ function renderFileArea(projectId, viewer, context) {
     <div class="file-viewer-head">
       <span class="crumbs">${icon("folder")} ${crumbs}</span>
       <span style="flex:1"></span>
-      <button class="btn btn-sm" id="file-copy">${icon("copy")} Copy path</button>
-      <button class="btn btn-sm" id="file-edit-toggle">${S.editing ? "Cancel" : icon("edit") + " Edit"}</button>
-      <button class="btn btn-primary btn-sm" id="file-save" disabled>${icon("check")} Save</button>
+      <button class="btn btn-sm" id="file-copy">${icon("copy")} ${esc(t("files.copyPath"))}</button>
+      <button class="btn btn-sm" id="file-edit-toggle">${S.editing ? esc(t("files.cancel")) : icon("edit") + " " + esc(t("files.edit"))}</button>
+      <button class="btn btn-primary btn-sm" id="file-save" disabled>${icon("check")} ${esc(t("files.save"))}</button>
     </div>
     <div id="file-body">
       ${S.editing
@@ -1092,22 +1098,22 @@ function renderFileArea(projectId, viewer, context) {
     .filter((e) => e.path === file.path)
     .slice(0, 4);
   context.innerHTML = `
-    <h4>${icon("file")} File Context</h4>
-    <button class="card-link" id="ctx-editor" style="margin-bottom:8px">${icon("external")} Open in Editor</button>
-    <div class="kv"><span class="kv-key">Lines</span><span class="kv-val tabular">${lines.length}</span></div>
-    <div class="kv"><span class="kv-key">Size</span><span class="kv-val tabular">${esc(fmtSize(new Blob([file.content]).size))}</span></div>
-    <div class="kv"><span class="kv-key">Language</span><span class="kv-val">${esc(lang)}</span></div>
+    <h4>${icon("file")} ${esc(t("files.contextTitle"))}</h4>
+    <button class="card-link" id="ctx-editor" style="margin-bottom:8px">${icon("external")} ${esc(t("project.openInFinder"))}</button>
+    <div class="kv"><span class="kv-key">${esc(t("files.lines"))}</span><span class="kv-val tabular">${lines.length}</span></div>
+    <div class="kv"><span class="kv-key">${esc(t("files.size"))}</span><span class="kv-val tabular">${esc(fmtSize(new Blob([file.content]).size))}</span></div>
+    <div class="kv"><span class="kv-key">${esc(t("files.language"))}</span><span class="kv-val">${esc(lang)}</span></div>
     <div class="kv"><span class="kv-key">SHA-256</span><span class="kv-val mono">${esc(file.sha256.slice(0, 12))}…</span></div>
     <h4 style="margin-top:12px">${icon("history")} Recent changes to this file</h4>
     ${related.length ? `<div class="mini-list">${related.map((e) => `
       <div class="mini-row"><span class="pill pill-blue">${esc(e.kind)}</span>
       <span class="muted small">${esc(timeAgo(e.recorded_at))}</span></div>`).join("")}</div>`
       : '<div class="muted small">No Lumi changes recorded for this file.</div>'}
-    <p class="card-sub" style="margin-top:10px">Edits are checksum-guarded: if the file changes on disk before you save, Lumi refuses and preserves the newer version.</p>`;
+    <p class="card-sub" style="margin-top:10px">${esc(t("files.contextGuard"))}</p>`;
 
   viewer.querySelector("#file-copy").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(file.path); toast("Path copied.", "success"); }
-    catch { toast("Copy failed.", "error"); }
+    try { await navigator.clipboard.writeText(file.path); toast(t("files.copyOk"), "success"); }
+    catch { toast(t("files.copyFail"), "error"); }
   });
   viewer.querySelector("#ctx-editor").addEventListener("click", () => {
     if (hasTauri() && window.__TAURI__.opener) {
@@ -1127,14 +1133,14 @@ function renderFileArea(projectId, viewer, context) {
         await invoke("file_edit", {
           projectId, path: file.path, expectedSha256: file.sha256, content: editor.value,
         });
-        toast("Saved.", "success");
+        toast(t("files.saved"), "success");
         S.editing = false;
         const fresh = await invoke("file_read", { projectId, path: file.path });
         const at = S.openFiles.findIndex((f) => f.path === file.path);
         if (at >= 0 && fresh && !fresh.__unavailable) S.openFiles[at] = { path: file.path, ...fresh };
         renderFileArea(projectId, viewer, context);
       } catch (error) {
-        toast(String(error), "error");
+        toast(t("files.saveFail"), "error");
       }
     });
   }
@@ -1161,7 +1167,7 @@ async function changesView() {
   const wrap = document.createElement("div");
   wrap.innerHTML = `<div id="changes-body"></div>`;
   const body = wrap.querySelector("#changes-body");
-  if (!sets || sets.__unavailable) { body.innerHTML = UNAVAILABLE; return wrap; }
+  if (!sets || sets.__unavailable) { body.innerHTML = unavailableHtml(); return wrap; }
   if (!sets.length) {
     body.innerHTML = `<div class="card"><div class="empty-state"><span class="big">${icon("edit")}</span>
       No changes yet. Changes appear here as tasks and edits modify project files —
@@ -1174,17 +1180,17 @@ async function changesView() {
   }
   body.innerHTML = `
     <div class="stats-row">
-      <div class="stat-tile"><span class="tone-green">${icon("plus")}</span><div><div class="num">${totals.created}</div><div class="lbl">Files created</div></div></div>
-      <div class="stat-tile"><span class="tone-blue">${icon("edit")}</span><div><div class="num">${totals.modified}</div><div class="lbl">Files modified</div></div></div>
-      <div class="stat-tile"><span class="tone-amber">${icon("arrowRight")}</span><div><div class="num">${totals.moved}</div><div class="lbl">Files moved</div></div></div>
-      <div class="stat-tile"><span class="tone-red">${icon("trash")}</span><div><div class="num">${totals.deleted}</div><div class="lbl">Files deleted</div></div></div>
+      <div class="stat-tile"><span class="tone-green">${icon("plus")}</span><div><div class="num">${totals.created}</div><div class="lbl">${esc(t("changes.created"))}</div></div></div>
+      <div class="stat-tile"><span class="tone-blue">${icon("edit")}</span><div><div class="num">${totals.modified}</div><div class="lbl">${esc(t("changes.modifiedCount"))}</div></div></div>
+      <div class="stat-tile"><span class="tone-amber">${icon("arrowRight")}</span><div><div class="num">${totals.moved}</div><div class="lbl">${esc(t("changes.moved"))}</div></div></div>
+      <div class="stat-tile"><span class="tone-red">${icon("trash")}</span><div><div class="num">${totals.deleted}</div><div class="lbl">${esc(t("changes.deleted"))}</div></div></div>
     </div>
     <div class="diff-toolbar">
       <div class="diff-toggle">
-        <button id="diff-unified" class="active">Unified</button>
-        <button id="diff-split">Side by Side</button>
+        <button id="diff-unified" class="active">${esc(t("diff.unified"))}</button>
+        <button id="diff-split">${esc(t("diff.split"))}</button>
       </div>
-      <span class="muted small">Pre-existing user edits live in Git, never here. Lumi's change set answers: what did Lumi change, and is it correct?</span>
+      <span class="muted small">${esc(t("changes.preExisting"))}</span>
     </div>
     <div id="sets"></div>`;
   const container = body.querySelector("#sets");
@@ -1212,10 +1218,10 @@ async function changesView() {
     const validations = set.validations || [];
     const allPass = validations.length && validations.every((v) => v.status === "passed");
     card.innerHTML = `
-      <h3>Task <span class="mono">${esc(set.task_id)}</span>
-        ${allPass ? '<span class="pill pill-green">Validated</span>' : validations.length ? '<span class="pill pill-red">Validation failed</span>' : ""}
+      <h3>${esc(t("changes.task"))} <span class="mono">${esc(set.task_id)}</span>
+        ${allPass ? `<span class="pill pill-green">${esc(t("changes.validated"))}</span>` : validations.length ? `<span class="pill pill-red">${esc(t("changes.validationFailed"))}</span>` : ""}
       </h3>
-      <p class="card-sub tabular">${(set.entries || []).length} file change(s) · ${validations.length} validation(s) · updated ${esc(timeAgo(set.updated_at))}</p>
+      <p class="card-sub tabular">${(set.entries || []).length} ${esc(t("changes.fileChanges"))} · ${validations.length} ${esc(t("changes.validationsWord"))} · ${esc(t("changes.updated"))} ${esc(timeAgo(set.updated_at))}</p>
       ${(set.entries || []).map((e) => renderChangeEntry(e, S.diffMode)).join("")}
       ${validations.map((v) => `
         <div class="mini-row">
@@ -1292,8 +1298,8 @@ function renderPatch(patch, mode) {
 async function gitView() {
   const wrap = document.createElement("div");
   wrap.innerHTML = `
-    <div class="section-head"><h2>Git Workspace</h2></div>
-    <p class="section-sub">Manage branches, review changes, and collaborate with confidence.</p>
+    <div class="section-head"><h2>${esc(t("git.workspace"))}</h2></div>
+    <p class="section-sub">${esc(t("git.workspaceSub"))}</p>
     <div id="git-body"></div>
     <div class="project-layout" style="margin-top:13px">
       <div class="card">
@@ -1304,7 +1310,7 @@ async function gitView() {
     </div>`;
   const body = wrap.querySelector("#git-body");
   if (!S.git) {
-    body.innerHTML = `<div class="empty-state"><span class="big">${icon("branch")}</span>This project has no Git repository, so Git tools are unavailable.</div>`;
+    body.innerHTML = `<div class="empty-state"><span class="big">${icon("branch")}</span>${esc(t("git.noRepo"))}</div>`;
     return wrap;
   }
   const git = S.git;
@@ -1321,26 +1327,26 @@ async function gitView() {
   body.innerHTML = `
     <div class="stat-cards" style="grid-template-columns: 1fr 2fr">
       <div class="card">
-        <h3>${icon("branch")} Current Branch ${gitIsClean(git) ? '<span class="pill pill-green">Clean</span>' : '<span class="pill pill-amber">Dirty</span>'}</h3>
-        <p style="font-size:15px;font-weight:700;margin:6px 0" class="mono">${esc(git.branch || "detached HEAD")}</p>
-        <div class="kv"><span class="kv-key">Staged</span><span class="kv-val tabular">${git.staged.length}</span></div>
-        <div class="kv"><span class="kv-key">Unstaged</span><span class="kv-val tabular">${git.unstaged.length}</span></div>
-        <div class="kv"><span class="kv-key">Untracked</span><span class="kv-val tabular">${git.untracked.length}</span></div>
+        <h3>${icon("branch")} ${esc(t("git.currentBranch"))} ${gitIsClean(git) ? `<span class="pill pill-green">${esc(t("status.clean"))}</span>` : `<span class="pill pill-amber">${esc(t("status.dirty"))}</span>`}</h3>
+        <p style="font-size:15px;font-weight:700;margin:6px 0" class="mono">${esc(git.branch || t("git.detached"))}</p>
+        <div class="kv"><span class="kv-key">${esc(t("git.staged"))}</span><span class="kv-val tabular">${git.staged.length}</span></div>
+        <div class="kv"><span class="kv-key">${esc(t("git.unstaged"))}</span><span class="kv-val tabular">${git.unstaged.length}</span></div>
+        <div class="kv"><span class="kv-key">${esc(t("git.untracked"))}</span><span class="kv-val tabular">${git.untracked.length}</span></div>
       </div>
       <div class="card">
-        <h3>${icon("diff")} Changes in Working Directory</h3>
+        <h3>${icon("diff")} ${esc(t("git.changesInWorkdir"))}</h3>
         ${dirty ? `
           <table class="status-table">
-            <tr><th></th><th>File</th><th>Status</th></tr>
+            <tr><th></th><th>${esc(t("git.file"))}</th><th>${esc(t("git.statusCol"))}</th></tr>
             ${git.staged.map((f) => gitRow(f.path, f.index_state, "staged")).join("")}
             ${git.unstaged.map((f) => gitRow(f.path, f.worktree_state, "unstaged")).join("")}
             ${git.untracked.map((p) => gitRow(p, "?", "untracked")).join("")}
-          </table>` : '<div class="empty-state">Working tree is clean.</div>'}
+          </table>` : '<div class="empty-state">${esc(t("git.cleanTree"))}</div>'}
         <div class="inline-form" style="margin-top:12px">
-          <input class="input" id="commit-msg" placeholder="Commit message (commits exactly the files you ticked)">
-          <button class="btn btn-primary btn-sm" id="commit-btn">${icon("commit")} Commit Selected</button>
+          <input class="input" id="commit-msg" placeholder="${esc(t("git.commitMsg"))}">
+          <button class="btn btn-primary btn-sm" id="commit-btn">${icon("commit")} ${esc(t("git.commitSelected"))}</button>
         </div>
-        <p class="card-sub" style="margin-top:6px">Commits are path-scoped: Lumi never sweeps in your other staged work.</p>
+        <p class="card-sub" style="margin-top:6px">${esc(t("git.pathScoped"))}</p>
       </div>
     </div>
     <div class="card" style="margin-bottom:13px">
@@ -1356,28 +1362,28 @@ async function gitView() {
     </div>
     <div class="two-cards">
       <div class="card">
-        <h3>${icon("branch")} Branches</h3>
+        <h3>${icon("branch")} ${esc(t("git.branches"))}</h3>
         <div class="inline-form" style="margin-bottom:10px">
-          <input class="input" id="new-branch" placeholder="feature/my-branch">
-          <button class="btn btn-sm" id="create-branch">Create</button>
+          <input class="input" id="new-branch" placeholder="${esc(t("git.newBranch"))}">
+          <button class="btn btn-sm" id="create-branch">${esc(t("git.create"))}</button>
         </div>
         <div class="mini-list">
           ${(branches || []).map((b) => `
             <div class="mini-row">
               <span class="mono" style="flex:1">${esc(b)}</span>
-              ${b === git.branch ? '<span class="pill pill-green">Current</span>' : `<button class="card-link" data-switch="${esc(b)}">Switch</button>`}
+              ${b === git.branch ? '<span class="pill pill-green">${esc(t("git.current"))}</span>' : `<button class="card-link" data-switch="${esc(b)}">${esc(t("git.switchTo"))}</button>`}
             </div>`).join("")}
         </div>
       </div>
       <div class="card">
-        <h3>${icon("commit")} Recent Commits</h3>
+        <h3>${icon("commit")} ${esc(t("git.recentCommits"))}</h3>
         <div class="mini-list">
           ${(log || []).map((c) => `
             <div class="mini-row">
               <span class="mono">${esc(c.short_hash)}</span>
               <span style="flex:1">${esc(c.subject)}</span>
               <span class="muted small">${esc(c.author)}</span>
-            </div>`).join("") || '<div class="empty-state">No commits yet.</div>'}
+            </div>`).join("") || '<div class="empty-state">${esc(t("git.noCommits"))}</div>'}
         </div>
       </div>
     </div>`;
@@ -1389,17 +1395,17 @@ async function gitView() {
     }));
   body.querySelector("#commit-btn").addEventListener("click", async () => {
     const message = body.querySelector("#commit-msg").value.trim();
-    if (!message || !selected.size) { toast("Tick files and write a message first.", "error"); return; }
+    if (!message || !selected.size) { toast(t("git.tickFirst"), "error"); return; }
     try {
       await invoke("git_commit", { projectId: S.route.projectId, message, paths: [...selected] });
-      toast("Committed.", "success");
+      toast(t("git.committed"), "success");
       refresh();
     } catch (e) { toast(String(e), "error"); }
   });
   body.querySelector("#create-branch").addEventListener("click", async () => {
     const name = body.querySelector("#new-branch").value.trim();
     if (!name) return;
-    try { await invoke("git_create_branch", { projectId: S.route.projectId, name }); toast("Branch created.", "success"); refresh(); }
+    try { await invoke("git_create_branch", { projectId: S.route.projectId, name }); toast(t("git.created"), "success"); refresh(); }
     catch (e) { toast(String(e), "error"); }
   });
   body.querySelectorAll("[data-switch]").forEach((b) =>
@@ -1423,12 +1429,12 @@ function artifactsView() {
   const wrap = document.createElement("div");
   const artifacts = S.artifacts || [];
   wrap.innerHTML = `
-    <div class="section-head"><h2>Artifacts</h2></div>
-    <p class="section-sub">Generated outputs under <span class="mono">.lumi/artifacts</span> — checksummed, provenance-linked, stored locally.</p>
+    <div class="section-head"><h2>${esc(t("tab.artifacts"))}</h2></div>
+    <p class="section-sub">${esc(t("artifacts.sub"))}</p>
     ${artifacts.length ? `
       <div class="card">
         <table class="status-table">
-          <tr><th>Name</th><th>Type</th><th>Lifecycle</th><th>Size</th><th>Modified</th></tr>
+          <tr><th>${esc(t("artifacts.colName"))}</th><th>${esc(t("artifacts.colType"))}</th><th>${esc(t("artifacts.colLifecycle"))}</th><th>${esc(t("artifacts.colSize"))}</th><th>${esc(t("artifacts.colModified"))}</th></tr>
           ${artifacts.map((a) => `
             <tr>
               <td class="mono">${icon("fileText")} ${esc(a.name)}</td>
@@ -1439,8 +1445,7 @@ function artifactsView() {
             </tr>`).join("")}
         </table>
       </div>`
-      : `<div class="empty-state"><span class="big">${icon("artifact")}</span>
-          No artifacts yet. Run a task that produces reports or exports and they will appear here with SHA-256 integrity refs.</div>`}`;
+      : `<div class="empty-state"><span class="big">${icon("artifact")}</span>${esc(t("artifacts.empty"))}</div>`}`;
   return wrap;
 }
 
@@ -1450,15 +1455,15 @@ function evidenceView() {
   wrap.className = "card";
   const evidence = S.snapshot && S.snapshot.evidence;
   wrap.innerHTML = `
-    <h3>${icon("list")} Evidence</h3>
-    <p class="card-sub">Trust-labeled action history. "Attempted" is not "done".</p>
+    <h3>${icon("list")} ${esc(t("evidence.title"))}</h3>
+    <p class="card-sub">${esc(t("evidence.sub"))}</p>
     ${evidence && evidence.length ? `<div class="mini-list">
       ${evidence.map((e) => `
         <div class="mini-row">
           <span style="flex:1">${esc(e.operation || e.action_id || "action")}</span>
           <span class="pill ${e.trust_label === "VERIFIED" ? "pill-green" : "pill-amber"}">${esc(e.trust_label || "unknown")}</span>
         </div>`).join("")}
-    </div>` : `<div class="empty-state"><span class="big">${icon("inbox")}</span>No runtime evidence recorded yet.</div>`}`;
+    </div>` : `<div class="empty-state"><span class="big">${icon("inbox")}</span>${esc(t("evidence.empty"))}</div>`}`;
   return wrap;
 }
 function approvalsView() {
@@ -1467,13 +1472,13 @@ function approvalsView() {
   const pending = S.snapshot && S.snapshot.pending_approvals;
   wrap.innerHTML = `
     <div class="card">
-      <h3>${icon("checkCircle")} Approvals &amp; Exceptions</h3>
-      <p class="card-sub">Consequential actions pause here for your explicit decision.</p>
+      <h3>${icon("checkCircle")} ${esc(t("approvals.title"))}</h3>
+      <p class="card-sub">${esc(t("approvals.sub"))}</p>
       ${pending && pending.length ? pending.map((p) => `
         <div class="card" style="margin-bottom:10px">
           <b>${esc(p.card ? p.card.business_effect : p.action_digest)}</b>
           <div class="kv"><span class="kv-key">Digest</span><span class="kv-val mono small">${esc(p.action_digest)}</span></div>
-        </div>`).join("") : `<div class="empty-state"><span class="big">${icon("checkCircle")}</span>Nothing needs your approval right now.</div>`}
+        </div>`).join("") : `<div class="empty-state"><span class="big">${icon("checkCircle")}</span>${esc(t("approvals.none"))}</div>`}
       ${exceptions && exceptions.length ? exceptions.map((x) => `
         <div class="card" style="margin-top:10px">
           <h3><span class="pill pill-red">Exception</span> ${esc(x.what_blocked || "")}</h3>
@@ -1492,73 +1497,73 @@ function settingsView() {
     <div class="project-layout">
       <div>
         <div class="card" style="margin-bottom:13px">
-          <h3>${icon("settings")} Project Settings</h3>
-          <p class="card-sub">Real configuration for this project. Org policy and provider routing are governed by policy — a project may only narrow, never widen, authority.</p>
-          <div class="kv"><span class="kv-key">Project ID</span><span class="kv-val mono">${esc(p.project_id)}</span></div>
-          <div class="kv"><span class="kv-key">Project root</span><span class="kv-val mono">${esc(p.primary_root)}</span></div>
-          <div class="kv"><span class="kv-key">Environment</span><span class="kv-val mono">${esc(p.environment_id)}</span></div>
-          <div class="kv"><span class="kv-key">Detected source</span><span class="kv-val">${esc(p.detected_source)}</span></div>
-          <div class="kv"><span class="kv-key">Instruction sources</span><span class="kv-val">${p.instructions.length ? esc(p.instructions.join(", ")) : "none found"}</span></div>
+          <h3>${icon("settings")} ${esc(t("settings.title"))}</h3>
+          <p class="card-sub">${esc(t("settings.sub"))}</p>
+          <div class="kv"><span class="kv-key">${esc(t("settings.projectId"))}</span><span class="kv-val mono">${esc(p.project_id)}</span></div>
+          <div class="kv"><span class="kv-key">${esc(t("settings.root"))}</span><span class="kv-val mono">${esc(p.primary_root)}</span></div>
+          <div class="kv"><span class="kv-key">${esc(t("settings.env"))}</span><span class="kv-val mono">${esc(p.environment_id)}</span></div>
+          <div class="kv"><span class="kv-key">${esc(t("settings.source"))}</span><span class="kv-val">${esc(p.detected_source)}</span></div>
+          <div class="kv"><span class="kv-key">${esc(t("settings.instructions"))}</span><span class="kv-val">${p.instructions.length ? esc(p.instructions.join(", ")) : esc(t("settings.noneFound"))}</span></div>
         </div>
         <div class="card" style="margin-bottom:13px">
           <h3>${icon("hash")} Capabilities (negotiated)</h3>
-          <p class="card-sub">Only capabilities the runtime actually provides are advertised.</p>
+          <p class="card-sub">${esc(t("settings.capsSub"))}</p>
           <div class="recent-meta">
             ${(p.capabilities || []).map((c) => `<span class="chip">${esc(c)}</span>`).join("") || '<span class="muted">none</span>'}
           </div>
         </div>
         <div class="card">
           <div class="inline-form">
-            <button class="btn" id="btn-relink">${icon("refresh")} Relink root…</button>
-            <button class="btn btn-danger-outline" id="btn-remove">${icon("trash")} Remove project</button>
+            <button class="btn" id="btn-relink">${icon("refresh")} ${esc(t("settings.relink"))}</button>
+            <button class="btn btn-danger-outline" id="btn-remove">${icon("trash")} ${esc(t("settings.remove"))}</button>
           </div>
         </div>
         <div class="card" style="margin-top:13px" id="memory-panel">
           <h3>${icon("insight")} Project Memory</h3>
-          <p class="card-sub">Validated knowledge with provenance. Records tied to a Git HEAD go stale when HEAD moves; invalidation is reasoned and audit-retained.</p>
+          <p class="card-sub">${esc(t("settings.memorySub"))}</p>
           <div id="memory-rows"></div>
           <div class="inline-form" style="margin-top:10px">
-            <input class="input" id="memory-content" placeholder="e.g. npm test validates the sync module">
-            <input class="input" id="memory-command" placeholder="command (required for validated_command)">
+            <input class="input" id="memory-content" placeholder="${esc(t("settings.memoryContent"))}">
+            <input class="input" id="memory-command" placeholder="${esc(t("settings.memoryCommand"))}">
             <select class="select" id="memory-kind" style="max-width:180px">
               <option value="validated_command">validated_command</option>
               <option value="convention">convention</option>
               <option value="environment_requirement">environment_requirement</option>
               <option value="recovery_procedure">recovery_procedure</option>
             </select>
-            <button class="btn btn-primary btn-sm" id="memory-save">Remember</button>
+            <button class="btn btn-primary btn-sm" id="memory-save">${esc(t("settings.remember"))}</button>
           </div>
         </div>
       </div>
       <aside class="context-panel">
         <div class="card context-card">
-          <h4>${icon("shield")} Security &amp; Trust Posture <span class="pill pill-green">Strict</span></h4>
+          <h4>${icon("shield")} ${esc(t("settings.trustTitle"))} <span class="pill pill-green">${esc(t("project.strict"))}</span></h4>
           <ul class="check-list">
-            <li><span class="check-yes">✓</span> Strict project boundary — only the authorized roots</li>
-            <li><span class="check-yes">✓</span> Local execution — files stay on your machine</li>
-            <li><span class="check-yes">✓</span> Identity proven by a project marker on disk</li>
-            <li><span class="check-no">✕</span> Push / force-push / cleanup need external authority (not exposed)</li>
+            <li><span class="check-yes">✓</span> ${esc(t("settings.trust1"))}</li>
+            <li><span class="check-yes">✓</span> ${esc(t("settings.trust2"))}</li>
+            <li><span class="check-yes">✓</span> ${esc(t("settings.trust3"))}</li>
+            <li><span class="check-no">✕</span> ${esc(t("settings.trust4"))}</li>
           </ul>
         </div>
         <div class="note-card">
-          <h4>${icon("star")} Your work stays with you</h4>
-          Local by design. Secure by default. In your control.
+          <h4>${icon("star")} ${esc(t("settings.note"))}</h4>
+          ${esc(t("settings.noteBody"))}
         </div>
       </aside>
     </div>`;
   wrap.querySelector("#btn-relink").addEventListener("click", () => {
-    const path = prompt("New absolute path of the project root:");
+    const path = prompt(t("settings.relinkPrompt"));
     if (path) invoke("project_relink", { projectId: p.project_id, path }).then(refresh).catch((e) => toast(String(e), "error"));
   });
   wrap.querySelector("#btn-remove").addEventListener("click", () => {
-    if (confirm("Remove this project from Lumi? The folder on disk is not touched.")) {
+    if (confirm(t("settings.removeConfirm"))) {
       invoke("project_remove", { projectId: p.project_id }).then(() => setRoute("#/projects")).catch((e) => toast(String(e), "error"));
     }
   });
   const memoryRows = wrap.querySelector("#memory-rows");
   invoke("memory_list", { projectId: p.project_id }).then((records) => {
     if (!records || records.__unavailable || !records.length) {
-      memoryRows.innerHTML = '<div class="empty-state">No project memory yet. Validated commands and conventions appear here with provenance.</div>';
+      memoryRows.innerHTML = '<div class="empty-state">${esc(t("settings.memoryEmpty"))}</div>';
       return;
     }
     memoryRows.innerHTML = records.map(([record, trusted]) => `
@@ -1566,8 +1571,8 @@ function settingsView() {
         <span class="${trusted ? "check-yes" : "check-no"}">${trusted ? "✓" : "✗"}</span>
         <span style="flex:1">${esc(record.content)}
           <span class="muted small mono">· ${esc(record.kind)} · ${esc(record.provenance.task_id)}</span></span>
-        <span class="pill ${trusted ? "pill-green" : "pill-gray"}">${trusted ? "trusted" : "stale"}</span>
-        ${trusted ? `<button class="card-link" data-invalidate="${esc(record.memory_id)}">Invalidate</button>` : ""}
+        <span class="pill ${trusted ? "pill-green" : "pill-gray"}">${trusted ? esc(t("settings.trusted")) : esc(t("settings.stale"))}</span>
+        ${trusted ? `<button class="card-link" data-invalidate="${esc(record.memory_id)}">${esc(t("settings.invalidate"))}</button>` : ""}
       </div>`).join("");
     memoryRows.querySelectorAll("[data-invalidate]").forEach((b) =>
       b.addEventListener("click", () => {
@@ -1581,7 +1586,7 @@ function settingsView() {
     const content = wrap.querySelector("#memory-content").value.trim();
     const command = wrap.querySelector("#memory-command").value.trim() || null;
     const kind = wrap.querySelector("#memory-kind").value;
-    if (!content) { toast("Describe the knowledge first.", "error"); return; }
+    if (!content) { toast(t("settings.describeFirst"), "error"); return; }
     try {
       await invoke("memory_remember", {
         projectId: p.project_id,
@@ -1591,7 +1596,7 @@ function settingsView() {
           command, evidence: null,
         },
       });
-      toast("Remembered.", "success");
+      toast(t("settings.remembered"), "success");
       refresh();
     } catch (e) { toast(String(e), "error"); }
   });
@@ -1629,17 +1634,17 @@ async function renderPaletteResults(query) {
     if (files.__unavailable) files = [];
     tasks = (S.tasks || []).filter((t) => t.goal.toLowerCase().includes(q));
   }
-  const groups = { Projects: projects, Files: files.slice(0, 6), Tasks: tasks.slice(0, 5) };
+  const groups = { [t("palette.projects")]: projects, [t("palette.files")]: files.slice(0, 6), [t("palette.tasks")]: tasks.slice(0, 5) };
   if (rail.childElementCount === 0 || S.paletteSection) {
     rail.innerHTML = `
-      <button class="rail-item ${S.paletteSection === "all" ? "active" : ""}" data-section="all">${icon("search")} All results</button>
-      <div class="rail-section">Jump to</div>
-      <button class="rail-item ${S.paletteSection === "projects" ? "active" : ""}" data-section="projects">${icon("folder")} Projects <span class="rail-count tabular">${projects.length}</span></button>
+      <button class="rail-item ${S.paletteSection === "all" ? "active" : ""}" data-section="all">${icon("search")} ${esc(t("palette.all"))}</button>
+      <div class="rail-section">${esc(t("palette.jumpTo"))}</div>
+      <button class="rail-item ${S.paletteSection === "projects" ? "active" : ""}" data-section="projects">${icon("folder")} ${esc(t("palette.projects"))} <span class="rail-count tabular">${projects.length}</span></button>
       ${inProject ? `
-      <button class="rail-item ${S.paletteSection === "files" ? "active" : ""}" data-section="files">${icon("file")} Files <span class="rail-count tabular">${files.length}</span></button>
-      <button class="rail-item ${S.paletteSection === "tasks" ? "active" : ""}" data-section="tasks">${icon("check")} Tasks <span class="rail-count tabular">${tasks.length}</span></button>` : ""}
-      <div class="rail-section">Pro tip</div>
-      <div class="muted small" style="padding:4px 9px;line-height:1.5">Type to search across ${inProject ? "files, tasks, and " : ""}projects.</div>`;
+      <button class="rail-item ${S.paletteSection === "files" ? "active" : ""}" data-section="files">${icon("file")} ${esc(t("palette.files"))} <span class="rail-count tabular">${files.length}</span></button>
+      <button class="rail-item ${S.paletteSection === "tasks" ? "active" : ""}" data-section="tasks">${icon("check")} ${esc(t("palette.tasks"))} <span class="rail-count tabular">${tasks.length}</span></button>` : ""}
+      <div class="rail-section">${esc(t("palette.protip"))}</div>
+      <div class="muted small" style="padding:4px 9px;line-height:1.5">${esc(t("palette.protipBody"))}</div>`;
     rail.querySelectorAll("[data-section]").forEach((b) =>
       b.addEventListener("click", () => { S.paletteSection = b.dataset.section; renderPaletteResults(query); }));
   }
@@ -1702,6 +1707,7 @@ window.addEventListener("hashchange", refresh);
 function boot() {
   applySidebarState();
   injectWindowGlyphs();
+  applyI18nStatic();
   // Static markup icon slots (sidebar nav, search, kill switch) render
   // through the same Lumi Glyph System as dynamic views (ICON.md).
   document.querySelectorAll("[data-glyph]").forEach((el) => {
@@ -1709,6 +1715,20 @@ function boot() {
   });
   const askIco = document.getElementById("palette-ask-ico");
   if (askIco) askIco.innerHTML = mark("clarity");
+  const langSwitch = document.getElementById("lang-switch");
+  if (langSwitch) {
+    const markActive = () => {
+      langSwitch.querySelectorAll(".lang-opt").forEach((b) =>
+        b.classList.toggle("active", b.dataset.lang === currentLang()));
+    };
+    markActive();
+    langSwitch.querySelectorAll(".lang-opt").forEach((b) =>
+      b.addEventListener("click", () => {
+        setLang(b.dataset.lang);
+        markActive();
+        refresh();
+      }));
+  }
   refresh();
   setInterval(loadSnapshot, 5000);
 

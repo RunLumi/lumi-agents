@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'apps/desktop/**'
+      - 'scripts/check-i18n.mjs'
       - 'DESIGN.md'
       - 'ICON.md'
       - '.github/workflows/desktop-ui.yml'
@@ -31,6 +32,9 @@ jobs:
         run: |
           node --check apps/desktop/src/app.js
           node --check apps/desktop/src/dev-preview.js
+          node --check apps/desktop/src/i18n.js
+      - name: Check i18n parity and usage
+        run: node scripts/check-i18n.mjs
       - name: Upload static preview for visual review
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

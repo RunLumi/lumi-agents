@@ -25,29 +25,29 @@
 
       <nav class="nav" id="nav">
         <button class="nav-btn" title="Projects" data-nav="projects">
-          <span class="nav-ico" data-glyph="project"></span><span class="nav-label">Projects</span>
+          <span class="nav-ico" data-glyph="project"></span><span class="nav-label" data-i18n="nav.projects">Projects</span>
         </button>
         <button class="nav-btn" title="Tasks" data-nav="tasks">
-          <span class="nav-ico" data-glyph="task"></span><span class="nav-label">Tasks</span>
+          <span class="nav-ico" data-glyph="task"></span><span class="nav-label" data-i18n="nav.tasks">Tasks</span>
           <span class="badge hidden" id="nav-task-badge"></span>
         </button>
         <button class="nav-btn" title="Files" data-nav="files">
-          <span class="nav-ico" data-glyph="folder"></span><span class="nav-label">Files</span>
+          <span class="nav-ico" data-glyph="folder"></span><span class="nav-label" data-i18n="nav.files">Files</span>
         </button>
         <button class="nav-btn" title="Changes" data-nav="changes">
-          <span class="nav-ico" data-glyph="fileDiff"></span><span class="nav-label">Changes</span>
+          <span class="nav-ico" data-glyph="fileDiff"></span><span class="nav-label" data-i18n="nav.changes">Changes</span>
         </button>
         <button class="nav-btn" title="Git" data-nav="git">
-          <span class="nav-ico" data-glyph="branch"></span><span class="nav-label">Git</span>
+          <span class="nav-ico" data-glyph="branch"></span><span class="nav-label" data-i18n="nav.git">Git</span>
         </button>
         <button class="nav-btn" title="Artifacts" data-nav="artifacts">
-          <span class="nav-ico" data-glyph="artifact"></span><span class="nav-label">Artifacts</span>
+          <span class="nav-ico" data-glyph="artifact"></span><span class="nav-label" data-i18n="nav.artifacts">Artifacts</span>
         </button>
         <button class="nav-btn" title="Evidence" data-nav="evidence">
-          <span class="nav-ico" data-glyph="evidence"></span><span class="nav-label">Evidence</span>
+          <span class="nav-ico" data-glyph="evidence"></span><span class="nav-label" data-i18n="nav.evidence">Evidence</span>
         </button>
         <button class="nav-btn" title="Approvals" data-nav="approvals">
-          <span class="nav-ico" data-glyph="approval"></span><span class="nav-label">Approvals</span>
+          <span class="nav-ico" data-glyph="approval"></span><span class="nav-label" data-i18n="nav.approvals">Approvals</span>
           <span class="badge hidden" id="nav-approval-badge"></span>
         </button>
       </nav>
@@ -62,7 +62,7 @@
           <span class="dot" id="engine-dot"></span>
           <div>
             <div class="engine-name">Lumi Engine</div>
-            <div class="engine-state" id="engine-state">Checking…</div>
+            <div class="engine-state" id="engine-state" data-i18n="misc.engineChecking">Checking…</div>
           </div>
         </div>
         <button class="btn btn-danger-outline btn-block" id="kill-switch"><span data-glyph="stop"></span><span class="nav-label"> Stop Agent</span></button>
@@ -81,7 +81,7 @@
           <span class="kbd">⌘K</span>
         </button>
         <div class="topbar-right">
-          <button class="btn btn-danger-outline btn-sm" id="stop-agent"><span data-glyph="stop"></span> Stop Agent</button>
+          <button class="btn btn-danger-outline btn-sm" id="stop-agent"><span data-glyph="stop"></span><span data-i18n="nav.stop">Stop Agent</span></button>
           <div class="avatar" title="Local user">LU</div>
         </div>
       </header>
@@ -97,7 +97,7 @@
     <div class="palette">
       <div class="palette-input-row">
         <span class="search-ico" data-glyph="search"></span>
-        <input id="palette-input" type="text" placeholder="Search projects, files, tasks…" />
+        <input id="palette-input" type="text" data-i18n-placeholder="palette.placeholder" placeholder="Search projects, files, tasks…" />
         <span class="kbd">esc</span>
       </div>
       <div class="palette-body">
@@ -106,7 +106,7 @@
       </div>
       <div class="palette-ask">
         <span class="palette-ask-ico" id="palette-ask-ico"></span>
-        <input id="palette-ask" type="text" placeholder="Ask Lumi to do anything…" />
+        <input id="palette-ask" type="text" data-i18n-placeholder="palette.ask" placeholder="Ask Lumi to do anything…" />
         <span class="kbd">↵</span>
       </div>
     </div>
@@ -122,6 +122,7 @@
       document.write('<script src="dev-preview.js"><\/script>');
     }
   </script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
