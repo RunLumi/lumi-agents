@@ -255,6 +255,8 @@ body.sidebar-collapsed .collapse-toggle svg { transform: rotate(180deg); }
 body.sidebar-collapsed .collapse-toggle { padding: 6px 0; }
 body.sidebar-collapsed .engine-card .engine-row { display: none; }
 body.sidebar-collapsed .engine-card { padding: 8px; }
+body.sidebar-collapsed .engine-card .btn-block { padding-inline: 0; }
+body.sidebar-collapsed .engine-card .btn-label { display: none; }
 body.sidebar-collapsed .nav-btn::after {
   content: attr(title);
   position: absolute; left: calc(100% + 10px);

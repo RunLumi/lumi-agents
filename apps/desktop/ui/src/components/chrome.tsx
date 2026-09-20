@@ -92,7 +92,7 @@ export function Sidebar({ active, badgeTasks, badgeApprovals, snapshot, collapse
           </div>
         </div>
         <button className="btn btn-danger-outline btn-block" onClick={onStop}>
-          <Glyph name="stop" /> {t("nav.stop")}
+          <Glyph name="stop" /> <span className="btn-label">{t("nav.stop")}</span>
         </button>
       </div>
     </aside>
