@@ -18,6 +18,7 @@ V1 MUST have:
 - Project-bound shell/code execution;
 - Git inspection and bounded local Git operations;
 - Project task history/change-set visibility;
+- parallel delegated Tasks with isolated or conflict-aware writes per spec 31;
 - Workflow mode workflow-pack runner;
 - durable task/run state;
 - checkpoint/resume;
@@ -39,6 +40,8 @@ V1 MUST have:
 - Project-native Automations per spec 13;
 - time/event triggers with explicit timezone and durable run history;
 - automation Review Queue/history with manual run, pause/resume, retry and continue-interactively;
+- evidence-first actionable Review Queue semantics per spec 31;
+- safe completed-Task → disabled-Automation-draft conversion per spec 31;
 - global and project-filtered Automations management per spec 27;
 - project Skill/Plugin installation and connection readiness per specs 28–29;
 - background schedule/event support;
@@ -46,7 +49,8 @@ V1 MUST have:
 - employee desktop shell;
 - signed update path;
 - device registration/revocation;
-- evals, observability, and workflow economics.
+- evals, observability, and workflow economics;
+- remote supervision boundaries that preserve ExecutionEnvironment authority per specs 19 and 31.
 
 Document Workspace (Spec 30) is a separately enabled, phased feature. It is not
 promoted wholesale into this core-V1 MUST list by research alone. Any included
@@ -186,7 +190,7 @@ Must be current:
 - AGENTS.md;
 - roadmap;
 - architecture;
-- v1 specs including specs 26–30;
+- v1 specs including specs 26–31;
 - security model;
 - provider docs;
 - release gates;
@@ -277,3 +281,33 @@ Spec 30.18 defines the detailed corpus. Missing native Office editing remains an
 explicit incomplete part of the full feature target, not a feature quietly
 redefined as preview-only. Library documentation and repository CI alone do not
 certify format preservation, safe execution or native-app performance.
+
+
+## 22.16 Delegated-work product contract gate
+
+V1 MUST satisfy [Spec 31](31-delegated-work-product-contract.md) through the
+shipped desktop path, not only through component fixtures.
+
+The gate requires:
+
+- at least 50 substantial real internal Project Tasks on one exact release build;
+- >=95% verified completion on the declared certified internal matrix;
+- zero Project-root escapes and zero loss of pre-existing user changes;
+- zero crash-induced duplicate consequential effects;
+- parallel Tasks that isolate writes or surface deterministic conflicts;
+- evidence-first completion and Review Queue state from persisted runtime data;
+- routine NO_ACTION/NO_ALERT/VERIFIED_ROUTINE outcomes retained without attention noise;
+- actionable approval/decision/blocker/verification-failure/incident items that
+  preserve source Task/Run/Automation identity and required human action;
+- at least one completed useful Task converted to a disabled Automation draft
+  without copying approvals, credentials, leases, sessions, or stale authority;
+- restart/reopen/resume and remote-supervision commands that preserve the owning
+  ExecutionEnvironment's files, credentials, sessions and permissions;
+- human review/rescue/rework minutes attributable separately from agent runtime.
+
+The Automation portion additionally requires at least 100 representative
+occurrences on the declared acceptance workflow/repository, durable history,
+actionable-only attention behavior, and zero unauthorized external writes.
+
+These are release decision thresholds, not customer guarantees. A feature-complete
+UI backed by fixtures does not pass this gate.
