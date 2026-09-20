@@ -24,6 +24,13 @@ Deliver a focused document surface, not an Office suite, IDE, design tool or
 collaborative document server. Full Office fidelity, macros, formula-engine
 parity, arbitrary slide-master editing and real-time collaboration are non-goals.
 
+This is a versioned contract for a separately enabled, phased feature, not a
+blanket core-V1 release blocker. Requirements apply to exposed capabilities;
+unqualified DOCX/PPTX editors stay disabled while useful qualified formats ship.
+Promotion into a required release scope needs an explicit product decision and
+evidence in #82. The full basic-edit target remains; incomplete phases must not
+advertise unsupported formats or weaken safety/preservation to claim completion.
+
 ## 30.2 Existing baseline and React integration
 
 At reviewed commit `f0ed14aa6a3833e0520fdc0b1872b852bd9bb3d9`,
@@ -226,7 +233,7 @@ Qualify `pptx-react-viewer` / `pptx-viewer-core` (ChristopherVR) for static prev
 and bounded native edits. Upstream advertises import/edit/save, but that is not
 Lumi's evidence of preservation. Its root Apache license does not override
 separate bundled licenses, including the declared MPL-2.0 component. Required
-license approval or a genuinely excluded dependency is a release gate.
+license approval or a genuinely excluded dependency gates that adapter's release.
 
 Preview: slide rail, fit/zoom, slide number, selectable text where supported and
 speaker notes. Do not autoplay video, audio, animation or embedded objects.
@@ -272,17 +279,38 @@ available only for a qualified adapter/document/operation profile, with a recove
 copy and explicit user intent. Save copy still needs fidelity disclosure and
 validation; it is not permission to misrepresent a damaged result.
 
+All UI and agent saves MUST use the normal action/orchestrator pipeline from
+[Spec 03](03-action-observation-protocol.md),
+[Spec 04](04-policy-approval-capabilities.md) and
+[Spec 11](11-audit-evidence-verification.md). There is no privileged direct-save
+exception. Private staging/draft persistence is separately scoped local work,
+not permission to publish into a project or export a file.
+
 ```text
-inspect source + hash -> edit draft -> prepare candidate in private staging
--> validate format/preservation -> reauthorize destination and current source
--> publish atomically through host file service -> verify bytes -> record change
+inspect source + hash -> edit draft -> prepare candidate in authorized staging
+-> validate format/preservation
+-> normalize save ActionProposal + risk/capability + expected source/candidate hashes
+-> persist consequential intent and idempotency state before publication I/O
+-> policy authorizes -> obtain/validate/consume required scoped approval
+-> recheck source/destination/cancellation -> executor publishes atomically
+-> persist executor outcome -> verify actual output -> audit/finalize change
 ```
 
-All UI/agent saves use this path. No direct renderer disk writes. Reuse canonical
-path/symlink defenses, stale-write checks and per-file serialization. Use a stable
-file handle/identity and revalidation; a watcher event alone is not a lock. Reject
-source changes since the edit base. Do not hold the global project mutex while
-parsing/rendering. Document interaction must not block emergency stop.
+Use `LOCAL_WRITE` for ordinary authorized local saves; classify destructive
+replacement or external export with the stricter applicable risk. Bind principal,
+project/environment, destination, source version, candidate checksum, overwrite
+mode and verifier obligations into the normalized action. A changed candidate or
+target invalidates approval. A direct human Save intent may satisfy the normal
+user-action authorization rules, but does not bypass policy, durable intent,
+idempotency, required approval, execution evidence or verification. Persistence
+failure before dispatch prevents publication; ambiguous publication is reconciled
+before retry. No-op/duplicate admission must not execute a second write.
+
+No direct renderer disk writes. Reuse canonical path/symlink defenses, stale-write
+checks and per-file serialization. Use a stable file handle/identity and
+revalidation; a watcher event alone is not a lock. Reject source changes since
+the edit base. Do not hold the global project mutex while parsing/rendering.
+Document interaction must not block emergency stop.
 
 External editor/agent changes: reload clean previews; preserve dirty drafts and
 show Reload / Save copy / Compare when conflicted. Never automatically merge
@@ -420,6 +448,7 @@ Test through actual Tauri entrypoints, not only injected JavaScript mocks:
 16. Viewer cannot call custom app IPC, enumerate files, resolve credentials or open arbitrary URLs; revoked sessions stop serving bytes.
 17. Worker/adapter failure, cache isolation/invalidation and repeated open/close do not leak memory or freeze emergency stop.
 18. Actual WKWebView and WebView2 tests: bundled assets/CSP/workers, keyboard/IME, HiDPI, focus, screen-reader paths and size budgets.
+19. UI and agent saves traverse the same normalized action gate: failed intent persistence causes zero publication, changed candidate invalidates approval, revoked scope/cancel prevents dispatch, and duplicate/ambiguous retries cannot publish blindly.
 
 Public fixtures are synthetic/licensed; private Ads/customer documents are never
 uploaded to public CI. Office reference renders can be produced in a separately
