@@ -5,12 +5,16 @@ const headers = await readFile('dist/_headers', 'utf8');
 const csp = headers.match(/Content-Security-Policy: (.+)/)[1];
 
 test.beforeEach(async ({ page }) => {
-  // Astro preview does not implement Pages _headers. Apply the generated policy
-  // to real browser responses so inline scripts, fonts and controls are tested.
+  // Enforce Pages CSP on HTML. Assets inherit the document policy; intercepting
+  // their bodies creates needless font-fetch teardown races in Playwright.
   await page.route('http://127.0.0.1:4321/**', async route => {
+    if (route.request().resourceType() !== 'document') return route.continue();
     const response = await route.fetch();
     await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': csp } });
   });
+});
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' });
 });
 for (const [name, width, height] of [['mobile', 375, 812], ['small-mobile', 320, 740], ['tablet', 768, 1024], ['desktop', 1440, 1050]]) {
   test(`${name}: readable layout, no overflow, no serious accessibility defects`, async ({ page }) => {
@@ -21,14 +25,15 @@ for (const [name, width, height] of [['mobile', 375, 812], ['small-mobile', 320,
     await page.evaluate(() => document.fonts.ready);
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.getByRole('tablist')).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(244, 240, 232)');
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
-    expect(results.violations).toEqual([]);
-    expect(errors).toEqual([]);
     await mkdir('test-results/screenshots', { recursive: true });
     await page.screenshot({ path: `test-results/screenshots/${name}.png`, fullPage: true });
     if (name === 'desktop') await page.screenshot({ path: 'test-results/screenshots/desktop-fold.png' });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(244, 240, 232)');
+    expect(await page.evaluate(() => document.fonts.check('600 32px "Geist Variable"', 'Giữ quyền làm chủ'))).toBe(true);
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    expect(results.violations).toEqual([]);
+    expect(errors).toEqual([]);
   });
 }
 test('demo tabs work by mouse and keyboard; sample files are real', async ({ page }) => {
@@ -68,19 +73,24 @@ test('mobile navigation, Escape and FAQ work without trapped focus', async ({ pa
 });
 test('no-JavaScript retains content, FAQ, mobile menu and primary contact', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 375, height: 812 } });
-  const page = await context.newPage();
-  await page.goto('http://127.0.0.1:4321/');
-  await expect(page.locator('h1')).toBeVisible();
-  await expect(page.locator('#panel-finance')).toBeVisible();
-  await page.locator('.faq-list summary').first().click();
-  await expect(page.locator('.faq-list details').first()).toHaveAttribute('open', '');
-  await expect(page.locator('.hero-actions a[href^="mailto:"]')).toBeVisible();
-  await context.close();
+  try {
+    const page = await context.newPage();
+    await page.goto('http://127.0.0.1:4321/');
+    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('#panel-finance')).toBeVisible();
+    await page.locator('.faq-list summary').first().click();
+    await expect(page.locator('.faq-list details').first()).toHaveAttribute('open', '');
+    await expect(page.locator('.hero-actions a[href^="mailto:"]')).toBeVisible();
+  } finally {
+    await context.close();
+  }
 });
 test('reduced motion is honored and unknown paths have a proper 404', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
+  await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe('auto');
   const response = await page.goto('/this-page-does-not-exist/');
   expect(response.status()).toBe(404);
+  await page.evaluate(() => document.fonts.ready);
 });

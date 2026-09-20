@@ -19,16 +19,17 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: web/.node-version
-      - name: Install dependencies
-        run: |
-          if test -f package-lock.json; then
-            npm ci --ignore-scripts
-          else
-            npm install --ignore-scripts --before=2026-09-13T00:00:00Z
-          fi
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
       - name: Build static site and check contracts
         run: npm run build && npm test
       - name: Install test browser
