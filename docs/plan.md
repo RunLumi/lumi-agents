@@ -420,3 +420,21 @@ stays deliberately blocked on the MPL-2.0 license decision):
 Verification per PR: rustfmt/clippy clean; desktop suites green; frontend
 99/99 (i18n EN/VI parity, command-surface drift, token hygiene); tsc +
 eslint clean. App rebuilt on merged main after both land.
+
+## 2026-09-20 (session 5): automations surface + preview breadth — #131, preview PR
+
+- **#131 — Spec 27 desktop management surface + shell tick loop**: the
+  scheduler engine existed but the app could not see or drive it. Now:
+  validated CRUD (cron checked before anything persists), project-scoped
+  listing, enable/disable/delete in project Settings, and a 30s shell tick
+  that fires due automations through the unchanged admission gate — a tick
+  that lands while a run holds the runtime skips honestly and the
+  schedule's catch-up policy governs the missed window.
+- **Preview breadth (this PR)** — user-reported gap: binary routing was
+  hardcoded to image/pdf/xlsx, so DOCX (and every other binary) went
+  through the text read and failed with a misleading toast. Fixed by
+  routing ALL self-fetching kinds through the binary path, then added:
+  all webview-decodable images (bmp/ico/avif joined the set), video/audio
+  playback with an honest decode-failure message, and zip archives as a
+  read-only entry listing (extraction is a gated write, not a preview
+  side effect). Kind detection extracted to a pure, unit-tested module.
