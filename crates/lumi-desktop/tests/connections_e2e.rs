@@ -125,7 +125,9 @@ fn connections_verify_reports_presence_without_exposing_values() {
         .unwrap();
 
     // Known connection with a live broker secret: verified.
-    assert!(store.verify(&broker, PROJECT, &record.connection_id).unwrap());
+    assert!(store
+        .verify(&broker, PROJECT, &record.connection_id)
+        .unwrap());
 
     // Unknown connection: false, not an error.
     assert!(!store.verify(&broker, PROJECT, "conn-ghost").unwrap());
@@ -141,7 +143,9 @@ fn connections_verify_reports_presence_without_exposing_values() {
     broker
         .revoke(&lumi_protocol::SecretRef(record.credential_ref.clone()))
         .unwrap();
-    assert!(!store.verify(&broker, PROJECT, &record.connection_id).unwrap());
+    assert!(!store
+        .verify(&broker, PROJECT, &record.connection_id)
+        .unwrap());
 
     // The verify path never returns the credential value anywhere: the
     // metadata file still contains only the reference.
