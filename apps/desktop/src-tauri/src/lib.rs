@@ -662,11 +662,24 @@ pub fn run() {
             // project-bound tasks and snapshots share one scope (spec 26).
             let local_tenant = lumi_protocol::TenantId::parse(DesktopRuntime::LOCAL_TENANT)
                 .map_err(|e| std::io::Error::other(format!("local tenant id: {e}")))?;
-            let runtime = DesktopRuntime::new_for_tenant(
+            let mut runtime = DesktopRuntime::new_for_tenant(
                 state_dir.join("runtime-state.json"),
                 local_tenant,
             )
             .map_err(std::io::Error::other)?;
+            // A prior session may have died mid-run. Re-arm those tasks
+            // (RUNNING → FAILED with a crash envelope) before anything
+            // can execute again, so the user can explicitly re-run them.
+            match runtime.recover_interrupted_tasks() {
+                Ok(recovered) if !recovered.is_empty() => {
+                    log::info!(
+                        "recovered {} task(s) interrupted by a previous session",
+                        recovered.len()
+                    );
+                }
+                Ok(_) => {}
+                Err(error) => return Err(std::io::Error::other(error.to_string()).into()),
+            }
             let projects = ProjectService::open(&state_dir).map_err(std::io::Error::other)?;
             app.manage(AppState::new(runtime, projects));
             Ok(())
