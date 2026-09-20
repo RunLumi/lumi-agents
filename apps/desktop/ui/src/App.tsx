@@ -229,6 +229,7 @@ function ProjectView({ data, tab, setTab }: {
           </div>
         )}
       </div>
-    </div>
+    <div id="toasts"></div>
+</div>
   );
 }

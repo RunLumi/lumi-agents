@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "identifier": "test.runlumi.desktop",
   "build": {
-    "frontendDist": "../src"
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm --prefix ../ui run dev",
+    "beforeBuildCommand": "npm --prefix ../ui run build"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "Lumi Agents",
