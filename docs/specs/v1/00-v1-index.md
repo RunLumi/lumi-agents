@@ -27,6 +27,7 @@ V1 covers one trusted runtime supporting:
 - Work mode for substantial knowledge work;
 - durable Folder-as-Project workspaces for repository/document work;
 - safe project-scoped file editing, search, shell/code, Git, task history, and resume;
+- parallel delegated Tasks with isolated/conflict-aware writes and shared-resource arbitration;
 - local document preview and bounded basic editing with explicit format/preservation limits;
 - Workflow mode for hardened repeatable operations;
 - provider-neutral model routing;
@@ -37,14 +38,17 @@ V1 covers one trusted runtime supporting:
 - durable state and resumability;
 - local policy and approval;
 - evidence and verification;
+- one evidence-first Review Queue that separates routine history from actionable attention;
 - workflow packs;
 - scheduling/background triggers;
 - global and project-filtered Automations views over the same records;
+- safe Task-to-Automation conversion through a disabled draft and fresh admission;
 - project-local Skills/Plugins with reviewed install/activation and pinned run dependencies;
 - project-scoped connections backed by protected secret storage, not repository token files;
 - extensibility through connectors/MCP;
 - macOS and Windows employee-facing deployment;
-- evals, observability, and workflow economics.
+- evals, observability, and workflow economics;
+- remote supervision that preserves ExecutionEnvironment ownership of local state and credentials.
 
 V1 does **not** require:
 
@@ -95,6 +99,7 @@ V1 does **not** require:
 | 28 | [project-skills-plugins](28-project-skills-plugins.md) | project directories, install/activation, compatibility, locks, update/revocation |
 | 29 | [project-connections-secrets](29-project-connections-secrets.md) | portable requirements, protected credentials, broker isolation, Git hygiene, migration |
 | 30 | [document-workspace-preview-edit](30-document-workspace-preview-edit.md) | local multi-format preview/basic edit, React/Tauri boundary, preservation, safe save, OSS qualification |
+| 31 | [delegated-work-product-contract](31-delegated-work-product-contract.md) | end-to-end Work → Review → Automate contract, parallel delegation, attention efficiency, remote supervision, market-proof gates |
 
 ## 0.5 Global invariants
 
@@ -128,6 +133,11 @@ All v1 components MUST preserve these invariants:
 26. Copied project IDs, package caches, connection references and worktrees MUST NOT transfer credential authority.
 27. Document preview MUST NOT execute embedded code, gain host authority or silently send content to external services.
 28. Document saves MUST protect the original and concurrent edits; preview success, format preservation and recalculated business results are separate claims.
+29. Parallel Tasks MUST NOT silently overwrite one another or pre-existing human work; concurrency never widens authority.
+30. Routine verified Automation outcomes SHOULD remain quiet while actionable attention reaches one durable Review Queue.
+31. Converting a Task to an Automation MUST NOT copy transient approvals, credentials, leases, sessions, or stale authority.
+32. Remote supervision MUST preserve ExecutionEnvironment ownership of local files, credentials, sessions, permissions, and executor state.
+33. Product success MUST be measured on verified useful work and human attention, not agent activity volume.
 
 ## 0.6 Conformance
 
@@ -157,3 +167,8 @@ specializations preserve the existing scheduler and policy contracts.
 Spec 30 specializes Files/Artifacts/Review preview and bounded edits in Specs
 08/23/26. Its renderers do not acquire file/secret authority, and its format
 support matrix does not override artifact verification or safe-save requirements.
+
+Spec 31 is the cross-cutting delegated-work product contract. It does not replace
+the component specs it cites and introduces no second orchestrator, scheduler,
+permission source, or implementation claim. Where Spec 31 requires a product
+behavior, the underlying component MUST still satisfy its owning spec.

@@ -255,3 +255,40 @@ Regression corpus MUST include:
 If local action history is enabled, automated tests SHOULD prove that baseline history excludes forbidden raw content classes defined by spec 11.
 
 A telemetry/evidence feature that improves debugging by violating privacy defaults fails certification.
+
+
+## 16.21 Human-attention economics
+
+Agent activity is not value. In addition to verified-success economics, Work and
+Automation telemetry SHOULD attribute:
+
+- expected approval minutes;
+- review minutes;
+- unexpected rescue minutes;
+- rework minutes;
+- displaced baseline manual minutes.
+
+Derived decision metrics SHOULD include:
+
+```text
+human_attention_minutes =
+  expected_approval_minutes
+  + review_minutes
+  + unexpected_rescue_minutes
+  + rework_minutes
+
+verified_value_per_human_attention_minute =
+  verified_displaced_labor_value / max(human_attention_minutes, epsilon)
+
+review_rework_ratio =
+  (review_minutes + rework_minutes) / max(displaced_manual_minutes, epsilon)
+```
+
+Customer-facing product views SHOULD prioritize verified work completed, residual
+human attention, exceptions, cycle time and cost per verified success. Tokens,
+messages, tool calls and agent-hours MAY remain diagnostic telemetry but MUST NOT
+be presented as evidence of displaced work.
+
+Routine Automation growth that produces approximately proportional Review Queue
+attention SHOULD trigger a product/reliability review even when raw run success
+is high.
