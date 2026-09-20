@@ -102,6 +102,21 @@ export const changeSet = (projectId: string, taskId: string) =>
 export const changeSets = (projectId: string) =>
   getTransport().invoke<ChangeSet[]>("change_sets", { projectId });
 
+// evidence (audit ledger read model)
+export interface EvidenceSummaryEntry {
+  action_id: string;
+  operation: string;
+  trust_label: string;
+  verification?: string | null;
+  target?: string | null;
+}
+export interface EvidenceDto {
+  running: boolean;
+  entries: EvidenceSummaryEntry[];
+}
+export const projectEvidence = (projectId: string) =>
+  getTransport().invoke<EvidenceDto>("project_evidence", { projectId });
+
 // artifacts + memory
 export const artifactsList = (projectId: string) =>
   getTransport().invoke<import("./types").ArtifactEntry[]>("artifacts_list", { projectId });
@@ -158,4 +173,5 @@ export const COMMAND_NAMES = [
   "provider_set_config",
   "provider_clear_config",
   "task_run",
+  "project_evidence",
 ] as const;

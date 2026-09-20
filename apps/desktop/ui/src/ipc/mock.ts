@@ -320,6 +320,15 @@ export function createMockTransport(): Transport {
           }, 4000);
           return { started: true, task_id: id } as T;
         }
+        case "project_evidence":
+          return {
+            running: false,
+            entries: [
+              { action_id: "a-dm-w1", operation: "write_file", trust_label: "Verified", verification: "postconditions passed", target: "file://~/dev/printup/src/invoice/reconcile.ts" },
+              { action_id: "a-dm-r1", operation: "read_file", trust_label: "Verified", target: "file://~/dev/printup/README.md" },
+              { action_id: "a-dm-s1", operation: "run_shell", trust_label: "Executed", target: "file://~/dev/printup" },
+            ],
+          } as T;
         case "emergency_stop":
           return { stopped: true } as T;
         case "get_kill_switch":

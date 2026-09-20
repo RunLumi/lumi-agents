@@ -21,6 +21,7 @@ import { TasksPanel } from "./TasksPanel";
 import {
   gitBranches, gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
 } from "../ipc/commands";
+import { projectEvidence, type EvidenceSummaryEntry } from "../ipc/commands";
 import type {
   ArtifactEntry, ChangeSet, CommitInfo, GitStatus,
   PendingApproval, ProjectOverview, Task, ValidationRecord,
@@ -96,6 +97,16 @@ function ValidationRow({ v }: { v: ValidationRecord }) {
   );
 }
 
+/** Trust-language label → §10.4 badge family (never render "done"
+    for anything the ledger did not verify). */
+function trustVariant(label: string): BadgeVariant {
+  if (label.startsWith("Verified")) return "status-done";
+  if (label.startsWith("Failed")) return "status-critical";
+  if (label.startsWith("Ambiguous")) return "status-overdue";
+  if (label.startsWith("Executed") || label.startsWith("Attempted")) return "status-in-progress";
+  return "status-open";
+}
+
 function EntryRow({ e }: { e: ChangeSet["entries"][number] }) {
   const glyph = e.kind === "deleted" ? "trash" : e.kind === "moved" ? "external" : e.kind === "created" ? "plus" : "edit";
   const external = e.source === "external_conflict";
@@ -120,6 +131,18 @@ export function ProjectDetail({
   const [branchName, setBranchName] = useState("");
   const [log, setLog] = useState<CommitInfo[] | null>(null);
   const [branches, setBranches] = useState<string[] | null>(null);
+  const [evidence, setEvidence] = useState<EvidenceSummaryEntry[] | null>(null);
+  const [evidenceLive, setEvidenceLive] = useState(false);
+
+  // Evidence is a live read over the runtime audit ledger: refetch when
+  // the tab opens and whenever project state changes.
+  useEffect(() => {
+    if (tab !== "evidence") return;
+    projectEvidence(overview.project_id).then((dto) => {
+      setEvidence(dto.entries);
+      setEvidenceLive(dto.running);
+    }).catch(() => setEvidence([]));
+  }, [tab, overview.project_id, tasks, sets]);
 
   const validations = sets.flatMap((s) => s.validations ?? []);
   const failing = validations.filter((v) => v.status === "failed" || v.status === "ambiguous");
@@ -379,7 +402,27 @@ export function ProjectDetail({
           <div className="card">
             <h3>{t("evidence.title")}</h3>
             <p className="muted small">{t("evidence.sub")}</p>
-            <div className="empty-state">{t("evidence.empty")}</div>
+            {evidenceLive && <p className="muted small">{t("evidence.running")}</p>}
+            {evidence === null
+              ? <div className="muted small">{t("misc.loading")}</div>
+              : evidence.length === 0
+                ? <div className="empty-state">{t("evidence.empty")}</div>
+                : (
+                  <div className="mini-list">
+                    {evidence.map((entry) => (
+                      <div key={entry.action_id} className="mini-row">
+                        <Glyph name="verified" />
+                        <span style={{ flex: 1, minWidth: 0 }} className="small">{entry.operation}</span>
+                        {entry.target && (
+                          <span className="mono muted small" style={{ maxWidth: "40%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {entry.target.replace("file://", "")}
+                          </span>
+                        )}
+                        <StatusBadge variant={trustVariant(entry.trust_label)}>{entry.trust_label}</StatusBadge>
+                      </div>
+                    ))}
+                  </div>
+                )}
           </div>
         </TabsContent>
 
