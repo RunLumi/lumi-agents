@@ -143,6 +143,7 @@ export default function App() {
               tasks={data.tasks}
               sets={data.sets}
               artifacts={data.artifacts}
+              pendingApprovals={snapshot?.pending_approvals ?? []}
               reload={reload}
               onReveal={() => openPath(data.overview.primary_root).catch(() => {})}
             />
