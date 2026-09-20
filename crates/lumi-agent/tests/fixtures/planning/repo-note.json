@@ -1,0 +1,39 @@
+{
+  "scenario": "repo-note",
+  "description": "Read a real project README, record a reconciliation note inside the repo clone, verify the working tree with git status, then answer.",
+  "goal": "Read README.md in the repository, write notes/reconciliation.md summarizing the project purpose, then verify the working tree with git status.",
+  "turns": [
+    {
+      "type": "tool_calls",
+      "calls": [
+        { "name": "read_file", "arguments": { "path": "repo/README.md" } }
+      ]
+    },
+    {
+      "type": "tool_calls",
+      "calls": [
+        {
+          "name": "write_file",
+          "arguments": {
+            "path": "repo/notes/reconciliation.md",
+            "content": "# Reconciliation note\n\nRecorded by the Lumi work-mode loop during the real-repo dogfood pass.\nSource: repo/README.md (read through the gated read_file tool).\n"
+          }
+        }
+      ]
+    },
+    {
+      "type": "tool_calls",
+      "calls": [
+        {
+          "name": "run_shell",
+          "arguments": { "command": "git", "args": ["-C", "repo", "status", "--porcelain"] }
+        }
+      ]
+    },
+    {
+      "type": "answer",
+      "content": "Read the repository README, wrote repo/notes/reconciliation.md, and verified git status reports the new file."
+    }
+  ],
+  "expected_files": ["repo/notes/reconciliation.md"]
+}

@@ -199,6 +199,7 @@ button, .card, .nav-btn, .tab, .recent-card, .action-card {
   color: var(--color-ink);
 }
 .nav-btn svg { width: 16px; height: 16px; color: var(--color-soft-slate); flex: none; }
+.nav-btn .nav-ico { display: inline-flex; flex: none; }
 .nav-btn:hover { background: var(--color-paper-white); }
 .nav-btn:hover svg { color: var(--color-ink); }
 .nav-btn.active {
@@ -300,6 +301,7 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
   box-shadow: var(--shadow-input);
 }
 .searchbox:hover { border-color: var(--color-border-strong); }
+.searchbox .search-ico { color: var(--color-soft-slate); flex: none; }
 .searchbox svg { width: 14px; height: 14px; }
 .search-ph { flex: 1; text-align: left; font-size: 13px; }
 .kbd {

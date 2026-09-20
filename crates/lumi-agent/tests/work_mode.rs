@@ -404,7 +404,7 @@ fn unknown_tool_from_planner_fails_the_run() {
     );
     let outcome = agent.run();
     match outcome {
-        AgentRunOutcome::Failed { reason } => {
+        AgentRunOutcome::Failed { reason, .. } => {
             assert!(reason.contains("unknown tool"), "{reason}");
         }
         other => panic!("expected Failed, got {other:?}"),
@@ -443,7 +443,7 @@ fn max_turns_bound_stops_runaway_loops() {
     // refusal; either way the loop must stop at max_turns.
     let outcome = agent.run();
     match outcome {
-        AgentRunOutcome::Failed { reason } => {
+        AgentRunOutcome::Failed { reason, .. } => {
             assert!(
                 reason.contains("budget")
                     || reason.contains("overwrite not authorized")
