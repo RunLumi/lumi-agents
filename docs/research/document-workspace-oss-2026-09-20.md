@@ -43,6 +43,7 @@ license/advisory, bundle and platform qualification before shipping.
 | Editable data grid | react-data-grid, Comcast | MIT | Baseline for CSV/XLSX; virtualized DOM and keyboard navigation. Not a workbook engine. Current README requires React 19.2+. |
 | XLSX I/O | exceljs | MIT | Baseline bounded workbook profile. No formula calculation; imported complex features need preservation gates. |
 | DOCX preview | docx-preview, VolodymyrBaydalka/docxjs | Apache-2.0 | Baseline best-effort layout. Only renderAsync is documented stable; not a write/edit API. |
+| DOCX basic text edit | jszip (zip round-trip of the OOXML package) | MIT OR GPL-3.0-or-later (MIT option elected) | Already present transitively via docx-preview; declared direct when paragraph edit shipped. DOM rewrite of word/document.xml only — disclosed limits, no package-wide rewrite. |
 | Native DOCX edit | @docx-editor.dev/core + @docx-editor.dev/react, EigenPal | Apache-2.0 for these packages | First qualification candidate, not yet a proven Lumi dependency. Pro/editor-api features are separate commercial packages. |
 | PPTX preview/basic edit | pptx-react-viewer / pptx-viewer-core, ChristopherVR | Apache-2.0 root; separately licensed bundled components | First native-edit qualification candidate. Declared MPL-2.0 mtx-decompressor needs explicit license-policy review or verified exclusion. |
 | PPTX preview fallback | Pagus | MIT | Qualification candidate for static SVG preview only, not native editing; still needs hostile-input and WebView tests. |
