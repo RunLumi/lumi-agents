@@ -91,18 +91,19 @@ Staging and fixtures cannot establish production capacity replacement.
 
 1. Repair durable persistence/replay defects (#43) and executor, artifact and
    approval boundary gaps (#44); reconcile readiness before customer canaries.
-2. Implement the smallest end-to-end Folder-as-Project slice from Spec 26 (#50):
-   durable Project identity, Open Folder/Recent, root isolation, files/search,
-   change-set tracking, Git read/local-write, bounded shell/validation, restart
-   and resume. Prove it on a dirty real internal repository before IDE breadth.
-3. Select one queue and obtain actual access and baseline measurements (#40).
-4. Implement only the Role Pack and scorecard needed by that responsibility (#41).
-5. Bridge the smallest real API/browser path; require native only where necessary.
-6. Show actual workload, approvals, exceptions, evidence, human effort and costs
-   in the desktop operations console (#10). Chat is a steering tool.
-7. Prepare artifact-bound signing, updater/rollback and customer onboarding (#11).
-8. Run, measure, turn escaped failures into regression cases, and reduce touches.
-9. Measure independent deployment reuse (#42): target >=70% shared logic and a
+2. Finish Folder-as-Project live dogfood from Spec 26 (#50) on a dirty real
+   internal repository through the shipped desktop path.
+3. Implement Project-native Automations from Spec 13 using `RunLumi/ads-agents`
+   as the acceptance repository: prompt-file task sources, durable schedules/run
+   history, bounded unattended authority, Review Queue, and event follow-up offsets.
+4. Select one queue and obtain actual access and baseline measurements (#40).
+5. Implement only the Role Pack and scorecard needed by that responsibility (#41).
+6. Bridge the smallest real API/browser path; require native only where necessary.
+7. Show actual workload, automations, approvals, exceptions, evidence, human effort
+   and costs in the desktop operations console (#10). Chat is a steering tool.
+8. Prepare artifact-bound signing, updater/rollback and customer onboarding (#11).
+9. Run, measure, turn escaped failures into regression cases, and reduce touches.
+10. Measure independent deployment reuse (#42): target >=70% shared logic and a
    third deployment under one engineering day; a tenth under four hours remains
    a later hypothesis.
 
