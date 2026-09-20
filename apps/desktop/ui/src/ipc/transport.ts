@@ -3,6 +3,7 @@
    The mock is never wired in production paths (no query param, no
    fixture). Views never call invoke() directly — they import from
    ipc/commands.ts, which routes through this module. */
+import { invoke } from "@tauri-apps/api/core";
 
 export interface Transport {
   invoke<T>(command: string, args?: Record<string, unknown>): Promise<T>;
@@ -10,15 +11,7 @@ export interface Transport {
 
 const tauriTransport: Transport = {
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-    const tauri = window.__TAURI__;
-    if (!tauri?.core) throw new Error("runtime unavailable");
-    return tauri.core.invoke<T>(command, args);
-  },
-};
-
-const nullTransport: Transport = {
-  invoke<T = unknown>(): Promise<T> {
-    return Promise.reject(new Error("runtime unavailable"));
+    return invoke<T>(command, args);
   },
 };
 
@@ -32,17 +25,5 @@ export function setMockTransport(t: Transport | null): void {
 
 export function getTransport(): Transport {
   if (mock) return mock;
-  if (typeof window.__TAURI__ !== "undefined" && window.__TAURI__.core) {
-    return tauriTransport;
-  }
-  return nullTransport;
-}
-
-declare global {
-  interface Window {
-    __TAURI__?: {
-      core: { invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> };
-    };
-    __lumiMock?: Transport;
-  }
+  return tauriTransport;
 }
