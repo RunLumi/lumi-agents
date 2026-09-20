@@ -18,7 +18,6 @@ V1 MUST have:
 - Project-bound shell/code execution;
 - Git inspection and bounded local Git operations;
 - Project task history/change-set visibility;
-- local Document Workspace with the explicit preview/basic-edit matrix in spec 30;
 - Workflow mode workflow-pack runner;
 - durable task/run state;
 - checkpoint/resume;
@@ -47,7 +46,12 @@ V1 MUST have:
 - employee desktop shell;
 - signed update path;
 - device registration/revocation;
-- eval/observability/economics.
+- evals, observability, and workflow economics.
+
+Document Workspace (Spec 30) is a separately enabled, phased feature. It is not
+promoted wholesale into this core-V1 MUST list by research alone. Any included
+preview/edit capability must satisfy its applicable gate in 22.15; unqualified
+native Office editors remain disabled without blocking unrelated qualified work.
 
 ## 22.3 Required safety
 
@@ -208,6 +212,7 @@ Not required:
 - public marketplace;
 - full IDE replacement;
 - full Office suite, macros, universal Office fidelity or Excel-compatible calculation engine;
+- unqualified native DOCX/PPTX editing before explicit feature-scope promotion;
 - real-time document collaboration or mandatory Office document server;
 - whole-disk indexing;
 - full Linux desktop;
@@ -248,23 +253,27 @@ Before claiming the project extension feature ready, demonstrate
 Use synthetic adversarial fixtures and separately record supported-platform
 credential/sandbox canaries. Passing document/example checks does not pass this gate.
 
-## 22.15 Document Workspace gate
+## 22.15 Document Workspace capability gate (when included)
 
-Before claiming [Spec 30](30-document-workspace-preview-edit.md) ready, demonstrate:
+For each [Spec 30](30-document-workspace-preview-edit.md) capability exposed in a
+release, demonstrate the relevant requirements below. This is a feature
+qualification gate, not a demand to ship every proposed Office adapter in core V1.
+Unqualified capabilities remain disabled and clearly unavailable.
 
 - Files, Artifacts and Automation results open the same authorized file/version;
 - staged React integration preserves the existing desktop/host boundary;
-- offline text/Markdown, CSV, raster-image and PDF preview/basic-edit scope works as specified;
-- DOCX/XLSX/PPTX preview and bounded native editing pass their declared feature profiles;
+- exposed text/Markdown, CSV, raster-image and PDF scope works offline as specified;
+- exposed DOCX/XLSX/PPTX preview or native editing passes its declared feature profile;
 - unsupported document features, approximate previews and stale formula caches are explicit;
 - no-op saves leave sources unchanged; edited Office copies and qualified replacement preserve promised content;
-- candidate bytes reopen and validate before publication, with source conflicts and recovery handled;
+- candidate bytes reopen and validate; all publication uses the normal action/intent/policy/approval/execution/verification/audit pipeline;
+- source conflicts, storage failure before dispatch, duplicate replay and crash recovery cannot bypass that pipeline;
 - document HTML/SVG/XML cannot invoke host commands, read secrets, run macros or fetch unapproved resources;
 - malformed/oversized files, worker crashes, cancel, disk-full and Windows file locks fail without losing work;
 - exact package/transitive/font/binary licenses, integrity and advisory checks are recorded;
-- real WKWebView/WebView2 keyboard/IME/accessibility and resource-budget tests pass.
+- real WKWebView/WebView2 keyboard/IME/accessibility and resource-budget tests pass for shipped paths.
 
-Spec 30.18 defines the detailed corpus. Delivery may be phased, but missing native
-Office editing remains an explicit incomplete capability, not a feature quietly
+Spec 30.18 defines the detailed corpus. Missing native Office editing remains an
+explicit incomplete part of the full feature target, not a feature quietly
 redefined as preview-only. Library documentation and repository CI alone do not
 certify format preservation, safe execution or native-app performance.
