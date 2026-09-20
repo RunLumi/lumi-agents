@@ -13,6 +13,7 @@ Start here:
 - [Global and Project Automations](./v1/27-global-and-project-automations.md)
 - [Project Skills and Plugins](./v1/28-project-skills-plugins.md)
 - [Project Connections and Secrets](./v1/29-project-connections-secrets.md)
+- [Delegated Work Product Contract](./v1/31-delegated-work-product-contract.md)
 
 The v1 suite is deliberately numbered so architecture, code, tests, and reviews can reference stable spec IDs.
 
@@ -29,6 +30,7 @@ Example:
 ## Relationship to other docs
 
 - `AGENTS.md` — engineering constitution and decision rules.
+- `STRATEGY.md` — market-winning product thesis and evidence-backed strategic direction.
 - `docs/roadmap.md` — product/engineering sequencing and strategic gates.
 - `docs/architecture.md` — high-level architecture.
 - `docs/adr/` — architecture decisions and why.
@@ -70,3 +72,13 @@ or grants. Runtime protection remains independent of `.gitignore`.
 The [research note](../research/project-extensions-and-global-automations-2026-09-20.md)
 separates source observations from Lumi design decisions. These specs add target
 contracts and acceptance gates, not evidence of shipped runtime functionality.
+
+## Strategy-to-spec rule
+
+`STRATEGY.md` is strategic input, not implementation truth. Spec 31 translates its
+core winning-product thesis into normative product behavior by composing existing
+Task/Run, Project, policy, evidence, Automations, extension, connection, document,
+economics and control-plane contracts.
+
+Strategy claims do not become shipped capabilities by appearing in a spec. The
+implementation/readiness docs must continue to name the actual proof layer.
