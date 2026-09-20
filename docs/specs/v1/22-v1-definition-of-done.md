@@ -36,6 +36,9 @@ V1 MUST have:
 - at least OpenAI, Anthropic, Gemini plus one local/OpenAI-compatible path;
 - context/memory separation;
 - Project-scoped context/memory boundaries;
+- Project-native Automations per spec 13;
+- time/event triggers with explicit timezone and durable run history;
+- automation Review Queue/history with manual run, pause/resume, retry and continue-interactively;
 - background schedule/event support;
 - extension/connector manifest;
 - employee desktop shell;
@@ -126,7 +129,31 @@ No duplicate consequential side effect.
 
 No silent overwrite of externally modified Project files.
 
-## 22.8 Distribution gate
+## 22.8 Automations gate
+
+V1 MUST demonstrate at least:
+
+- one Project-native Automation imported or created from structured configuration;
+- manual test before unattended activation;
+- one daily/cron run with explicit timezone;
+- one event + follow-up-offset Automation;
+- restart without losing definitions, next-run state, or run history;
+- fresh-context recurring runs;
+- bounded unattended authority intersected with current policy;
+- overlap prevention;
+- deduplication;
+- missed-run policy;
+- retry/backoff without replaying ambiguous side effects;
+- repeated failure auto-pause;
+- semantic NO_ACTION/NO_ALERT recorded as successful without unnecessary notification;
+- WAITING_APPROVAL with zero material side effect before approval;
+- review/history item that can continue interactively.
+
+The `RunLumi/ads-agents` fixture SHOULD prove the intraday and daily cases:
+scheduled Ads work remains externally read-only while still persisting required
+Project reports/worklogs.
+
+## 22.9 Distribution gate
 
 macOS:
 - signed;
@@ -137,7 +164,7 @@ Windows:
 - code-signed;
 - installer/updater/rollback tested.
 
-## 22.9 Documentation gate
+## 22.10 Documentation gate
 
 Must be current:
 
@@ -151,7 +178,7 @@ Must be current:
 - third-party notices;
 - workflow-pack docs.
 
-## 22.10 Economics gate
+## 22.11 Economics gate
 
 For target paid workflow, runtime MUST record enough to compute:
 
@@ -163,7 +190,7 @@ For target paid workflow, runtime MUST record enough to compute:
 
 For Work-mode Project tasks, cost/time SHOULD be attributable to Project and Task so repeated work can be evaluated rather than disappearing into chat history.
 
-## 22.11 What does not block v1
+## 22.12 What does not block v1
 
 Not required:
 
@@ -178,7 +205,7 @@ Not required:
 - agent swarm architecture;
 - language-server parity for every ecosystem.
 
-## 22.12 Final release decision
+## 22.13 Final release decision
 
 V1 SHOULD NOT ship because the feature list is complete.
 

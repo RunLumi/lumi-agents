@@ -312,6 +312,44 @@ capabilities or widen organization/user policy.
 Normative behavior lives in
 `docs/specs/v1/26-project-workspace-folder-as-project.md`.
 
+## Automation is a durable task-creation resource
+
+An **Automation** binds future triggers to bounded work:
+
+```text
+Automation
+  -> Trigger
+  -> Project / ExecutionEnvironment
+  -> Task source
+  -> Authority lease
+  -> Task / Run
+  -> History / Review Queue
+```
+
+The scheduler owns due-time/event admission, deduplication, overlap, catch-up,
+retry/backoff and next-run calculation.
+
+It does **not** own execution authority and does not bypass the orchestrator.
+
+Every admitted Automation occurrence becomes the same durable Task/Run used by
+interactive work. Actions still pass policy, approval, executor routing,
+verification and evidence.
+
+Automation definitions and run history are separate:
+
+- definition = what/where/when/how much authority;
+- run = exact occurrence, source/config hashes, effective policy, outcome and evidence.
+
+Project-native Automations may reference versioned prompt/Skill files such as
+`prompts/daily-ads-ops.md`. Repository content may alter instructions inside the
+stored authority ceiling but cannot widen that ceiling.
+
+Healthy silent runs still create history. Review/notification delivery is a
+separate layer over execution.
+
+Normative behavior lives in
+`docs/specs/v1/13-scheduler-background-triggers.md`.
+
 ## Capability negotiation
 
 Clients, control plane, and local runtimes may upgrade independently.

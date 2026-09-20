@@ -32,10 +32,10 @@ After the trust/execution vertical slice is reliable:
 13. Spec 08 — files/shell/artifacts
 14. Spec 26 — Project workspace / Folder-as-Project
 15. Spec 10 — context/memory with Project scoping
-16. Spec 13 — scheduler/background
+16. Spec 13 — Project-native Automations / scheduler / run history
 17. Spec 14 — MCP/connectors/extensions
 18. Spec 15 — desktop app/device distribution with Project entry points
-19. Spec 23 — user experience/handoff with Project home/changes UX
+19. Spec 23 — user experience/handoff with Project + Automations/Review Queue UX
 
 Spec 26 is intentionally placed immediately after filesystem/shell primitives.
 
@@ -171,7 +171,50 @@ Before calling Folder-as-Project implemented, demonstrate on deterministic fixtu
 - make no filesystem access outside authorized roots;
 - refuse malicious repository instructions that attempt to widen authority.
 
-## 25.9 Rule
+## 25.9 Automations implementation slice
+
+After durable Project/Task/Run state is real, implement Automations as a thin durable
+task-creation layer rather than a second orchestrator.
+
+Recommended order:
+
+1. Automation domain record + revision;
+2. persisted definitions + next-run calculation;
+3. AT / INTERVAL / CRON / RRULE;
+4. timezone/DST tests;
+5. Project + ExecutionEnvironment binding;
+6. task source resolution + source hashes;
+7. unattended authority lease/current-policy intersection;
+8. durable AutomationRun history;
+9. dedup + overlap;
+10. missed-run policy;
+11. retry/backoff + auto-pause;
+12. semantic outcome contract;
+13. History + Review Queue;
+14. manual Run Now / test mode;
+15. EVENT + follow-up offsets;
+16. repo-native `.lumi/automations.yaml` import/diff;
+17. Ads Agents intraday/daily fixture;
+18. launch-watch/post-change event-offset fixture.
+
+Do not begin with a visual DAG editor or arbitrary scheduler scripts.
+
+The acceptance spine is:
+
+```text
+Import Ads Agents automation
+→ Run Test
+→ Enable
+→ restart Lumi
+→ due occurrence creates durable Task/Run
+→ correct Project/browser environment
+→ externally read-only authority
+→ report/worklog persisted
+→ NO_ALERT stays silent but visible in History
+→ actionable result enters Review Queue
+```
+
+## 25.10 Rule
 
 Do not start a new architectural layer because the roadmap lists it.
 

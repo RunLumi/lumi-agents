@@ -10,6 +10,7 @@ The next outcome is one measured operational responsibility in real software. Th
 | P0 | Close executor, artifact and approval boundary gaps | Real worker protocol verified; artifact escapes refused; sensitivity, device state and required evidence enforced | [#44](https://github.com/RunLumi/lumi-agents/issues/44) |
 | P0 | Reconcile truth and issue graph | Every readiness claim names its proof layer and remaining gap | readiness |
 | P0 | Folder-as-Project Work mode | Open dirty real repo; preserve user edits; bounded multi-file change; validate; inspect Lumi-only changes; restart/reopen/resume; no root escape | [#50](https://github.com/RunLumi/lumi-agents/issues/50) |
+| P0 | Project-native Automations | Durable Project-bound schedule/event → real Task/Run; bounded lease; History/Review Queue; Ads Agents intraday/daily acceptance with zero unauthorized Ads writes | [#73](https://github.com/RunLumi/lumi-agents/issues/73) |
 | P0 | Choose lighthouse and obtain access | Named process/system, supervisor, scope, queue and measured baseline | #40 |
 | P1 | Minimal Role Pack and scorecard | Compose packs with narrower authority; separate unknown/fixture/staging/production evidence | #41 |
 | P1 | Smallest real connector/browser bridge | Permitted action produces independently verified real-system result | #40 |
