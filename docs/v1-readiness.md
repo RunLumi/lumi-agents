@@ -31,6 +31,8 @@ The repository contains substantial implementation, but integration and business
 | 22.9 distribution | Signing/update configuration checker | Actual signed/notarized macOS and signed Windows artifacts, validated update/rollback, provenance and SBOM |
 | 22.10 documentation | Numbered specs and ADRs | Keep implementation truth, pilot procedure and issue graph synchronized |
 | 22.11 economics | Arithmetic over caller inputs and declared pack baselines | Measured work units, all human-time categories and full runtime/support/deployment costs |
+| 22.14 project extensions/connections | Specs 28–29 define target contracts; existing secret/project primitives are not integrated certification | Install/activate/connect separation, exact dependency snapshots, authenticated per-project broker isolation, Git hygiene and revocation tests (#76) |
+| 22.15 Document Workspace | Spec 30 and OSS research only; reviewed shell is vanilla JS, with no native Office edit qualification established by this change | React/viewer boundary, format adapters, safe save/conflict/recovery, preservation/formula-cache tests, native WebView security/accessibility and measured budgets (#82) |
 
 The native-desktop requirement in spec 22 remains an eventual V1 target. It is not a reason to force native execution into an API-accessible lighthouse pilot.
 
@@ -96,3 +98,21 @@ cannot be weakened after approval.
 Enrollment/fleet revocation, real authenticated adapters, durable host-level
 audit retention and signed distribution are still separate integration gates.
 These repairs do not establish customer operation or role capacity.
+
+## Document Workspace review — 2026-09-20
+
+Scoped review against `f0ed14aa6a3833e0520fdc0b1872b852bd9bb3d9`; this is not a
+refresh of the historical test counts or other readiness claims above.
+
+The current desktop README/config and ProjectService IPC were inspected. The
+frontend is vanilla HTML/CSS/JS; a React/TypeScript/Vite document entry is a target,
+not an existing implementation. Spec 30 now defines local Office/text/image/PDF
+preview and bounded basic editing, including safe-save and renderer isolation.
+
+[Issue #82](https://github.com/RunLumi/lumi-agents/issues/82) tracks implementation
+and exact-package qualification. The [research](research/document-workspace-oss-2026-09-20.md)
+separates baseline library recommendations from native DOCX/PPTX editor candidates
+and licensing gates. No packages, converters or Office binaries were added in this
+docs change. No native WebView, performance or format-preservation test was run
+for these future capabilities. Existing CI can detect baseline regressions but
+cannot certify a feature that has not been implemented.

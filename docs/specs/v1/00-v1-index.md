@@ -27,6 +27,7 @@ V1 covers one trusted runtime supporting:
 - Work mode for substantial knowledge work;
 - durable Folder-as-Project workspaces for repository/document work;
 - safe project-scoped file editing, search, shell/code, Git, task history, and resume;
+- local document preview and bounded basic editing with explicit format/preservation limits;
 - Workflow mode for hardened repeatable operations;
 - provider-neutral model routing;
 - connector/API execution;
@@ -49,6 +50,7 @@ V1 does **not** require:
 
 - a public marketplace;
 - a full IDE replacement;
+- a full Office suite, macro engine or universal lossless Office round-trip guarantee;
 - whole-disk indexing;
 - a second global scheduler or global super-project;
 - a custom project-local credential vault or automatic credential synchronization;
@@ -92,6 +94,7 @@ V1 does **not** require:
 | 27 | [global-and-project-automations](27-global-and-project-automations.md) | global menu, project view, shared CRUD, read state, resource concurrency |
 | 28 | [project-skills-plugins](28-project-skills-plugins.md) | project directories, install/activation, compatibility, locks, update/revocation |
 | 29 | [project-connections-secrets](29-project-connections-secrets.md) | portable requirements, protected credentials, broker isolation, Git hygiene, migration |
+| 30 | [document-workspace-preview-edit](30-document-workspace-preview-edit.md) | local multi-format preview/basic edit, React/Tauri boundary, preservation, safe save, OSS qualification |
 
 ## 0.5 Global invariants
 
@@ -123,6 +126,8 @@ All v1 components MUST preserve these invariants:
 24. Installing a Skill/Plugin MUST NOT imply activation, execution permission, authentication or cross-project availability.
 25. Credentials MUST be protected outside the project working tree; portable requirements and opaque references are not secret grants, and .gitignore is not a security boundary.
 26. Copied project IDs, package caches, connection references and worktrees MUST NOT transfer credential authority.
+27. Document preview MUST NOT execute embedded code, gain host authority or silently send content to external services.
+28. Document saves MUST protect the original and concurrent edits; preview success, format preservation and recalculated business results are separate claims.
 
 ## 0.6 Conformance
 
@@ -148,3 +153,7 @@ Spec 28 specializes installation/loading in Specs 14 and 24. Spec 29 specializes
 project credentials in Specs 17 and 26: being inside an authorized root does not
 make protected local state or credential material readable to an agent. These
 specializations preserve the existing scheduler and policy contracts.
+
+Spec 30 specializes Files/Artifacts/Review preview and bounded edits in Specs
+08/23/26. Its renderers do not acquire file/secret authority, and its format
+support matrix does not override artifact verification or safe-save requirements.

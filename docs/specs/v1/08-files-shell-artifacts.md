@@ -218,3 +218,46 @@ File/shell implementation MUST expose enough identity to preserve this distincti
 - isolated worktrees;
 - app restart;
 - runtime upgrade/downgrade.
+
+## 8.16 Document Workspace
+
+[Spec 30](30-document-workspace-preview-edit.md) defines local previews and basic
+edits for project files and generated artifacts. Files, Artifacts and Automation
+Review Queue reference the same project-bound resource/version, not separate
+copied documents for each UI entry point.
+
+**Artifacts without a Project:** Spec 8.12 permits these, but the V1 Document
+Workspace requires a registered Project/ExecutionEnvironment. Its Artifacts entry
+MUST offer `Choose project -> Import copy -> Open` rather than inventing ownership
+or silently using the currently selected project. Choosing an existing/new Project
+requires the ordinary registration and root authorization; it is not a new global
+workspace. Until this explicit import succeeds, show artifact metadata and the
+project-selection requirement without creating a Spec 30 document session.
+
+Source artifact read permission and destination Project write permission are
+checked independently within the tenant. Import uses a durable USER Task/Run for
+the chosen Project and the normal action/intent/policy/approval/verification/audit
+pipeline. Cross-environment transfer additionally needs explicit data-egress and
+import authority; local-only data cannot silently move. Copy only the authorized
+file, not its source workspace, credentials or parent task context. Preserve the
+source artifact unchanged and link it as provenance of the new project resource.
+A destination collision requires a new name or an explicitly approved replacement.
+
+This deliberate import is distinct from duplicating an already project-bound
+resource merely to preview it. A bound artifact whose project/root is unavailable
+gets a reconnect/relink or explicit copy-import flow; never silently rebind it.
+Required tests: unbound artifact with no selected project; cancelled selection;
+source-read denied; destination-write denied; cross-tenant/environment refusal;
+name collision; successful copy retains provenance; import retry/restart cannot
+duplicate or overwrite accidentally. Spec 30 inherits this entrypoint contract.
+
+Opening a preview is read-only. Saving a UI or agent edit uses the trusted file
+service: source-version conflict check, bounded staging, format/preservation
+validation, authorized atomic publication and output verification. Unsupported
+Office features cannot be silently discarded. A successful render or a valid ZIP
+is not proof of business correctness or current formula results.
+
+Document renderers receive no general filesystem, shell or secret access. Their
+local resources, output copies, caches and drafts remain project/policy scoped.
+Human edits create new versions and invalidate relevant prior artifact validation;
+viewing an artifact never approves its publication.

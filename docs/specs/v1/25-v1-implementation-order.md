@@ -38,10 +38,13 @@ After the trust/execution vertical slice is reliable:
 19. Spec 28 — project Skill/Plugin install, activation and dependency snapshots
 20. Spec 15 — desktop app/device distribution with Project entry points
 21. Specs 23 and 27 — shared global/project Automations management and review UX
+22. Spec 30 — Document Workspace: isolated preview, bounded edits and safe save
 
 Spec 26 is intentionally placed immediately after filesystem/shell primitives.
 Specs 28–29 reuse Spec 14/17/24 boundaries; they are not a second extension runtime
 or secret store. Spec 27 uses Spec 13 identities and admission, not another scheduler.
+Spec 30 reuses project/file/artifact services and can start after those boundaries
+are ready; it does not require a public plugin marketplace or Office server.
 
 Do not build "Open Folder" as a UI-only feature before Project identity, root boundaries, task binding, conflict handling, and change-set semantics exist.
 
@@ -49,12 +52,12 @@ Do not build "Open Folder" as a UI-only feature before Project identity, root bo
 
 Then:
 
-22. Spec 17 — full security/privacy hardening throughout implementation
-23. Spec 19 — control plane/sync
-24. Spec 20 — versioning/migrations
-25. Spec 21 — release certification automation
-26. Spec 24 — remaining bounded subagent behavior
-27. Spec 22 — v1 final acceptance, including 22.8 Automations and 22.14 project extensions/connections
+23. Spec 17 — full security/privacy hardening throughout implementation
+24. Spec 19 — control plane/sync
+25. Spec 20 — versioning/migrations
+26. Spec 21 — release certification automation
+27. Spec 24 — remaining bounded subagent behavior
+28. Spec 22 — v1 final acceptance, including 22.8 Automations, 22.14 project extensions/connections and 22.15 Document Workspace
 
 Spec 17 security is cross-cutting and MUST be applied continuously; its position here describes broader product hardening, not permission to defer security basics.
 
@@ -87,6 +90,7 @@ Spec 17 security is cross-cutting and MUST be applied continuously; its position
 26 Project Workspace
    ├─→ 10 Context/Memory
    ├─→ 13 Scheduler/Automations
+   ├─→ 30 Document Workspace (also 08/17/23/29 boundaries)
    └─→ 14 Extensions + 24 Skills + 17 Secret/policy boundaries
                          ↓
                  29 Project Connections
@@ -101,7 +105,7 @@ Spec 17 security is cross-cutting and MUST be applied continuously; its position
 21 Certification
 24 Remaining Subagents
           ↓
-22 V1 Done (including 22.8 and 22.14)
+22 V1 Done (including 22.8, 22.14 and 22.15)
 ```
 
 ## 25.6 First seven-day slice
@@ -253,3 +257,30 @@ Track the bounded slice in #76; integrate its readiness checks with Automations 
 
 No public marketplace or custom credential vault is prerequisite. Existing Keychain
 plumbing and a configuration file do not pass the new isolation/activation gates.
+
+## 25.12 Document Workspace implementation slice
+
+Track [#82](https://github.com/RunLumi/lumi-agents/issues/82) and
+[Spec 30](30-document-workspace-preview-edit.md). Library choices and their
+qualification limits are in the [dated research](../../research/document-workspace-oss-2026-09-20.md).
+
+1. Reconcile the actual frontend first: the reviewed Tauri shell is vanilla JS.
+   Add a minimal React/TypeScript/Vite document entry without an unrelated shell rewrite.
+2. Implement authorized document sessions, bounded binary transfer and unprivileged
+   rendering; prove custom IPC/network/secret denial before loading hostile Office HTML.
+3. Add host-mediated staged save, source-version conflicts, recovery and exact
+   artifact provenance. Keep these independent of any particular renderer library.
+4. Deliver text/Markdown, CSV, raster images and PDF with lazy adapters and accessible controls.
+5. Add best-effort DOCX preview and bounded XLSX data/basic-edit profile; preserve
+   source-cell identity and mark formula caches stale rather than invent recalculation.
+6. Time-box native DOCX/PPTX edit candidate tests: exact/transitive licenses,
+   offline behavior, no-op/one-edit preservation corpus, native WebViews and resource cost.
+7. Integrate only qualified operations; keep unsupported originals safe and offer
+   explicit external editing or labeled simplified copies. Do not replace a failed
+   qualification with a general homemade Office engine.
+8. Complete Files/Artifacts/Review Queue entrypoints, undo/draft recovery, Vietnamese
+   IME, native accessibility and measured budgets under Spec 22.15.
+
+No macro engine, realtime collaboration, full spreadsheet calculation, mandatory
+LibreOffice bundle or remote Office server blocks the first useful slice. A
+preview-only intermediate release must not be called all-format basic editing.
