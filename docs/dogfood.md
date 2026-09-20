@@ -53,6 +53,22 @@ inspection. Exit code 0 only when every acceptance check passed.
 - Durable task COMPLETED; run record closed; audit chain intact.
 - Full evidence: [`docs/evals/dogfood-run-real-repo.json`](evals/dogfood-run-real-repo.json).
 
+## Live-provider pass — measured results (2026-09-20)
+
+Model: `qwen2.5:3b` on a local Ollama endpoint (OpenAI-compatible, data
+never leaves the machine). Attempts 3–5 after clarifying the goal brief:
+
+| Attempt | Verified | Turns | Gated actions | Notes |
+|---|---|---|---|---|
+| 1 | no | 1 | 0 | ambiguous brief: model guessed a wrong path; fail-closed |
+| 2 | no | 3 | 3 | work landed, then the model attempted a redundant second write — **write guard refused it**, task FAILED honestly (unnecessary-action refusal recorded) |
+| 3–5 | **yes ×3** | 3 each | 2 each | read → write → git status → answer; 7/7 independent checks each |
+
+Live evidence files: `docs/evals/dogfood-run-live{,-write-guard,-attempt4,-attempt5}.json`.
+The measured takeaway: the loop's guards turned two model mistakes into
+honest failures instead of silent damage — exactly the containment the
+product contract requires.
+
 ## Live-provider pass (model actually planning)
 
 ```sh

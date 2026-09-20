@@ -1,0 +1,52 @@
+{
+  "scenario": "live-ledger-note",
+  "source_repo": ".",
+  "goal": "The repository you are working on is checked out in the repo/ subdirectory of your workspace: the README is at repo/README.md. Read repo/README.md, then create the file repo/notes/live-run.md containing a one-paragraph summary of what this project is for. Use paths relative to your workspace root (start with repo/).",
+  "verified": true,
+  "loop_status": "Completed",
+  "answer": "",
+  "turns": 3,
+  "actions_executed": 2,
+  "policy_denials": 0,
+  "audit_chain": "intact",
+  "completed_at_unix": 1789907380,
+  "provider": "openai-compatible (Ollama, localhost)",
+  "model": "qwen2.5:3b",
+  "checks": [
+    {
+      "check": "loop_completed",
+      "passed": true,
+      "detail": "planner reached a verified final answer"
+    },
+    {
+      "check": "expected_file",
+      "passed": true,
+      "detail": "repo/notes/live-run.md: present"
+    },
+    {
+      "check": "git_working_tree_dirty",
+      "passed": true,
+      "detail": "git status:\n?? notes/"
+    },
+    {
+      "check": "durable_task_completed",
+      "passed": true,
+      "detail": "durable status: Completed"
+    },
+    {
+      "check": "run_record_closed",
+      "passed": true,
+      "detail": "1 run record(s) persisted"
+    },
+    {
+      "check": "zero_policy_denials",
+      "passed": true,
+      "detail": "0 denied action event(s)"
+    },
+    {
+      "check": "audit_chain_intact",
+      "passed": true,
+      "detail": "hash-chained audit ledger verified"
+    }
+  ]
+}

@@ -322,11 +322,9 @@ green, dogfood report `verified: true` with 7/7 independent checks.
 
 Deferred, with reasons:
 
-- **Live-provider evaluation runs** (representative end-to-end runs driven by a
-  real model): no provider credentials exist in the build environment. The loop
-  is exercised through provider-wire replay and fixtures, and the desktop
-  accepts a real OpenAI-compatible key the moment one is configured. Smallest
-  external input: one API key in a test tenant.
+- ~~**Live-provider evaluation runs**~~ RESOLVED 2026-09-20 (see below): a
+  local `qwen2.5:3b` model on an Ollama OpenAI-compatible endpoint planned and
+  executed the task through the full gate — no external credential needed.
 - **Deep mid-run resume (`plan_resume` from checkpoints)**: the Work-mode
   runner does not persist orchestrator checkpoints yet; startup re-arm
   (RUNNING → crash-marked FAILED, explicit re-run) shipped instead because it
@@ -343,7 +341,20 @@ per-project action events with §23.9 trust labels (newest first, bounded at
 runtime lock. The read model is asserted in `runner_e2e` (verified write_file
 and run_shell surface with `Verified` labels).
 
-Next highest-value action: run the live-provider dogfood pass (a
-test-tenant OpenAI-compatible API key has been requested — the smallest
-external input left), then persist Work-mode checkpoints for true mid-run
-resume.
+Also shipped same day: **the live-provider dogfood pass ran for real** — a
+local `qwen2.5:3b` model (Ollama, OpenAI-compatible endpoint, data stays on
+the machine) planned and executed the Work-mode task through the full
+orchestrator gate. Measured over three consecutive runs after a clarified
+brief: **3/3 verified completions** (3 turns, 2 gated actions each, 0 denials,
+audit intact). The two earlier attempts demonstrate the containment contract:
+an ambiguous brief failed closed on a path miss, and a redundant second write
+was refused by the stale-write guard with the task marked FAILED.
+Evidence: `docs/evals/dogfood-run-live{,-write-guard,-attempt4,-attempt5}.json`,
+`docs/dogfood.md`. Honest caveat: the planner was a local 3B-class model, so
+measured completion rates reflect that model class, not the ceiling with a
+production-grade model.
+
+Next highest-value actions after this evidence: run the same live pass with a
+production-grade model to measure the model-quality delta; persist Work-mode
+checkpoints for true mid-run resume; convert the repeated live scenario into
+an automation-draft acceptance case.
