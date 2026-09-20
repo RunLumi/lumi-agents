@@ -19,9 +19,10 @@ not claims that those features/files exist here. Lumi Agents implements its own
 Project → Task → Run journey using the same visual language. Do not add companion
 screens, mobile shells, or a framework merely to match an example.
 
-In this repository, inspect [desktop styles](apps/desktop/src/style.css),
-[markup](apps/desktop/src/index.html), and [behavior](apps/desktop/src/app.js) before
-implementation. Existing code or screenshots may lag this contract; record drift
+In this repository, inspect the shipped [desktop UI styles](apps/desktop/ui/src/styles/lumi.css),
+[markup](apps/desktop/ui/src/App.tsx), and [behavior](apps/desktop/ui/src) before
+implementation. The legacy [vanilla preview](apps/desktop/src) is retained only for
+development compatibility. Existing code or screenshots may lag this contract; record drift
 rather than treating it as a new palette. This document does not prove deployed
 parity, installed fonts, accessibility compliance, or passing tests.
 

@@ -11,7 +11,7 @@
   --color-lumi-blue: #006093;
   --color-lumi-blue-hover: #004F80;
   --color-lumi-blue-active: #003E6A;
-  --color-lumi-blue-soft: #E5EDFB; /* sampled E4EBFB-E5EEFF (screens) */
+  --color-lumi-blue-soft: #E4F3FC;
 
   /* Text */
   --color-civic-navy: #102A43;
@@ -19,20 +19,15 @@
   --color-soft-slate: #5E6677;
 
   /* Surfaces */
-  /* Canvas tracked to docs/screens mockups (sampled F5F6F8-FAFBFD):
-     cool near-white, deliberately diverging from DESIGN.md §19's warm
-     paper per the approved screen designs. */
-  --color-paper-white: #F6F7FA;
+  --color-paper-white: #F4F0E8;
   --color-surface-white: #FFFFFF;
-  --color-sidebar: #EDEEF3; /* sampled from docs/screens */
   --color-archive-gray: #E7EAF0;
   --color-border-subtle: #E7EAF0;
   --color-border: #D9DEE8;
   --color-border-strong: #C8D0DE;
 
   /* States */
-  --color-signal-amber: #F4A62A;      /* text-grade amber on paper (AA) */
-  --color-amber-hue: #F4A62A;
+  --color-signal-amber: #F4A62A;
   --color-amber-soft: #FFF4DC;
   --color-risk-red: #C2410C;
   --color-red-soft: #FFF1EC;
@@ -58,28 +53,49 @@
   --font-display: var(--font-sans);
   --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-base: 15px;
-  --text-lg: 18px;
-  --text-xl: 22px;
-  --text-2xl: 28px;
+  /* Fluid type scale — DESIGN.md §6.2 / §19 */
+  --text-xs: clamp(0.75rem, 0.73rem + 0.10vw, 0.8125rem);
+  --text-sm: clamp(0.8125rem, 0.79rem + 0.12vw, 0.875rem);
+  --text-base: clamp(0.9375rem, 0.91rem + 0.16vw, 1rem);
+  --text-lg: clamp(1.0625rem, 1.01rem + 0.28vw, 1.1875rem);
+  --text-xl: clamp(1.25rem, 1.16rem + 0.45vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.34rem + 0.80vw, 2rem);
+  --text-3xl: clamp(1.875rem, 1.60rem + 1.35vw, 2.75rem);
+  --text-display: clamp(2.5rem, 1.90rem + 3.00vw, 4.5rem);
 
   --tracking-tight: -0.02em;
   --tracking-snug: -0.01em;
+  --tracking-normal: 0em;
   --tracking-wide: 0.08em;
 
   /* Radius (§8.1) */
+  --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-card: 8px;
   --radius-control: 8px;
   --radius-popover: 12px;
+  --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-pill: 999px;
 
   /* Borders (§8.2) */
   --border-hairline: 1px;
+  --border-focus: 2px;
+  --border-rail: 3px;
+
+  /* Spacing — shared layout rhythm from DESIGN.md §19 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
 
   /* Elevation — navy-tinted 4-tier ramp (§8.3) */
   --elevation-1: 0 1px 2px rgba(16, 42, 67, 0.05);
@@ -173,12 +189,12 @@ button, .card, .nav-btn, .tab, .recent-card, .action-card {
   * { transition: none !important; animation: none !important; }
 }
 
-.app { display: flex; height: 100vh; overflow: hidden; }
+.app { display: flex; height: 100dvh; overflow: hidden; }
 
 /* ============ Sidebar — Sheet on Canvas ============ */
 .sidebar {
   width: 232px; flex: none;
-  background: var(--color-sidebar);
+  background: var(--color-surface-white);
   border-right: 1px solid var(--color-border);
   display: flex; flex-direction: column;
   padding: 14px 12px 12px; gap: 2px;
@@ -283,7 +299,7 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
 .engine-state { font-size: 11px; color: var(--color-soft-slate); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-archive-gray); flex: none; }
 .dot.ok { background: var(--color-success-green); box-shadow: 0 0 0 3px var(--color-green-soft); }
-.dot.warn { background: var(--color-amber-hue); box-shadow: 0 0 0 3px var(--color-amber-soft); }
+.dot.warn { background: var(--color-signal-amber); box-shadow: 0 0 0 3px var(--color-amber-soft); }
 .dot.bad { background: var(--color-risk-red); box-shadow: 0 0 0 3px var(--color-red-soft); }
 
 /* ============ Topbar — raised sticky sheet ============ */
