@@ -69,7 +69,7 @@ V1 does **not** require:
 | 10 | context-memory-retrieval | context classes and durable memory |
 | 11 | audit-evidence-verification | proof, postconditions, audit |
 | 12 | workflow-pack | production workflow packaging |
-| 13 | scheduler-background-triggers | schedules/events/background execution |
+| 13 | scheduler-background-triggers | Project-native Automations, schedules/events, run history, review delivery |
 | 14 | mcp-connectors-extension-sdk | connector/plugin capability model |
 | 15 | desktop-app-device-distribution | employee app, signing, updates, device trust |
 | 16 | evals-observability-economics | quality, SLOs, cost-center metrics |
@@ -107,6 +107,9 @@ All v1 components MUST preserve these invariants:
 17. Project/repository content may guide work but MUST NOT widen policy, secrets, filesystem, network, provider, or external-action authority.
 18. Active Tasks MUST remain bound to their durable Project/ExecutionEnvironment identity across resume and remote supervision.
 19. Pre-existing user changes MUST NOT be silently overwritten or claimed as agent-generated work.
+20. An Automation MUST NOT gain authority from its prompt, Skill, repository changes, trigger payload, retry, or reroute.
+21. Every admitted Automation run MUST create durable run history even when its semantic outcome is NO_ACTION/NO_ALERT or delivery is intentionally silent.
+22. Automation delivery success and task execution success MUST remain separate facts.
 
 ## 0.6 Conformance
 
