@@ -102,6 +102,15 @@ export const changeSet = (projectId: string, taskId: string) =>
 export const changeSets = (projectId: string) =>
   getTransport().invoke<ChangeSet[]>("change_sets", { projectId });
 
+// preview (Spec 30 phase A: binary formats via bounded base64)
+export interface FileContentBase64 {
+  path: string;
+  content_base64: string;
+  sha256: string;
+}
+export const fileReadBase64 = (projectId: string, path: string) =>
+  getTransport().invoke<FileContentBase64>("file_read_base64", { projectId, path });
+
 // evidence (audit ledger read model)
 export interface EvidenceSummaryEntry {
   action_id: string;
@@ -174,4 +183,5 @@ export const COMMAND_NAMES = [
   "provider_clear_config",
   "task_run",
   "project_evidence",
+  "file_read_base64",
 ] as const;

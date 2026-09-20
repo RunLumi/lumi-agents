@@ -16,6 +16,7 @@ import {
 import {
   fileCreate, fileDelete, fileEdit, fileList, fileRead, fileSearch,
 } from "../ipc/commands";
+import { DocumentPreview, previewKindFor } from "./DocumentPreview";
 import type { ListedEntry, SearchHit } from "../ipc/types";
 
 export interface FileRequest {
@@ -41,6 +42,11 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
   const [selected, setSelected] = useState<{ path: string; content: string; sha256: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  // Spec 30 phase A: md/csv render read-only previews; editing requires
+  // switching to the source editor (Edit button), which stays available.
+  const previewable = selected
+    ? previewKindFor(selected.path, true) !== "text" || selected.path.toLowerCase().endsWith(".md")
+    : false;
   const [newName, setNewName] = useState("");
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"filename" | "text">("filename");
@@ -237,6 +243,8 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
                   <Button size="sm" onClick={saveEdit}>{t("files.save")}</Button>
                 </div>
               </>
+            ) : previewable ? (
+              <DocumentPreview path={selected.path} project={projectId} content={selected.content} />
             ) : (
               <pre className="code-body" style={{ maxHeight: 420, overflow: "auto" }}>{selected.content}</pre>
             )}

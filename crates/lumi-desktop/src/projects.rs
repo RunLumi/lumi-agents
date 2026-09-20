@@ -293,6 +293,27 @@ impl ProjectService {
         })
     }
 
+    /// Reads a file as base64 for the preview surface (Spec 30 phase A).
+    /// Bounded at 10 MiB — larger files are refused with an explicit
+    /// too-large error rather than silently truncated.
+    pub fn file_read_base64(
+        &self,
+        project_id: &str,
+        path: &str,
+    ) -> Result<FileContentBase64, String> {
+        let record = self.record(project_id)?;
+        let files = ProjectFiles::new(&record);
+        let content_base64 = files
+            .read_base64(Path::new(path), 10 * 1024 * 1024)
+            .map_err(|e| e.to_string())?;
+        let sha256 = files.checksum(Path::new(path)).map_err(|e| e.to_string())?;
+        Ok(FileContentBase64 {
+            path: path.to_owned(),
+            content_base64,
+            sha256,
+        })
+    }
+
     /// Creates a file, attributing the change to the manual task set.
     pub fn file_create(&self, project_id: &str, path: &str, content: &str) -> Result<(), String> {
         self.mutate(project_id, MANUAL_TASK_ID, |files| {
@@ -598,6 +619,14 @@ pub struct ProjectOverview {
 pub struct FileContent {
     pub path: String,
     pub content: String,
+    pub sha256: String,
+}
+
+/// Base64 preview payload for binary formats (Spec 30 phase A).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FileContentBase64 {
+    pub path: String,
+    pub content_base64: String,
     pub sha256: String,
 }
 

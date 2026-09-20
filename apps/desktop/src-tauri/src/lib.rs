@@ -216,6 +216,19 @@ fn file_read(
 }
 
 #[tauri::command]
+fn file_read_base64(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    path: String,
+) -> Result<lumi_desktop::FileContentBase64, String> {
+    state
+        .projects
+        .lock()
+        .expect("project service lock poisoned")
+        .file_read_base64(&project_id, &path)
+}
+
+#[tauri::command]
 fn file_create(
     state: tauri::State<'_, AppState>,
     project_id: String,
@@ -726,6 +739,7 @@ pub fn run() {
             project_remove,
             file_list,
             file_read,
+            file_read_base64,
             file_create,
             file_edit,
             file_delete,

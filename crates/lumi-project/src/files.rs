@@ -177,6 +177,15 @@ impl<'a> ProjectFiles<'a> {
         std::fs::read(&resolved).map_err(|e| FileOpsError::Io(e.to_string()))
     }
 
+    /// Reads a file as base64 for preview surfaces (Spec 30 phase A).
+    /// Bounded by the same size ceiling as text reads; the caller owns
+    /// format detection. No path escapes the project roots.
+    pub fn read_base64(&self, path: &Path, max_bytes: u64) -> Result<String, FileOpsError> {
+        use base64::Engine as _;
+        let bytes = self.read(path, max_bytes)?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    }
+
     /// Reads a file as UTF-8 text, refusing binary content.
     pub fn read_text(&self, path: &Path, max_bytes: u64) -> Result<String, FileOpsError> {
         let bytes = self.read(path, max_bytes)?;
