@@ -53,6 +53,24 @@ inspection. Exit code 0 only when every acceptance check passed.
 - Durable task COMPLETED; run record closed; audit chain intact.
 - Full evidence: [`docs/evals/dogfood-run-real-repo.json`](evals/dogfood-run-real-repo.json).
 
+## Live-provider pass (model actually planning)
+
+```sh
+LUMI_DOGFOOD_API_KEY=sk-... \
+LUMI_DOGFOOD_ENDPOINT=https://api.openai.com \   # or any OpenAI-compatible endpoint
+LUMI_DOGFOOD_MODEL=gpt-4o-mini \
+cargo run -p lumi-agent --bin lumi-dogfood -- \
+    --repo . --fixture crates/lumi-agent/tests/fixtures/planning/live-ledger-note.json \
+    --out docs/evals/dogfood-run-live.json
+```
+
+In `--live` mode the fixture supplies only the goal brief and expected files;
+the MODEL plans the turns through the production `ModelPlanner` and every
+action still passes the orchestrator gate. The harness's independent checks
+are unchanged, so a model that claims work it did not do fails the evaluation.
+An invalid key is exercised regularly: the provider rejects, the loop fails
+honestly, nothing is written, and the report records `verified: false`.
+
 ## Scope and limits
 
 - The fixture planner is deterministic; it demonstrates the loop, gate,
