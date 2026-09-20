@@ -6,6 +6,10 @@ Status: Normative
 
 Prevent lower-trust models/content/extensions from expanding authority or leaking sensitive data.
 
+[Spec 29](29-project-connections-secrets.md) is the normative project-connection,
+credential storage, Git hygiene and migration contract. Project installation
+follows [Spec 28](28-project-skills-plugins.md).
+
 ## 17.2 Threat model
 
 V1 explicitly addresses:
@@ -21,7 +25,8 @@ V1 explicitly addresses:
 - stale UI state;
 - duplicate side effects after crash;
 - sensitive screenshots/traces;
-- unsafe provider data egress.
+- unsafe provider data egress;
+- project/credential-reference copying and same-user executable-plugin escape.
 
 ## 17.3 Trust rule
 
@@ -52,7 +57,13 @@ Plaintext secret MUST NOT be stored in:
 - screenshots;
 - workflow definitions;
 - fixtures;
-- crash dumps.
+- crash dumps;
+- project working directories, plugin packages or their credentials.json files.
+
+Portable project configuration declares requirements. Actual secret values stay
+in approved protected storage. `.gitignore` is supplementary Git hygiene, never
+an access-control, encryption or sandbox boundary. Existing legacy credentials
+require the explicit host-only migration process in Spec 29.
 
 ## 17.5 Secret resolution
 
@@ -64,11 +75,20 @@ Preferred stores:
 - Windows protected credential storage;
 - approved enterprise secret manager.
 
+No silent fallback to plaintext files when protected storage is locked or
+unavailable. Report a credential-store blocker. An explicitly authorized
+memory-only session is ephemeral and does not establish unattended readiness.
+
 ## 17.6 Secret scope
 
 Executor/extension receives only required secret.
 
 No extension may enumerate entire secret store.
+
+A reference is not a bearer capability. Validate authenticated caller, tenant,
+registered project/environment, approved component, external account/audience,
+operation/destination and current lease/revocation state under Spec 29. Prefer
+brokered requests rather than raw tokens for untrusted executable components.
 
 ## 17.7 Data egress policy
 
@@ -148,6 +168,10 @@ If recording/capture beyond selective evidence is enabled, deployment MUST defin
 
 All persisted state, evidence, memory, connector instances, secret refs, and control-plane messages MUST be tenant-scoped.
 
+Project-scoped connections MUST also remain isolated within a tenant. Clones,
+worktree copies, shared package caches and global automation visibility cannot
+implicitly transfer connection grants or session ownership.
+
 ## 17.15 Security incidents
 
 Runtime MUST support:
@@ -170,8 +194,17 @@ V1 MUST include:
 - wrong-window action;
 - crash/double-submit;
 - local-only cloud fallback attempt;
-- cross-tenant access attempt.
+- cross-tenant access attempt;
+- cross-project reference substitution and copied project identity;
+- ignored/previously tracked credential files and removed/negated ignore rules;
+- shell/plugin bypass of file-tool restrictions and brokered read-only scope;
+- vault lock, concurrent refresh/revoke, and no plaintext fallback.
 
 ## 17.17 Fail closed
 
 Security-critical parser/evaluator uncertainty MUST fail closed.
+
+Encrypted storage, process separation and package declarations alone do not prove
+runtime isolation. Required sandbox/credential mediation that cannot be enforced
+must block the component. Document the certified platform boundary; do not claim
+security against an unrestricted same-user process or a compromised operating system.
