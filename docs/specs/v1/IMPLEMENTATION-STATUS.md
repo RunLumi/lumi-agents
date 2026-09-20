@@ -19,7 +19,7 @@ surface or breadth missing — the named gap is the follow-up), **absent**
 | 10 | Context/memory/retrieval | implemented | `lumi-memory` + project memory with provenance + invalidation |
 | 11 | Audit/evidence/verification | implemented | `lumi-audit` hash chain + postcondition verifier; Evidence read model in desktop (PR #101) |
 | 12 | Workflow packs | implemented | `lumi-packs` certification tests |
-| 13 | Scheduler/background triggers | implemented (crate) | `lumi-scheduler`; desktop Automations UI wiring is the follow-up (P1 #73) |
+| 13 | Scheduler/background triggers | implemented | `lumi-scheduler` + cron matcher; desktop wiring shipped: admitted firings materialize durable project-bound tasks (`automations.rs`, PR #119) |
 | 14 | MCP/connectors/extension | partial | `lumi-connectors` (757 lines, 17 tests); real MCP bridge integration deferred |
 | 15 | Desktop app/distribution | implemented | Tauri v2 shell; `release.yml` macOS universal + Windows x64 with checksums (`docs/release.md`) |
 | 16 | Evals/observability/economics | implemented | `lumi-evals` (metrics, outcomes, economics, dogfood harness); live + fixture passes recorded |
@@ -33,7 +33,7 @@ surface or breadth missing — the named gap is the follow-up), **absent**
 | 24 | Skills/subagents | partial | skills exist in packs; subagent orchestration deferred |
 | 25 | Implementation order | meta | satisfied historically; see plan.md |
 | 26 | Project workspace | implemented | Spec 26 backend + desktop Projects surface (PRs #54–#63) |
-| 27 | Global/project automations | partial | scheduler crate ready; durable occurrence → Task wiring is the P1 follow-up (#73) |
+| 27 | Global/project automations | **partial → advancing** | PR #119: admitted schedule firings now materialize durable project-bound tasks with dedup/catch-up/quiet-hours policy via the scheduler gate. Remaining: desktop management surface (list/edit/enable), event triggers beyond cron, notification fan-out |
 | 28 | Project skills/plugins | partial | pack snapshots exist; project-scoped admission UI deferred |
 | 29 | Project connections/secrets | partial | `lumi-secrets` broker; per-project connection requirements UI deferred |
 | 30 | Document workspace preview/edit | **partial → advancing** | Markdown rendered/source/split (react-markdown+remark-gfm, HTML disabled, inert links); image preview via bounded base64 IPC; literal CSV/TSV grid; **CodeMirror 6 editing (history undo/redo, Mod-f find/replace, markdown highlighting)**; **PDF.js lazy page rendering + per-page text search, worker bundled, library chunk lazy-loaded (§30.15)**; explicit unsupported-format states for DOCX/XLSX/PPTX and macro/encrypted files. **staged-save binding shipped**: every UI file create/edit/delete is a durable USER Task/Run with a normalized ActionProposal, policy gate, checksum postconditions, and verified evidence (§30.5/§30.12). Remaining: PDF thumbnails, DOCX/XLSX/PPTX qualified adapters (phase B/C), IME corpus tests |
