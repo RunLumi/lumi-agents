@@ -10,7 +10,7 @@ import {
 } from "../ipc/commands";
 import type {
   ArtifactEntry, ChangeSet, CommitInfo, GitStatus,
-  ProjectOverview, Task, ValidationRecord,
+  PendingApproval, ProjectOverview, Task, ValidationRecord,
 } from "../ipc/types";
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
   tasks: Task[];
   sets: ChangeSet[];
   artifacts: ArtifactEntry[];
+  pendingApprovals: PendingApproval[];
   reload: () => void;
   onReveal: () => void;
 }
@@ -87,7 +88,7 @@ function EntryRow({ e }: { e: ChangeSet["entries"][number] }) {
   );
 }
 
-export function ProjectDetail({ overview, git, tasks, sets, artifacts, reload, onReveal }: Props) {
+export function ProjectDetail({ overview, git, tasks, sets, artifacts, pendingApprovals, reload, onReveal }: Props) {
   const [tab, setTab] = useState<string>("home");
   const [goal, setGoal] = useState("");
   const [commitMsg, setCommitMsg] = useState("");
@@ -146,7 +147,7 @@ export function ProjectDetail({ overview, git, tasks, sets, artifacts, reload, o
   );
 
   return (
-    <div className="project-layout">
+    <div>
       <div className="project-head">
         <div className="project-ico"><Glyph name="folder" /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -351,7 +352,19 @@ export function ProjectDetail({ overview, git, tasks, sets, artifacts, reload, o
         <div className="card">
           <h3>{t("approvals.title")}</h3>
           <p className="muted small">{t("approvals.sub")}</p>
-          <div className="empty-state">{t("approvals.none")}</div>
+          {pendingApprovals.length === 0 ? (
+            <div className="empty-state">{t("approvals.none")}</div>
+          ) : (
+            <div className="mini-list">
+              {pendingApprovals.map((a, i) => (
+                <div key={a.action_id ?? i} className="mini-row">
+                  <Glyph name="approval" />
+                  <span style={{ flex: 1, minWidth: 0 }}>{a.operation ?? a.action_id}</span>
+                  <span className="pill pill-amber">{t("status.waitingApproval")}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -375,11 +388,14 @@ export function ProjectDetail({ overview, git, tasks, sets, artifacts, reload, o
               {overview.capabilities.map((c) => <span key={c} className="chip">{c}</span>)}
             </div>
             <h3 style={{ marginTop: 16 }}>{t("settings.trustTitle")}</h3>
-            <div className="check-list">
+            <ul className="check-list">
               {["settings.trust1", "settings.trust2", "settings.trust3", "settings.trust4"].map((k) => (
-                <div key={k} className="check-yes"><Glyph name="verified" /> {t(k)}</div>
+                <li key={k}>
+                  <span className="check-yes"><Glyph name="verified" /></span>
+                  <span>{t(k)}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </div>
       )}

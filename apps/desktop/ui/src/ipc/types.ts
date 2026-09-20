@@ -175,12 +175,18 @@ export interface KillSwitchDto {
 export type ConnectionState = "connected" | "disconnected" | "unknown";
 export type ExecutionState = "enabled" | "stopped" | "unavailable";
 
+export interface PendingApproval {
+  action_id?: string;
+  operation?: string;
+  reason?: string;
+}
+
 export interface OperationsSnapshot {
   connection: ConnectionState;
   execution: ExecutionState;
   queue: unknown[] | null;
   progress: unknown;
-  pending_approvals: unknown[] | null;
+  pending_approvals: PendingApproval[] | null;
   exceptions: unknown[] | null;
   evidence: unknown[] | null;
   economics: unknown;
