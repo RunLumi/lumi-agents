@@ -23,29 +23,29 @@
 
       <nav class="nav" id="nav">
         <button class="nav-btn" data-nav="projects">
-          <span class="nav-ico">📁</span> Projects
+          <span class="nav-ico" data-glyph="project"></span> Projects
         </button>
         <button class="nav-btn" data-nav="tasks">
-          <span class="nav-ico">🧭</span> Tasks
+          <span class="nav-ico" data-glyph="task"></span> Tasks
           <span class="badge hidden" id="nav-task-badge"></span>
         </button>
         <button class="nav-btn" data-nav="files">
-          <span class="nav-ico">🗂</span> Files
+          <span class="nav-ico" data-glyph="folder"></span> Files
         </button>
         <button class="nav-btn" data-nav="changes">
-          <span class="nav-ico">⇄</span> Changes
+          <span class="nav-ico" data-glyph="fileDiff"></span> Changes
         </button>
         <button class="nav-btn" data-nav="git">
-          <span class="nav-ico">⑂</span> Git
+          <span class="nav-ico" data-glyph="branch"></span> Git
         </button>
         <button class="nav-btn" data-nav="artifacts">
-          <span class="nav-ico">◇</span> Artifacts
+          <span class="nav-ico" data-glyph="artifact"></span> Artifacts
         </button>
         <button class="nav-btn" data-nav="evidence">
-          <span class="nav-ico">≡</span> Evidence
+          <span class="nav-ico" data-glyph="evidence"></span> Evidence
         </button>
         <button class="nav-btn" data-nav="approvals">
-          <span class="nav-ico">✓</span> Approvals
+          <span class="nav-ico" data-glyph="approval"></span> Approvals
           <span class="badge hidden" id="nav-approval-badge"></span>
         </button>
       </nav>
@@ -60,7 +60,7 @@
             <div class="engine-state" id="engine-state">Checking…</div>
           </div>
         </div>
-        <button class="btn btn-danger-outline btn-block" id="kill-switch">⏹ Stop Agent</button>
+        <button class="btn btn-danger-outline btn-block" id="kill-switch"><span data-glyph="stop"></span> Stop Agent</button>
       </div>
     </aside>
 
@@ -71,12 +71,12 @@
           <span class="crumb current">Projects</span>
         </div>
         <button class="searchbox" id="search-open" title="Search (⌘K)">
-          <span class="search-ico">🔍</span>
+          <span class="search-ico" data-glyph="search"></span>
           <span class="search-ph">Search projects, files, tasks, or ask Lumi…</span>
           <span class="kbd">⌘K</span>
         </button>
         <div class="topbar-right">
-          <button class="btn btn-danger-outline btn-sm" id="stop-agent">■ Stop Agent</button>
+          <button class="btn btn-danger-outline btn-sm" id="stop-agent"><span data-glyph="stop"></span> Stop Agent</button>
           <div class="avatar" title="Local user">LU</div>
         </div>
       </header>
@@ -91,7 +91,7 @@
   <div class="palette-overlay hidden" id="palette">
     <div class="palette">
       <div class="palette-input-row">
-        <span class="search-ico">🔍</span>
+        <span class="search-ico" data-glyph="search"></span>
         <input id="palette-input" type="text" placeholder="Search projects, files, tasks…" />
         <span class="kbd">esc</span>
       </div>

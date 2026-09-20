@@ -1700,6 +1700,11 @@ async function refresh() {
 window.addEventListener("hashchange", refresh);
 function boot() {
   injectWindowGlyphs();
+  // Static markup icon slots (sidebar nav, search, kill switch) render
+  // through the same Lumi Glyph System as dynamic views (ICON.md).
+  document.querySelectorAll("[data-glyph]").forEach((el) => {
+    el.innerHTML = glyph(el.dataset.glyph);
+  });
   const askIco = document.getElementById("palette-ask-ico");
   if (askIco) askIco.innerHTML = mark("clarity");
   refresh();
