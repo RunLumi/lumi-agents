@@ -1,0 +1,50 @@
+name: prepare-license-metadata
+on:
+  push:
+    branches: [chore/developer-commercial-licensing]
+    paths: [.github/workflows/prepare-license-metadata.yml]
+permissions:
+  contents: write
+jobs:
+  blobs:
+    if: github.repository == 'RunLumi/lumi-agents' && github.actor == 'streamentry' && github.ref == 'refs/heads/chore/developer-commercial-licensing'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # No checkout, package installation, repository-code execution, or ref writes.
+      - name: Add only the reviewed root license fields to immutable lock blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os, urllib.request
+          endpoint = 'https://api.github.com/repos/RunLumi/lumi-agents/git/blobs'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
+          def api(url, data=None):
+              request = urllib.request.Request(url, data=None if data is None else json.dumps(data).encode(), headers=headers)
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+          def blob_sha(body):
+              return hashlib.sha1(b'blob ' + str(len(body)).encode() + b'\0' + body).hexdigest()
+          targets = [
+              ('apps/desktop/ui/package-lock.json', 'e98bdab3fc910b1021b91f419342dc08e24251b0', '5da72364607a21323241415ebbc7baf4cd655ce0'),
+              ('web/package-lock.json', '76eef93dc470fd032ca0cbcfcb391e518bd63af1', '1836a2126817ea03f3ed28d613662d0fb71d7a6e'),
+          ]
+          for path, old_sha, expected_sha in targets:
+              source = api(endpoint + '/' + old_sha)
+              assert source['encoding'] == 'base64'
+              before = base64.b64decode(source['content'])
+              assert blob_sha(before) == old_sha
+              old = json.loads(before)
+              assert 'license' not in old['packages']['']
+              needle = b'      "version": "0.1.0",\n      "dependencies": {'
+              assert before.count(needle) == 1
+              after = before.replace(needle, b'      "version": "0.1.0",\n      "license": "Apache-2.0",\n      "dependencies": {', 1)
+              assert blob_sha(after) == expected_sha
+              parsed = json.loads(after)
+              assert parsed['packages'][''].pop('license') == 'Apache-2.0'
+              assert parsed == old
+              result = api(endpoint, {'content': after.decode(), 'encoding': 'utf-8'})
+              assert result['sha'] == expected_sha
+              print(path, result['sha'])
+          PY
