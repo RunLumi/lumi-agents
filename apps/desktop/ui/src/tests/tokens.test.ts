@@ -1,8 +1,5 @@
-/* Token bridge integrity (DESIGN.md §19): the Tailwind theme file must
-   define the contract tokens and the liquid-glass family.
-   Background values track the approved docs/screens mockups (cool
-   near-white canvas) — an intentional, commented divergence from
-   §19's warm paper hex. */
+/* Token bridge integrity (DESIGN.md §19): the desktop token layer must
+   preserve the canonical palette, shape, type, and liquid-glass family. */
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -12,12 +9,15 @@ const themeCss = readFileSync(new URL("../styles/index.css", import.meta.url), "
 
 const REQUIRED_TOKENS = [
   "--color-lumi-blue: #006093",
+  "--color-lumi-blue-soft: #E4F3FC",
   "--color-civic-navy: #102A43",
-  "--color-paper-white: #F6F7FA",
-  "--color-sidebar: #EDEEF3",
+  "--color-paper-white: #F4F0E8",
   "--color-signal-amber",
   "--color-risk-red: #C2410C",
   "--color-success-green: #1F7A4D",
+  "--border-focus: 2px",
+  "--border-rail: 3px",
+  "--text-display: clamp(2.5rem, 1.90rem + 3.00vw, 4.5rem)",
   "--glass-tint",
   "--glass-tint-strong",
   "--glass-blur: 18px",
@@ -44,4 +44,10 @@ test("token present: Geist served locally (§6.1)", () => {
 test("glass degrades without backdrop-filter", () => {
   assert(css.includes("@supports not"), "opaque fallback required");
   assert(css.includes("prefers-reduced-transparency"), "reduced-transparency fallback required");
+});
+
+test("desktop does not reintroduce screen-specific palette overrides", () => {
+  assert(!css.includes("--color-sidebar:"), "sidebar must use a canonical surface token");
+  assert(!css.includes("--color-amber-hue:"), "amber must have one canonical token");
+  assert(css.includes("height: 100dvh"), "desktop shell must use the stable dynamic viewport height");
 });
