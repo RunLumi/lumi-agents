@@ -7,6 +7,8 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+lumi-agent = { path = "../lumi-agent" }
+lumi-models = { path = "../lumi-models" }
 lumi-protocol = { path = "../lumi-protocol" }
 lumi-policy = { path = "../lumi-policy" }
 lumi-audit = { path = "../lumi-audit" }

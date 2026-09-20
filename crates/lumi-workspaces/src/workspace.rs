@@ -98,6 +98,43 @@ impl Workspace {
         Ok(Self { metadata })
     }
 
+    /// Binds work-mode execution to an EXISTING directory (typically a
+    /// user project root) without writing metadata into it.
+    ///
+    /// Unlike [`Workspace::create`]/[`Workspace::open`], the binding is
+    /// in-memory only: the user's repository stays untouched. All path
+    /// containment checks still apply, and `root` must exist.
+    ///
+    /// # Errors
+    /// The root does not exist or cannot be canonicalized.
+    pub fn attach(
+        root: &Path,
+        task_id: &TaskId,
+        owner: impl Into<String>,
+        project_id: Option<ProjectId>,
+        workspace_kind: Option<WorkspaceKind>,
+    ) -> Result<Self, String> {
+        let abs = Self::absolutize(root)?;
+        if !abs.is_dir() {
+            return Err(format!(
+                "cannot attach workspace: {} is not a directory",
+                abs.display()
+            ));
+        }
+        Ok(Self {
+            metadata: WorkspaceMetadata {
+                task_id: task_id.clone(),
+                root: abs,
+                owner: owner.into(),
+                created_at: Timestamp::now(),
+                cleanup: CleanupPolicy::Manual,
+                layout_version: 1,
+                project_id,
+                workspace_kind,
+            },
+        })
+    }
+
     pub(crate) const METADATA_FILE: &'static str = ".lumi-workspace.json";
 
     fn persist_metadata(&self) -> Result<(), String> {

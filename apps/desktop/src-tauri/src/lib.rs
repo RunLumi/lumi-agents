@@ -4,20 +4,35 @@
 //! cannot prove remain unknown; the UI cannot create policy, credentials,
 //! approvals, or executor state.
 
-use lumi_desktop::{DesktopRuntime, KillSwitchState, OperationsSnapshot, ProjectService};
+use lumi_desktop::{
+    is_runnable, run_desktop_task_with_provider, DesktopRuntime, KillSwitchState,
+    OperationsSnapshot, ProjectService, ProviderSession,
+};
+use lumi_models::ureq_transport::UreqTransport;
 use lumi_state::CancelToken;
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 /// Shared application state managed by Tauri.
 pub struct AppState {
     /// Durable local runtime and its real orchestrator cancellation token.
-    pub runtime: Mutex<DesktopRuntime>,
+    /// Arc so the task worker can hold it across a blocking run while the
+    /// rest of the shell degrades to lock-free reads.
+    pub runtime: Arc<Mutex<DesktopRuntime>>,
     /// Durable project registry and project-backed services (spec 26).
     pub projects: Mutex<ProjectService>,
     pub cancel: CancelToken,
     pub stop_marker: std::path::PathBuf,
+    /// Single-flight guard for task execution.
+    pub running: Arc<AtomicBool>,
+    /// The user's in-memory provider session. Never persisted; the
+    /// credential never leaves this process boundary.
+    pub provider: Arc<Mutex<Option<ProviderSession>>>,
+    /// Durable state file path, for lock-free task reads while a run
+    /// holds the runtime mutex.
+    pub state_path: std::path::PathBuf,
 }
 
 impl AppState {
@@ -25,11 +40,15 @@ impl AppState {
     pub fn new(runtime: DesktopRuntime, projects: ProjectService) -> Self {
         let cancel = runtime.cancellation_token();
         let stop_marker = runtime.stop_marker_path().to_path_buf();
+        let state_path = runtime.state_path().to_path_buf();
         Self {
-            runtime: Mutex::new(runtime),
+            runtime: Arc::new(Mutex::new(runtime)),
             projects: Mutex::new(projects),
             cancel,
             stop_marker,
+            running: Arc::new(AtomicBool::new(false)),
+            provider: Arc::new(Mutex::new(None)),
+            state_path,
         }
     }
 
@@ -86,11 +105,23 @@ fn persist_stop_marker(path: &std::path::Path) -> Result<(), String> {
 /// successful values.
 #[tauri::command]
 fn get_operations_snapshot(state: tauri::State<AppState>) -> OperationsSnapshot {
-    state
-        .runtime
-        .lock()
-        .expect("desktop runtime lock poisoned")
-        .snapshot()
+    match state.runtime.try_lock() {
+        Ok(mut runtime) => runtime.snapshot(),
+        // A task worker holds the runtime mutex. That is exactly the
+        // "executing" state, reported honestly instead of blocking the
+        // UI's snapshot poll for the run's whole duration.
+        Err(_) => OperationsSnapshot {
+            connection: lumi_desktop::api::ConnectionState::Connected,
+            execution: lumi_desktop::api::ExecutionState::Executing,
+            queue: None,
+            progress: None,
+            pending_approvals: None,
+            exceptions: None,
+            evidence: None,
+            economics: None,
+            permissions: None,
+        },
+    }
 }
 
 
@@ -455,6 +486,168 @@ fn artifacts_list(
         .artifacts_list(&project_id)
 }
 
+
+// ===== Task execution (Work mode, wired to the real planning loop) =====
+//
+// The provider credential lives in AppState memory for the app session
+// only — never persisted, never logged. Runs are single-flight: one
+// worker holds the runtime mutex for the run's duration while the rest
+// of the shell degrades to lock-free reads and honest "executing"
+// snapshots.
+
+/// Redacted provider config for the UI (never includes the key).
+#[derive(Debug, Clone, Serialize)]
+pub struct ProviderConfigDto {
+    pub configured: bool,
+    pub family: Option<String>,
+    pub endpoint: Option<String>,
+    pub model: Option<String>,
+}
+
+#[tauri::command]
+fn provider_get_config(state: tauri::State<'_, AppState>) -> ProviderConfigDto {
+    let provider = state.provider.lock().expect("provider lock poisoned");
+    match provider.as_ref() {
+        Some(session) => ProviderConfigDto {
+            configured: true,
+            family: Some(session.family.clone()),
+            endpoint: Some(session.endpoint.clone()),
+            model: Some(session.model.clone()),
+        },
+        None => ProviderConfigDto {
+            configured: false,
+            family: None,
+            endpoint: None,
+            model: None,
+        },
+    }
+}
+
+#[tauri::command]
+fn provider_set_config(
+    state: tauri::State<'_, AppState>,
+    family: String,
+    endpoint: String,
+    model: String,
+    api_key: String,
+) -> Result<ProviderConfigDto, String> {
+    let family = family.trim().to_lowercase();
+    if !matches!(family.as_str(), "openai" | "openai-compatible") {
+        return Err(format!("unsupported provider family {family:?} (use openai or openai-compatible)"));
+    }
+    let endpoint = endpoint.trim().trim_end_matches('/').to_owned();
+    if endpoint.is_empty() || model.trim().is_empty() || api_key.trim().is_empty() {
+        return Err("endpoint, model, and API key are all required".to_owned());
+    }
+    let session = ProviderSession {
+        family,
+        endpoint,
+        model: model.trim().to_owned(),
+        api_key: api_key.trim().to_owned(),
+    };
+    let dto = ProviderConfigDto {
+        configured: true,
+        family: Some(session.family.clone()),
+        endpoint: Some(session.endpoint.clone()),
+        model: Some(session.model.clone()),
+    };
+    *state.provider.lock().expect("provider lock poisoned") = Some(session);
+    Ok(dto)
+}
+
+#[tauri::command]
+fn provider_clear_config(state: tauri::State<'_, AppState>) -> ProviderConfigDto {
+    *state.provider.lock().expect("provider lock poisoned") = None;
+    ProviderConfigDto {
+        configured: false,
+        family: None,
+        endpoint: None,
+        model: None,
+    }
+}
+
+/// What one scheduled run produced, for the UI toast/status.
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskRunDto {
+    pub started: bool,
+    pub task_id: String,
+}
+
+struct RunningGuard(Arc<AtomicBool>);
+
+impl Drop for RunningGuard {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
+#[tauri::command]
+fn task_run(
+    state: tauri::State<'_, AppState>,
+    task_id: String,
+) -> Result<TaskRunDto, String> {
+    // Validate under short locks BEFORE arming the single-flight flag so
+    // every rejection path below leaves the flag untouched.
+    let session = state
+        .provider
+        .lock()
+        .expect("provider lock poisoned")
+        .clone()
+        .ok_or_else(|| {
+            "No model provider is configured for this session. Add one above — it stays in memory only.".to_owned()
+        })?;
+    let task = {
+        let mut runtime = state
+            .runtime
+            .lock()
+            .expect("desktop runtime lock poisoned");
+        runtime.load_task(&lumi_protocol::TaskId::parse(&task_id).map_err(|e| e.to_string())?)?
+    };
+    if !is_runnable(&task.status) {
+        return Err(format!(
+            "task status {:?} cannot be run right now",
+            task.status
+        ));
+    }
+    if task
+        .project_binding
+        .as_ref()
+        .is_none_or(|b| b.workspace_root.is_empty())
+    {
+        return Err("task has no project workspace binding".to_owned());
+    }
+
+    // Single-flight: one Work-mode run at a time on this device.
+    if state.running.swap(true, Ordering::SeqCst) {
+        return Err("A task is already running. Stop it or wait for it to finish.".to_owned());
+    }
+    // The WORKER owns the flag reset: it holds the runtime mutex for the
+    // run's whole duration, and the shared cancel token still interrupts
+    // it (emergency_stop never takes this lock).
+    let worker_guard = RunningGuard(Arc::clone(&state.running));
+    let runtime = Arc::clone(&state.runtime);
+    tauri::async_runtime::spawn_blocking(move || {
+        let _reset = worker_guard;
+        let mut runtime = runtime
+            .lock()
+            .expect("desktop runtime lock poisoned");
+        let transport = UreqTransport;
+        match run_desktop_task_with_provider(&mut runtime, &task, &session, &transport) {
+            Ok(outcome) => log::info!(
+                "desktop task run finished: {:?} in {} turns",
+                outcome.status,
+                outcome.turns
+            ),
+            Err(e) => log::error!("desktop task run failed to execute: {e}"),
+        }
+    });
+
+    Ok(TaskRunDto {
+        started: true,
+        task_id,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -509,6 +702,10 @@ pub fn run() {
             memory_list,
             memory_invalidate,
             artifacts_list,
+            provider_get_config,
+            provider_set_config,
+            provider_clear_config,
+            task_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

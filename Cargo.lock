@@ -490,8 +490,10 @@ dependencies = [
 name = "lumi-desktop"
 version = "0.1.0"
 dependencies = [
+ "lumi-agent",
  "lumi-audit",
  "lumi-handoff",
+ "lumi-models",
  "lumi-orchestrator",
  "lumi-policy",
  "lumi-project",

@@ -15,7 +15,9 @@ import {
 import { Badge, StatusBadge, type BadgeVariant } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/overlays";
 import { FilesTab, type FileRequest } from "./FilesTab";
+import { TasksPanel } from "./TasksPanel";
 import {
   gitBranches, gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
 } from "../ipc/commands";
@@ -239,9 +241,8 @@ export function ProjectDetail({
               />
               <Button size="sm" onClick={createTask}>{t("tasks.create")}</Button>
             </div>
-            {tasks.length === 0
-              ? <div className="empty-state">{t("tasks.none")}</div>
-              : <div className="mini-list">{tasks.map((task) => <TaskRow key={task.task_id} task={task} />)}</div>}
+            <Separator style={{ margin: "12px 0" }} />
+            <TasksPanel projectId={overview.project_id} tasks={tasks} onChanged={reload} />
           </div>
         </TabsContent>
 

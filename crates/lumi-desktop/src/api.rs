@@ -36,6 +36,9 @@ pub enum ConnectionState {
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionState {
     Enabled,
+    /// A Work-mode task worker is executing (it holds the runtime lock;
+    /// the shell reports this honestly instead of blocking reads).
+    Executing,
     Stopped,
     Unavailable,
 }

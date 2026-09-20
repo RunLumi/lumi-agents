@@ -376,6 +376,19 @@ pub fn default_tools() -> Vec<Box<dyn AgentTool>> {
         Box::new(RunShellTool),
     ]
 }
+/// Provider-wire specs for the default tool set (schema translation for
+/// the model layer).
+#[must_use]
+pub fn default_tool_specs() -> Vec<lumi_models::request::ToolSpec> {
+    default_tools()
+        .iter()
+        .map(|tool| lumi_models::request::ToolSpec {
+            name: tool.name().to_owned(),
+            description: tool.description().to_owned(),
+            parameters: tool.parameters(),
+        })
+        .collect()
+}
 
 /// Authentication strength helper for runner principals.
 #[must_use]
