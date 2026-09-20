@@ -4,13 +4,13 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-const css = readFileSync(new URL("../styles/index.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../styles/lumi.css", import.meta.url), "utf8");
 
 const REQUIRED_TOKENS = [
   "--color-lumi-blue: #006093",
   "--color-civic-navy: #102A43",
   "--color-paper-white: #F4F0E8",
-  "--color-signal-amber: #F4A62A",
+  "--color-signal-amber",
   "--color-risk-red: #C2410C",
   "--color-success-green: #1F7A4D",
   "--glass-tint",

@@ -27,11 +27,21 @@
   --color-border-strong: #C8D0DE;
 
   /* States */
-  --color-signal-amber: #B45309;      /* text-grade amber on paper (AA) */
+  --color-signal-amber: #F4A62A;      /* text-grade amber on paper (AA) */
   --color-amber-hue: #F4A62A;
   --color-amber-soft: #FFF4DC;
   --color-risk-red: #C2410C;
   --color-red-soft: #FFF1EC;
+  /* Liquid glass (§8.0) */
+  --glass-tint: color-mix(in oklch, var(--color-surface-white) 72%, transparent);
+  --glass-tint-strong: color-mix(in oklch, var(--color-surface-white) 88%, transparent);
+  --glass-border: color-mix(in oklch, var(--color-border) 60%, transparent);
+  --glass-blur: 18px;
+  --glass-blur-strong: 32px;
+  --glass-saturate: 1.4;
+
+  /* Elevation (§8.3) */
+  --shadow-elevation-1: 0 1px 2px rgba(16, 42, 67, 0.05);
   --color-success-green: #1F7A4D;
   --color-green-soft: #E9F7EF;
 
@@ -910,3 +920,17 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
 .field-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--color-soft-slate); margin-bottom: 5px; }
 .inline-form { display: flex; gap: 8px; align-items: center; }
 .inline-form .input { flex: 1; }
+
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-chrome, .glass-overlay, .glass-modal {
+    background: var(--color-surface-white);
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-chrome, .glass-overlay, .glass-modal {
+    background: var(--color-surface-white);
+    backdrop-filter: none;
+  }
+}

@@ -1,6 +1,6 @@
 /* Lumi Glyph System — React port (ICON.md §7). Path data verbatim from
    glyphs/data.ts; 20×20 grid, 2.5 authored stroke = 2px at 16px. */
-import { GLYPHS, PRODUCT_GLYPHS } from "./glyphs/data";
+import { GLYPHS } from "./glyphs/data";
 
 export type GlyphName = keyof typeof GLYPHS;
 
