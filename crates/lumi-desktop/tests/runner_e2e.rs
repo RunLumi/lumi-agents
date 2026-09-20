@@ -138,6 +138,22 @@ fn desktop_runner_executes_persisted_task_on_a_real_repo() {
         runtime.orchestrator.audit.verify_chain(),
         lumi_audit::ChainVerification::Intact { .. }
     ));
+
+    // The Evidence read model surfaces the run's gated actions with
+    // trust labels from the ledger — write_file verified, shell executed.
+    let evidence = runtime.project_evidence(&spec.project_id).unwrap();
+    assert!(
+        evidence
+            .iter()
+            .any(|entry| entry.operation == "write_file" && entry.trust_label == "Verified"),
+        "evidence must contain the verified write: {evidence:?}"
+    );
+    assert!(
+        evidence
+            .iter()
+            .any(|entry| entry.operation == "run_shell" && entry.trust_label == "Verified"),
+        "shell action evidence present: {evidence:?}"
+    );
 }
 
 #[test]

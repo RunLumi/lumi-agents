@@ -331,13 +331,19 @@ Deferred, with reasons:
   runner does not persist orchestrator checkpoints yet; startup re-arm
   (RUNNING → crash-marked FAILED, explicit re-run) shipped instead because it
   is honest about what a crashed run leaves behind.
-- **Evidence tab backed by the audit ledger**: the tab renders an honest empty
-  state today; the ledger data exists in the runtime and needs a read model.
 - **Signing/notarization + SBOM** in the release pipeline; **parallel task
   execution** (single-flight today by design); **automations wiring** — all P1
   rows in the table above, deferred until the live-provider evaluation loop
   produces measured evidence.
 
-Next highest-value action: wire the Evidence tab to the runtime audit ledger,
-persist Work-mode checkpoints for true mid-run resume, then run the
-live-provider dogfood pass as soon as a test-tenant API key is available.
+Shipped same day (follow-up PR): the **Evidence tab is now a live read model
+over the runtime audit ledger** — `project_evidence` command returns
+per-project action events with §23.9 trust labels (newest first, bounded at
+200), and withholds entries with an "updating" note while a run holds the
+runtime lock. The read model is asserted in `runner_e2e` (verified write_file
+and run_shell surface with `Verified` labels).
+
+Next highest-value action: run the live-provider dogfood pass (a
+test-tenant OpenAI-compatible API key has been requested — the smallest
+external input left), then persist Work-mode checkpoints for true mid-run
+resume.

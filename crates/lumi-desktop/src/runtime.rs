@@ -290,6 +290,48 @@ impl DesktopRuntime {
         Ok(recovered)
     }
 
+    /// Read model for the Evidence surface: the audit-ledger action
+    /// events of every task bound to `project_id`, newest first, bounded
+    /// to the 200 most recent. Read-only over the ledger — evidence is
+    /// never invented here.
+    ///
+    /// # Errors
+    /// Durable store failures.
+    pub fn project_evidence(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<Vec<EvidenceSummaryEntry>, String> {
+        let Some(scope) = self.tenant_scope.clone() else {
+            return Ok(Vec::new());
+        };
+        let persisted = self
+            .orchestrator
+            .store
+            .read()
+            .map_err(|e| format!("read runtime state: {e}"))?;
+        let task_ids: std::collections::BTreeSet<TaskId> = persisted
+            .tasks
+            .iter()
+            .filter(|task| {
+                task.project_binding
+                    .as_ref()
+                    .is_some_and(|binding| &binding.project_id == project_id)
+            })
+            .map(|task| task.task_id.clone())
+            .collect();
+        let mut entries: Vec<EvidenceSummaryEntry> = self
+            .orchestrator
+            .audit
+            .events_for(&scope)
+            .iter()
+            .filter(|event| task_ids.contains(&event.task_id))
+            .filter_map(|event| evidence_entry_from_event(event))
+            .collect();
+        entries.reverse();
+        entries.truncate(200);
+        Ok(entries)
+    }
+
     /// Returns the exact cancellation token shared with the orchestrator.
     #[must_use]
     pub fn cancellation_token(&self) -> lumi_state::CancelToken {
@@ -604,47 +646,47 @@ fn exceptions_for(journal: &[lumi_state::SideEffectRecord]) -> Vec<ExceptionCard
         .collect()
 }
 
+fn evidence_entry_from_event(event: &lumi_audit::AuditEvent) -> Option<EvidenceSummaryEntry> {
+    let AuditEventKind::Action(details) = &event.kind else {
+        return None;
+    };
+    let trust = match &details.policy {
+        PolicyOutcome::Denied { .. } => TrustLanguage::Failed,
+        PolicyOutcome::ApprovalRequired { .. } => TrustLanguage::Planned,
+        PolicyOutcome::Allowed { .. } => match (details.execution_status, details.verification) {
+            (Some(ExecutionStatus::Success), VerificationStatus::Passed)
+            | (Some(ExecutionStatus::Success), VerificationStatus::NotRequired) => {
+                TrustLanguage::Verified
+            }
+            (_, VerificationStatus::Failed) | (Some(ExecutionStatus::Failed), _) => {
+                TrustLanguage::Failed
+            }
+            (_, VerificationStatus::Ambiguous) | (Some(ExecutionStatus::Ambiguous), _) => {
+                TrustLanguage::Ambiguous
+            }
+            (Some(ExecutionStatus::Cancelled), _) => TrustLanguage::Cancelled,
+            _ => TrustLanguage::Planned,
+        },
+    };
+    Some(DesktopBackend::build_evidence_entry(
+        &details.action_id,
+        &details.operation,
+        &trust,
+        Some(details.target.canonical.as_str()),
+    ))
+}
+
 fn evidence_for(
     orchestrator: &Orchestrator<JsonStateStore>,
     task_id: &TaskId,
     tenant_id: &TenantId,
 ) -> Option<Vec<EvidenceSummaryEntry>> {
-    let events = orchestrator.audit.events_for(tenant_id);
-    let entries = events
+    let entries = orchestrator
+        .audit
+        .events_for(tenant_id)
         .iter()
-        .filter_map(|event| {
-            if &event.task_id != task_id {
-                return None;
-            }
-            let AuditEventKind::Action(details) = &event.kind else {
-                return None;
-            };
-            let trust = match &details.policy {
-                PolicyOutcome::Denied { .. } => TrustLanguage::Failed,
-                PolicyOutcome::ApprovalRequired { .. } => TrustLanguage::Planned,
-                PolicyOutcome::Allowed { .. } => {
-                    match (details.execution_status, details.verification) {
-                        (Some(ExecutionStatus::Success), VerificationStatus::Passed)
-                        | (Some(ExecutionStatus::Success), VerificationStatus::NotRequired) => {
-                            TrustLanguage::Verified
-                        }
-                        (_, VerificationStatus::Failed) | (Some(ExecutionStatus::Failed), _) => {
-                            TrustLanguage::Failed
-                        }
-                        (_, VerificationStatus::Ambiguous)
-                        | (Some(ExecutionStatus::Ambiguous), _) => TrustLanguage::Ambiguous,
-                        (Some(ExecutionStatus::Cancelled), _) => TrustLanguage::Cancelled,
-                        _ => TrustLanguage::Planned,
-                    }
-                }
-            };
-            Some(DesktopBackend::build_evidence_entry(
-                &details.action_id,
-                &details.operation,
-                &trust,
-                Some(details.target.canonical.as_str()),
-            ))
-        })
+        .filter(|event| &event.task_id == task_id)
+        .filter_map(|event| evidence_entry_from_event(event))
         .collect::<Vec<_>>();
     if entries.is_empty() {
         None

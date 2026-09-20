@@ -487,6 +487,37 @@ fn artifacts_list(
 }
 
 
+// ===== Evidence read model (audit ledger → Evidence tab) =====
+
+/// Evidence-tab payload. `running` is true while a task worker holds the
+/// runtime lock: the ledger is being written right now, so entries are
+/// withheld rather than shown stale.
+#[derive(Debug, Clone, Serialize)]
+pub struct EvidenceDto {
+    pub running: bool,
+    pub entries: Vec<lumi_desktop::api::EvidenceSummaryEntry>,
+}
+
+#[tauri::command]
+fn project_evidence(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+) -> Result<EvidenceDto, String> {
+    let project_id =
+        lumi_protocol::ProjectId::parse(&project_id).map_err(|e| e.to_string())?;
+    match state.runtime.try_lock() {
+        Ok(runtime) => Ok(EvidenceDto {
+            running: false,
+            entries: runtime.project_evidence(&project_id)?,
+        }),
+        // A run holds the lock: the ledger is mid-write.
+        Err(_) => Ok(EvidenceDto {
+            running: true,
+            entries: Vec::new(),
+        }),
+    }
+}
+
 // ===== Task execution (Work mode, wired to the real planning loop) =====
 //
 // The provider credential lives in AppState memory for the app session
@@ -715,6 +746,7 @@ pub fn run() {
             memory_list,
             memory_invalidate,
             artifacts_list,
+            project_evidence,
             provider_get_config,
             provider_set_config,
             provider_clear_config,
