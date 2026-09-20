@@ -8,6 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const css = readFileSync(new URL("../styles/lumi.css", import.meta.url), "utf8");
+const themeCss = readFileSync(new URL("../styles/index.css", import.meta.url), "utf8");
 
 const REQUIRED_TOKENS = [
   "--color-lumi-blue: #006093",
@@ -30,6 +31,15 @@ for (const token of REQUIRED_TOKENS) {
     assert(css.includes(token), `missing token: ${token}`);
   });
 }
+
+test("token present: Geist served locally (§6.1)", () => {
+  assert(
+    themeCss.includes("@fontsource-variable/geist") &&
+      css.includes('"Geist Variable"') &&
+      css.includes('"Geist Mono Variable"'),
+    "Geist must be bundled locally and lead the font stacks",
+  );
+});
 
 test("glass degrades without backdrop-filter", () => {
   assert(css.includes("@supports not"), "opaque fallback required");
