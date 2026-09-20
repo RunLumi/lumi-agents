@@ -28,6 +28,7 @@
     "active": true,
     "targets": "all",
     "icon": [
+      "icons/lumi-icon-foreground.png",
       "icons/lumi-development.png",
       "icons/lumi-development.ico"
     ]

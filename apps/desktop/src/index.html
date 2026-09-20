@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lumi Agents</title>
+  <link rel="icon" type="image/png" href="assets/brand/ic_launcher_foreground.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -18,39 +19,43 @@
         </div>
       </div>
       <div class="logo-row">
-        <img src="assets/brand/lumi-logo.svg" alt="Lumi" title="Lumi Agents" />
+        <img class="logo-full" src="assets/brand/lumi-fulltext.svg" alt="Lumi Agents" title="Lumi Agents" />
+        <img class="logo-icon" src="assets/brand/ic_launcher_foreground.png" alt="Lumi" title="Lumi Agents" />
       </div>
 
       <nav class="nav" id="nav">
-        <button class="nav-btn" data-nav="projects">
-          <span class="nav-ico" data-glyph="project"></span> Projects
+        <button class="nav-btn" title="Projects" data-nav="projects">
+          <span class="nav-ico" data-glyph="project"></span><span class="nav-label">Projects</span>
         </button>
-        <button class="nav-btn" data-nav="tasks">
-          <span class="nav-ico" data-glyph="task"></span> Tasks
+        <button class="nav-btn" title="Tasks" data-nav="tasks">
+          <span class="nav-ico" data-glyph="task"></span><span class="nav-label">Tasks</span>
           <span class="badge hidden" id="nav-task-badge"></span>
         </button>
-        <button class="nav-btn" data-nav="files">
-          <span class="nav-ico" data-glyph="folder"></span> Files
+        <button class="nav-btn" title="Files" data-nav="files">
+          <span class="nav-ico" data-glyph="folder"></span><span class="nav-label">Files</span>
         </button>
-        <button class="nav-btn" data-nav="changes">
-          <span class="nav-ico" data-glyph="fileDiff"></span> Changes
+        <button class="nav-btn" title="Changes" data-nav="changes">
+          <span class="nav-ico" data-glyph="fileDiff"></span><span class="nav-label">Changes</span>
         </button>
-        <button class="nav-btn" data-nav="git">
-          <span class="nav-ico" data-glyph="branch"></span> Git
+        <button class="nav-btn" title="Git" data-nav="git">
+          <span class="nav-ico" data-glyph="branch"></span><span class="nav-label">Git</span>
         </button>
-        <button class="nav-btn" data-nav="artifacts">
-          <span class="nav-ico" data-glyph="artifact"></span> Artifacts
+        <button class="nav-btn" title="Artifacts" data-nav="artifacts">
+          <span class="nav-ico" data-glyph="artifact"></span><span class="nav-label">Artifacts</span>
         </button>
-        <button class="nav-btn" data-nav="evidence">
-          <span class="nav-ico" data-glyph="evidence"></span> Evidence
+        <button class="nav-btn" title="Evidence" data-nav="evidence">
+          <span class="nav-ico" data-glyph="evidence"></span><span class="nav-label">Evidence</span>
         </button>
-        <button class="nav-btn" data-nav="approvals">
-          <span class="nav-ico" data-glyph="approval"></span> Approvals
+        <button class="nav-btn" title="Approvals" data-nav="approvals">
+          <span class="nav-ico" data-glyph="approval"></span><span class="nav-label">Approvals</span>
           <span class="badge hidden" id="nav-approval-badge"></span>
         </button>
       </nav>
 
       <div class="spacer"></div>
+      <button class="collapse-toggle" id="sidebar-collapse" title="Collapse menu" aria-label="Collapse menu">
+        <span data-glyph="chevronLeft"></span>
+      </button>
 
       <div class="engine-card">
         <div class="engine-row">
@@ -60,7 +65,7 @@
             <div class="engine-state" id="engine-state">Checking…</div>
           </div>
         </div>
-        <button class="btn btn-danger-outline btn-block" id="kill-switch"><span data-glyph="stop"></span> Stop Agent</button>
+        <button class="btn btn-danger-outline btn-block" id="kill-switch"><span data-glyph="stop"></span><span class="nav-label"> Stop Agent</span></button>
       </div>
     </aside>
 
