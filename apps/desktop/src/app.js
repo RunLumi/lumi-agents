@@ -22,6 +22,7 @@ const UTILITY_GLYPHS = {
   close: '<path d="m5 5 10 10"/><path d="M15 5 5 15"/>',
   chevronRight: '<path d="M7.5 4.5 13 10l-5.5 5.5"/>',
   chevronDown: '<path d="M4.5 7.5 10 13l5.5-5.5"/>',
+  chevronLeft: '<path d="M15.5 4.5 10 10l5.5 5.5"/>',
   copy: '<rect x="7.25" y="7.25" width="9" height="9" rx="1.5"/><path d="M12.75 4.75h-6a2 2 0 0 0-2 2v6"/>',
   refresh: '<path d="M16.75 10a6.75 6.75 0 0 0-13-2.5"/><path d="M3.75 3.25v3.5h3.5"/><path d="M3.25 10a6.75 6.75 0 0 0 13 2.5"/><path d="M16.25 16.75v-3.5h-3.5"/>',
   clock: '<circle cx="10" cy="10" r="6.75"/><path d="M10 6.25V10l2.5 1.75"/>',
@@ -1699,6 +1700,7 @@ async function refresh() {
 }
 window.addEventListener("hashchange", refresh);
 function boot() {
+  applySidebarState();
   injectWindowGlyphs();
   // Static markup icon slots (sidebar nav, search, kill switch) render
   // through the same Lumi Glyph System as dynamic views (ICON.md).
@@ -1752,8 +1754,27 @@ function boot() {
   document.getElementById("palette").addEventListener("click", (e) => {
     if (e.target.id === "palette") closePalette();
   });
-  document.getElementById("palette-ask-send").addEventListener("click", () => {
+  const askInput = document.getElementById("palette-ask");
+  const askNotice = () =>
     toast("Model delegation arrives with a wired runtime. File and project actions work today.");
+  const askSend = document.getElementById("palette-ask-send");
+  if (askSend) askSend.addEventListener("click", askNotice);
+  if (askInput) {
+    askInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && askInput.value.trim()) {
+        askInput.value = "";
+        askNotice();
+      }
+    });
+  }
+
+  // Collapsible left menu (tauri-ui sidebar pattern): icon rail with
+  // tooltips when collapsed, full labels when expanded. Persisted.
+  const collapseBtn = document.getElementById("sidebar-collapse");
+  collapseBtn.addEventListener("click", () => {
+    const collapsed = document.body.classList.toggle("sidebar-collapsed");
+    try { localStorage.setItem("lumi-sidebar-collapsed", collapsed ? "1" : "0"); } catch {}
+    applySidebarChrome(collapsed);
   });
 
   // Window controls (tauri-ui style borderless chrome). Inert in a plain
@@ -1772,6 +1793,22 @@ function boot() {
       win?.toggleMaximize();
     });
 }
+function applySidebarState() {
+  let collapsed = false;
+  try { collapsed = localStorage.getItem("lumi-sidebar-collapsed") === "1"; } catch {}
+  document.body.classList.toggle("sidebar-collapsed", collapsed);
+  applySidebarChrome(collapsed);
+}
+
+function applySidebarChrome(collapsed) {
+  const btn = document.getElementById("sidebar-collapse");
+  if (!btn) return;
+  btn.title = collapsed ? "Expand menu" : "Collapse menu";
+  btn.querySelector("[data-glyph]")?.setAttribute("data-glyph", collapsed ? "chevronRight" : "chevronLeft");
+  const slot = btn.querySelector("[data-glyph]");
+  if (slot) slot.innerHTML = glyph(slot.dataset.glyph);
+}
+
 if (document.readyState === "loading") {
   window.addEventListener("DOMContentLoaded", boot);
 } else {

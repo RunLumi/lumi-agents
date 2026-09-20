@@ -206,6 +206,48 @@ button, .card, .nav-btn, .tab, .recent-card, .action-card {
   font-variant-numeric: tabular-nums;
 }
 
+/* ============ Collapsible sidebar (tauri-ui sidebar pattern) ============ */
+.logo-row img.logo-icon { display: none; width: 30px; height: 30px; border-radius: var(--radius-sm); }
+.collapse-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: 6px 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-white);
+  color: var(--color-soft-slate);
+  margin-bottom: 8px;
+}
+.collapse-toggle:hover { background: var(--color-paper-white); color: var(--color-civic-navy); }
+.collapse-toggle svg { width: 14px; height: 14px; }
+
+body.sidebar-collapsed .sidebar { width: 64px; padding-inline: 8px; }
+body.sidebar-collapsed .logo-row { justify-content: center; padding-inline: 0; }
+body.sidebar-collapsed .logo-full { display: none; }
+body.sidebar-collapsed .logo-row img.logo-full { display: none; }
+body.sidebar-collapsed .logo-row img.logo-icon { display: block; }
+body.sidebar-collapsed .nav-btn { justify-content: center; padding: 8px 0; }
+body.sidebar-collapsed .nav-label { display: none; }
+body.sidebar-collapsed .nav-btn .badge {
+  position: absolute; top: 0; right: 2px; margin: 0;
+  font-size: 9px; padding: 0 4px;
+}
+body.sidebar-collapsed .collapse-toggle svg { transform: rotate(180deg); }
+body.sidebar-collapsed .collapse-toggle { padding: 6px 0; }
+body.sidebar-collapsed .engine-card .engine-row { display: none; }
+body.sidebar-collapsed .engine-card { padding: 8px; }
+body.sidebar-collapsed .nav-btn::after {
+  content: attr(title);
+  position: absolute; left: calc(100% + 10px);
+  background: var(--color-civic-navy); color: #fff;
+  font-size: 11.5px; font-weight: 500;
+  border-radius: var(--radius-sm); padding: 4px 9px;
+  white-space: nowrap; z-index: 40;
+  box-shadow: var(--elevation-2);
+  opacity: 0; pointer-events: none;
+}
+body.sidebar-collapsed .nav-btn { position: relative; }
+body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
+
 .engine-card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
