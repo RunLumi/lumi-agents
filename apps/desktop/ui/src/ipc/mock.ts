@@ -163,6 +163,7 @@ const fixtureFiles = new Map<string, string>([
   ["ledger.csv", "month,total\nJuly,1200\nAugust,1350\nSeptember,1480\n"],
   ["docs/guide.md", "# PrintUp Guide\n\n## Reconcile\n\n1. Pull the CRM export\n2. Match totals\n\n> Totals are **verified** weekly.\n"],
   ["assets/logo.png", "\u0000PNG-fake-binary"],
+  ["docs/spec.pdf", "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length 53>>stream\nBT /F1 24 Tf 100 700 Td (PrintUp live preview) Tj ET\nendstream\nendobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\ntrailer<</Root 1 0 R/Size 6>>\n%%EOF"],
 ]);
 
 const sha = (content: string): string => {
@@ -331,6 +332,14 @@ export function createMockTransport(): Transport {
               { action_id: "a-dm-s1", operation: "run_shell", trust_label: "Executed", target: "file://~/dev/printup" },
             ],
           } as T;
+        case "file_read_base64": {
+          const path = args?.path as string;
+          const content = fixtureFiles.get(path);
+          if (content === undefined) throw new Error("devmock: file not found");
+          let bin = "";
+          for (const ch of content) bin += String.fromCharCode(ch.charCodeAt(0));
+          return { path, content_base64: btoa(bin), sha256: sha(content) } as T;
+        }
         case "emergency_stop":
           return { stopped: true } as T;
         case "get_kill_switch":
