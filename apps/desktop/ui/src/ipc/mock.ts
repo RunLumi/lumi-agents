@@ -161,6 +161,8 @@ const fixtureFiles = new Map<string, string>([
   ["src/index.ts", "import { reconcile } from \"./invoice/reconcile\";\n\nconsole.log(\"printup ready\");\n"],
   ["src/invoice/reconcile.ts", "export function reconcile(rows: string[]): number {\n  return rows.length * 42;\n}\n"],
   ["ledger.csv", "month,total\nJuly,1200\nAugust,1350\nSeptember,1480\n"],
+  ["docs/guide.md", "# PrintUp Guide\n\n## Reconcile\n\n1. Pull the CRM export\n2. Match totals\n\n> Totals are **verified** weekly.\n"],
+  ["assets/logo.png", "\u0000PNG-fake-binary"],
 ]);
 
 const sha = (content: string): string => {

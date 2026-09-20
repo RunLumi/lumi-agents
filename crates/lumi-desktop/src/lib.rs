@@ -20,7 +20,8 @@ pub use api::{
 };
 pub use permissions::{PermissionCheckResult, PermissionState, PermissionStatus};
 pub use projects::{
-    FileContent, MemorySubmission, OpenedProject, ProjectOverview, ProjectService, ProjectSummary,
+    FileContent, FileContentBase64, MemorySubmission, OpenedProject, ProjectOverview,
+    ProjectService, ProjectSummary,
 };
 pub use runner::{is_runnable, run_desktop_task, run_desktop_task_with_provider, ProviderSession};
 pub use runtime::{DesktopRuntime, ProjectTaskSpec};
