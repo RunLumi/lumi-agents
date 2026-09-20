@@ -364,3 +364,34 @@ Next highest-value actions after this evidence: run the same live pass with a
 production-grade model to measure the model-quality delta; persist Work-mode
 checkpoints for true mid-run resume; convert the repeated live scenario into
 an automation-draft acceptance case.
+
+## 2026-09-20 (session 3): partial-row depth passes — #126, #127
+
+Two more matrix rows closed, one PR each, both merged with green CI and the
+app rebuilt on merged main:
+
+- **#126 — Spec 29 depth (project connections)**: `connections_verify`
+  answers "is the credential still usable?" with a boolean derived only from
+  broker presence — the value never crosses the boundary. Settings rows gain
+  a Test button with honest present/missing badges (§10.4 families) and a
+  created date. E2E asserts presence, unknown-id, revoked-secret, and that
+  the records file never contains the credential value. Row 29 → done
+  (core).
+- **#127 — Spec 24 breadth (subagent economics, §24.13)**:
+  `SubagentOutcome` now carries `duration_ms`, `actions`,
+  `model_cost_micro_usd`, `vision_actions`, `external_writes` — all read
+  from the child loop's own `ConsumedBudget` ledger after the run, never
+  self-reported by the model. Tests assert exact counts on the completed
+  path (2 actions / 0 vision / 0 external writes) and the budget-stopped
+  path (1 action landed). Row 24 → done (core); parallel fan-out economics
+  evaluation deferred until live multi-provider runs exist.
+- **Matrix honesty updates**: row 21 records shipped CycloneDX SBOM coverage
+  for both the Rust workspace and the npm UI graph in release.yml (signing
+  secrets-gated pending org certificates); row 30 now states explicitly that
+  the PPTX inline preview is **deliberately pending** an MPL-2.0 license
+  approval decision — until decided, PPTX stays unsupported-with-explanation
+  by design.
+
+Remaining open items: the MPL-2.0 decision (external blocker, user decides);
+Spec 06/07/14 executor breadth (workflow-conditional per plan); Spec 19
+control-plane is absent-by-design (local-first, documented).
