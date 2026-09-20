@@ -80,13 +80,14 @@ Lumi is a **lit operating desk**:
 * Evidence chips: source notes attached to the claim.
 * The clarity mark: Lumi found or verified something useful.
 
-Never replace it with glass panels, neon depth, floating dashboards, or chatbot theatrics:
-intelligence is work ordering, not visual effects.
+Never replace it with all-glass panels, neon depth, floating dashboards, or chatbot theatrics:
+intelligence is work ordering, not visual effects. Floating chrome may use the scoped §8.0
+liquid-glass recipes; the desk itself stays paper.
 
 ## 1.5 Civic Material Intelligence
 
 The visual language is **Civic Editorial Minimalism + Material Intelligence**: civic-service
-seriousness, editorial hierarchy, and high-end native tactility without glassmorphism, aurora
+seriousness, editorial hierarchy, and high-end native tactility without ad-hoc glassmorphism, aurora
 gradients, AI glow, or signal-competing decoration. Every visible object needs a physical reason:
 
 | Material cue | Purpose | Allowed expression |
@@ -96,6 +97,7 @@ gradients, AI glow, or signal-competing decoration. Every visible object needs a
 | Ink | authority and hierarchy | Civic Navy / Ink text, not black |
 | Mark | attention and provenance | rail, badge, source chip, restrained clarity mark |
 | Lift | interactivity or overlay plane | navy-tinted token shadow only |
+| Glass | floating chrome above the work | translucent surface white, backdrop blur + saturation, §8.0 recipes |
 | Well | input / capture area | recessed inner shade, white fill |
 | Seal | primary authority | Lumi Blue button, active state, selected state |
 
@@ -801,6 +803,9 @@ Every UI object must use one of these recipes. Do not invent one-off material.
 | Raised sheet | `--color-surface-white` | 1px `--color-border-strong` | 8px | `--shadow-raised` | sticky bars, hovered interactive cards |
 | Overlay | `--color-surface-white` | 1px `--color-border-strong` | 12px | `--shadow-overlay` | popovers, menus, tooltips |
 | Modal sheet | `--color-surface-white` | 1px `--color-border-strong` | 16px | `--shadow-modal` | dialogs, command palette, bottom sheets |
+| Glass chrome | `--glass-tint` + backdrop `--glass-blur` | 1px `--glass-border` | 0 (flush) | `--shadow-raised` | sidebar, docked side panels |
+| Glass overlay | `--glass-tint-strong` + backdrop `--glass-blur-strong` | 1px `--glass-border` | 12px | `--shadow-overlay` | popovers, menus, tooltips over content |
+| Glass modal | `--glass-tint-strong` + backdrop `--glass-blur-strong` | 1px `--glass-border` | 16px | `--shadow-modal` | dialogs, command palette over content |
 | Recessed well | `--color-surface-white` | 1px `--color-border` | 8px | `--shadow-input` | inputs, textareas, search fields |
 | Lit token | status soft token | 1px same-hue inset ring | 999px | `--shadow-lit` | badges, chips, tabs |
 | Authority seal | `--color-lumi-blue` + `--gradient-primary` | 1px blue-active mix | 8px | `--shadow-button` | primary action |
@@ -815,6 +820,22 @@ Rules:
   card is an alert or empty state.
 * The background glow is part of the canvas only. Never attach glows to
   individual components.
+
+Liquid-glass rules (the §1.5 Glass cue):
+
+* Glass recipes apply to floating chrome only — sidebar, side panels, popovers,
+  menus, dialogs, command palette. Content surfaces (cards, tables, inputs,
+  lists, badges) stay on their opaque recipes; the §10.2/§10.3 bans on glass
+  content stand.
+* Glass is derived from surface white and existing border tokens only. It adds
+  no new palette; §5 governs every color it shows.
+* Blur budget: at most three glass layers visible per screen. Never nest
+  `backdrop-filter` inside another glass surface.
+* Every glass surface has an opaque twin: when `backdrop-filter` is unsupported
+  or the user prefers reduced transparency, render the equivalent opaque recipe
+  at the same radius, border, and shadow.
+* Text on glass must pass §16.1 contrast measured over the busiest content
+  beneath it; raise the tint opacity until it does.
 
 ## 8.1 Border Radius
 
@@ -970,7 +991,8 @@ box-shadow: var(--elevation-1);
 Focus rings are a separate affordance (accessibility, not depth): use
 `shadow-ring` / `shadow-ring-destructive`, not an elevation tier (§16.5).
 
-Still forbidden: glassmorphism blur stacks, generic floating-SaaS card shadows,
+Still forbidden: unscoped glassmorphism blur stacks (translucent material exists only through
+the §8.0 liquid-glass recipes), generic floating-SaaS card shadows,
 thick offset neo-brutalist shadows, and **coloured glows** (the navy tint is the
 only colour a Lumi shadow ever carries).
 
@@ -2292,6 +2314,16 @@ Use this base token file.
      the background reads as a lit surface in a calm room, never a dead sheet (§1.2). */
   --canvas-glow: radial-gradient(115% 50% at 50% -6%, color-mix(in oklch, white 60%, transparent) 0%, transparent 58%);
 
+  /* Liquid glass — translucent floating-chrome materials (§8.0). Derived from the
+     existing surface/border tokens; adds no palette. Web/desktop-webview materials,
+     deliberately OUTSIDE the §19.1 palette-parity table (see its scope note). */
+  --glass-tint: color-mix(in oklch, var(--color-surface-white) 72%, transparent);
+  --glass-tint-strong: color-mix(in oklch, var(--color-surface-white) 88%, transparent);
+  --glass-border: color-mix(in oklch, var(--color-border) 60%, transparent);
+  --glass-blur: 18px;
+  --glass-blur-strong: 32px;
+  --glass-saturate: 1.4;
+
   /* Motion */
   --motion-fast: 120ms;
   --motion-normal: 180ms;
@@ -2340,7 +2372,11 @@ from a change in this file alone. Palette changes require explicit brand approva
 dark-ground tints (`amber/red/green-on-navy`) are intentionally absent: they exist
 only for web and print sales surfaces that invert one panel to navy, a surface no
 native shell has. Adding them to the native mirrors would ship dead tokens. If a
-native surface ever needs a navy ground, add the row here in that PR.
+native surface ever needs a navy ground, add the row here in that PR. The §8.0
+liquid-glass tokens (`--glass-*`) are likewise outside this table: they are
+web-webview materials with no native mirror yet. If a native shell adopts glass,
+mirror by role — platform-idiomatic materials where they exist — and add the rows
+in that PR.
 
 Material shape tokens must also mirror by role, even when native platforms express
 them as `CGFloat`, `Dp`, or component defaults:
@@ -2425,7 +2461,9 @@ export default {
 
 # 21. Anti-Patterns
 
-Do not use AI glow, neon or purple-blue startup gradients, glassmorphism, floating 3D dashboards,
+Do not use AI glow, neon or purple-blue startup gradients, ad-hoc glassmorphism (translucent
+material is allowed only through the §8.0 liquid-glass recipes for floating desktop chrome —
+never content surfaces, marketing surfaces, or the logo), floating 3D dashboards,
 robot illustrations, brain icons, circuit-board patterns, excessive sparkles, cartoon mascots, huge
 pill buttons, generic SaaS avatars, fake stock-office photography, template landing-page waves,
 dashboard overload, red-heavy fear UI, or surveillance language.
@@ -2539,6 +2577,7 @@ A documentation-only edit checks contracts and examples; it does not certify UI.
 - [ ] Large text, reflow, Vietnamese/long labels, supported RTL, and reduced-motion settings are checked.
 - [ ] User input, scroll, and focus survive refresh/recovery; overlays do not hide the active control.
 - [ ] Materials follow §8, severity rails use the 3px token, and only approved lighting treatments appear.
+- [ ] Glass surfaces follow the §8.0 liquid-glass rules: floating chrome only, blur budget respected, opaque fallback verified (reduced transparency / no `backdrop-filter`), text contrast measured over real content.
 - [ ] No new dependency, visual feature, or runtime-readiness claim is hidden in a polish change.
 
 If a required check fails, fix or explicitly block the affected scope; do not mark
