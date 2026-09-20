@@ -123,8 +123,10 @@ body {
 button { font: inherit; cursor: pointer; color: inherit; background: none; border: 0; }
 input, textarea, select { font: inherit; color: inherit; }
 ::selection { background: var(--color-lumi-blue-soft); }
-/* All SVGs in this app are icons: default size, overridable per context. */
-svg { width: 16px; height: 16px; flex: none; }
+/* Lumi Glyph System (ICON.md): 20-grid rendered at 16px.
+   stroke-width is authored 2.5 in the viewBox => 2px rendered (small rendering). */
+svg { width: 16px; height: 16px; flex: none; stroke-width: 2.5; }
+svg[fill="currentColor"], .tl svg { stroke-width: 2.5; }
 .hidden { display: none !important; }
 .spacer { flex: 1; }
 .muted { color: var(--color-soft-slate); }

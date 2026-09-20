@@ -4,52 +4,116 @@
    runtime-derived: empty means empty. No sample data in production. */
 
 // ================= icons (line, 1.75px stroke — DESIGN.md §9) =================
-const ICONS = {
-  folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
-  folderOpen: '<path d="M6 14l1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6.2A2 2 0 0 1 18.45 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h4l2 3h6a2 2 0 0 1 2 2v2"/>',
-  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
-  fileText: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
-  branch: '<circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 3v12"/><path d="M18 9a9 9 0 0 1-9 9"/>',
-  commit: '<circle cx="12" cy="12" r="3"/><path d="M3 12h6"/><path d="M15 12h6"/>',
-  check: '<path d="M20 6 9 17l-5-5"/>',
-  checkCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-9.17 9.17L9.5 9.83"/>',
-  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
-  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
-  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
-  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
-  external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
-  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
-  list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
-  box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
-  message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-  settings: '<path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/>',
-  play: '<path d="m6 3 14 9-14 9V3z"/>',
-  stop: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
-  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
-  chevronRight: '<path d="m9 18 6-6-6-6"/>',
-  chevronDown: '<path d="m6 9 6 6 6-6"/>',
-  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
-  edit: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
-  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>',
-  copy: '<rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
-  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
-  layers: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
-  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-  zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
-  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
-  star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
-  diff: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9v6"/><path d="M7 12h6"/>',
-  hash: '<path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3l-2 18"/>',
-  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
-  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
-  bulb: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
-  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+/* ==================================================================
+   Lumi Glyph System (ICON.md) — three layers, one 20×20 construction.
+   utility/  : normalized Tabler subset for ordinary actions/objects
+   product/  : Lumi-native semantic glyphs (L-form derived)
+   marks/    : clarity star, annotation dot, L-corner, diagonal channel
+   Monochrome; stroke 1.75 at the 20-grid; angles 0/45/90 preferred.
+   ================================================================== */
+const UTILITY_GLYPHS = {
+  folder: '<path d="M2.75 5.25A1.5 1.5 0 0 1 4.25 3.75h3.4l1.9 2.5h6.2a1.5 1.5 0 0 1 1.5 1.5v7.5a1.5 1.5 0 0 1-1.5 1.5H4.25a1.5 1.5 0 0 1-1.5-1.5z"/>',
+  folderOpen: '<path d="M2.75 5.25A1.5 1.5 0 0 1 4.25 3.75h3.4l1.9 2.5h6.2a1.5 1.5 0 0 1 1.5 1.5v1"/><path d="m2.75 14.75 1.6-4h12.4l-1.7 4z"/>',
+  file: '<path d="M11.25 2.75H5.25A1.5 1.5 0 0 0 3.75 4.25v11.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V6.75z"/><path d="M11.25 2.75v4h4"/>',
+  fileText: '<path d="M11.25 2.75H5.25A1.5 1.5 0 0 0 3.75 4.25v11.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V6.75z"/><path d="M11.25 2.75v4h4"/><path d="M6.75 10.25h6.5"/><path d="M6.75 13.25h4.5"/>',
+  fileDiff: '<path d="M11.25 2.75H5.25A1.5 1.5 0 0 0 3.75 4.25v11.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V6.75z"/><path d="M11.25 2.75v4h4"/><path d="M10 10.25v4.5"/><path d="M7.75 12.5h4.5"/><path d="M7.75 15.5h4.5" stroke-width="1"/>',
+  search: '<circle cx="8.75" cy="8.75" r="5.25"/><path d="m12.75 12.75 4.25 4.25"/>',
+  plus: '<path d="M10 4.25v11.5"/><path d="M4.25 10h11.5"/>',
+  close: '<path d="m5 5 10 10"/><path d="M15 5 5 15"/>',
+  chevronRight: '<path d="M7.5 4.5 13 10l-5.5 5.5"/>',
+  chevronDown: '<path d="M4.5 7.5 10 13l5.5-5.5"/>',
+  copy: '<rect x="7.25" y="7.25" width="9" height="9" rx="1.5"/><path d="M12.75 4.75h-6a2 2 0 0 0-2 2v6"/>',
+  refresh: '<path d="M16.75 10a6.75 6.75 0 0 0-13-2.5"/><path d="M3.75 3.25v3.5h3.5"/><path d="M3.25 10a6.75 6.75 0 0 0 13 2.5"/><path d="M16.25 16.75v-3.5h-3.5"/>',
+  clock: '<circle cx="10" cy="10" r="6.75"/><path d="M10 6.25V10l2.5 1.75"/>',
+  arrowRight: '<path d="M3.25 10h12.5"/><path d="m10.5 4.75 5.25 5.25-5.25 5.25"/>',
+  external: '<path d="M11.25 3.25h5.5v5.5"/><path d="M15.75 4.25 8.25 11.75"/><path d="M16.75 11.75v3.5a1.5 1.5 0 0 1-1.5 1.5h-9.5a1.5 1.5 0 0 1-1.5-1.5v-9.5a1.5 1.5 0 0 1 1.5-1.5h3.5"/>',
+  settings: '<path d="M17.25 4.5h-6"/><path d="M7.25 4.5H2.75"/><path d="M17.25 10h-4"/><path d="M9 10H2.75"/><path d="M17.25 15.5h-2.5"/><path d="M10.5 15.5H2.75"/><path d="M13.25 2.5v4"/><path d="M11 8v4"/><path d="M14.75 13.5v4"/>',
+  list: '<path d="M6.75 4.5h10.5"/><path d="M6.75 10h10.5"/><path d="M6.75 15.5h10.5"/><path d="M3 4.5h.01"/><path d="M3 10h.01"/><path d="M3 15.5h.01"/>',
+  edit: '<path d="m13.25 3 3.75 3.75L7.25 16.5 3 17.5l1-4.25z"/>',
+  trash: '<path d="M3 4.75h14"/><path d="M6.75 4.75V3.25h6.5v1.5"/><path d="m5.25 4.75.7 11.25a1.5 1.5 0 0 0 1.5 1.4h5.1a1.5 1.5 0 0 0 1.5-1.4l.7-11.25"/><path d="M8.25 8v6"/><path d="M11.75 8v6"/>',
+  eye: '<path d="M2 10s3-5.75 8-5.75 8 5.75 8 5.75-3 5.75-8 5.75S2 10 2 10z"/><circle cx="10" cy="10" r="2.5"/>',
+  download: '<path d="M17.25 13.5v2.75a1.5 1.5 0 0 1-1.5 1.5h-11.5a1.5 1.5 0 0 1-1.5-1.5v-2.75"/><path d="m6 9.25 4 4 4-4"/><path d="M10 13.25V3"/>',
+  inbox: '<path d="M17.5 10.5H13l-1.5 2.25h-3L7 10.5H2.5"/><path d="M4.75 3.75h10.5l2.25 6.75v4.75a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5v-4.75z"/>',
+  play: '<path d="m5.5 3.5 11 6.5-11 6.5z"/>',
+  stop: '<rect x="4.75" y="4.75" width="10.5" height="10.5" rx="1.5"/>',
+  lock: '<rect x="3.75" y="8.75" width="12.5" height="8" rx="1.5"/><path d="M6.75 8.75V6a3.25 3.25 0 0 1 6.5 0v2.75"/>',
+  branch: '<circle cx="14.75" cy="5" r="2.25"/><circle cx="5.25" cy="15" r="2.25"/><path d="M5.25 12.75V6a3.5 3.5 0 0 1 3.5-3.5h1.5"/><path d="M12.25 6.75a6 6 0 0 1-4.9 5.9"/>',
+  commit: '<circle cx="10" cy="10" r="2.75"/><path d="M2.75 10h4.5"/><path d="M12.75 10h4.5"/>',
+  home: '<path d="M3 8.25 10 2.75l7 5.5v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15.75z"/><path d="M7.5 17.5v-5h5v5"/>',
+  history: '<path d="M3.25 10a6.75 6.75 0 1 0 2-4.75L2.75 7.75"/><path d="M2.75 3.25v4.5h4.5"/><path d="M10 6.75V10l2.5 1.5"/>',
+  hash: '<path d="M3.5 7.5h13"/><path d="M3.5 12.5h13"/><path d="M8.5 3.5 7 16.5"/><path d="M13 3.5l-1.5 13"/>',
+  layers: '<path d="M10 2.75 3 6.25l7 3.5 7-3.5z"/><path d="m3 10 7 3.5 7-3.5"/><path d="m3 13.75 7 3.5 7-3.5"/>',
+  message: '<path d="M17.25 12.5a1.5 1.5 0 0 1-1.5 1.5H5.75l-3.5 3.5v-11.5a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5z"/>',
+  terminal: '<rect x="2.75" y="3.75" width="14.5" height="12.5" rx="1.5"/><path d="m5.75 7.25 2.25 2.25-2.25 2.25"/><path d="M10.25 12h4"/>',
+  verified: '<circle cx="10" cy="10" r="6.75"/><path d="m7.25 10.25 1.9 1.9 3.85-4.4"/>',
+  insight: '<path d="M10 2.75a5.5 5.5 0 0 0-3.25 9.94c.75.56 1.25 1.31 1.25 2.31h4c0-1 .5-1.75 1.25-2.31A5.5 5.5 0 0 0 10 2.75z"/><path d="M8 17.75h4"/><path d="M8.75 20h2.5"/>',
+  activity: '<path d="M2.75 10h3.5l2.25-6.25 3.5 12 2.25-5.75h3.5"/>',
 };
-function icon(name, cls = "") {
-  const body = ICONS[name] || ICONS.file;
-  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+
+/* Lumi product glyphs — drawn from the folded L-form; annotation dot and
+   L-corner carry provenance and structure. */
+const PRODUCT_GLYPHS = {
+  project: '<path d="M3.25 17V7.25"/><path d="M3.25 17h10.5"/><rect x="8.25" y="4.75" width="8.5" height="8" rx="1"/>',
+  task: '<path d="m3.25 10.25 3.25 3.25 7-7.25"/><circle cx="16.25" cy="14" r="1.75" fill="currentColor" stroke="none"/>',
+  agent: '<path d="M3.5 16.5V8"/><path d="M3.5 16.5H11"/><circle cx="13.75" cy="6.25" r="2.25"/><path d="m8.5 12.5 3.4-3.9"/>',
+  evidence: '<path d="M11.25 2.75H5.25A1.5 1.5 0 0 0 3.75 4.25v11.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V6.75z"/><path d="M11.25 2.75v4h4"/><circle cx="13.75" cy="14" r="1.5" fill="currentColor" stroke="none"/>',
+  approval: '<circle cx="10" cy="10" r="6.75"/><path d="m7.25 10.25 1.9 1.9 3.85-4.4"/>',
+  artifact: '<path d="M17.25 6.5 10 2.75 2.75 6.5v7L10 17.25l7.25-3.75z"/><path d="m2.75 6.5 7.25 3.75 7.25-3.75"/><path d="M10 10.25v7"/>',
+  verification: '<circle cx="8.75" cy="8.75" r="5.25"/><path d="m12.5 12.5 4.25 4.25"/><path d="m6.75 8.75 1.5 1.5 2.75-3"/>',
+  recovery: '<path d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"/><path d="M16.5 2.75v3.5H13"/><circle cx="10" cy="10" r="1.4" fill="currentColor" stroke="none"/>',
+  exception: '<path d="M10 3 2.5 16.25h15z"/><path d="M10 8v3.25"/><circle cx="10" cy="13.75" r="1" fill="currentColor" stroke="none"/>',
+  authority: '<path d="M10 2.5 16.5 5v5.25c0 4.1-2.9 6.75-6.5 8-3.6-1.25-6.5-3.9-6.5-8V5z"/><path d="M7.25 12V8.75h5.25"/>',
+  guardrail: '<path d="M10 2.5 16.5 5v5.25c0 4.1-2.9 6.75-6.5 8-3.6-1.25-6.5-3.9-6.5-8V5z"/><path d="M7.25 10h5.25"/>',
+  workflow: '<circle cx="4.75" cy="4.75" r="2"/><circle cx="15.25" cy="4.75" r="2"/><circle cx="10" cy="15.25" r="2"/><path d="M6.5 6.25 8.9 13.5"/><path d="M13.5 6.25 11.1 13.5"/><path d="M6.75 4.75h6.5"/>',
+};
+
+/* Semantic marks — state attaches to an object glyph, never a new icon. */
+const MARKS = {
+  clarity: '<path d="M10 2.25 11.8 8.2 17.75 10 11.8 11.8 10 17.75 8.2 11.8 2.25 10l5.95-1.8z"/>',
+  annotationDot: '<circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"/>',
+  lCorner: '<path d="M3.75 3.75v12.5h12.5"/>',
+  diagonal: '<path d="M3.25 16.75 16.75 3.25"/>',
+};
+
+/* Canonical glyph table + legacy aliases for existing call sites. */
+const GLYPHS = {
+  ...UTILITY_GLYPHS,
+  ...PRODUCT_GLYPHS,
+  folderOpen: UTILITY_GLYPHS.folderOpen,
+  checkCircle: UTILITY_GLYPHS.verified,
+  check: UTILITY_GLYPHS.check,
+  star: MARKS.clarity,
+  zap: PRODUCT_GLYPHS.agent,
+  shield: PRODUCT_GLYPHS.authority,
+  alert: PRODUCT_GLYPHS.exception,
+  box: PRODUCT_GLYPHS.artifact,
+  bulb: UTILITY_GLYPHS.insight,
+  diff: UTILITY_GLYPHS.fileDiff,
+  activity: UTILITY_GLYPHS.activity,
+  eye: UTILITY_GLYPHS.eye,
+  hash: UTILITY_GLYPHS.hash,
+  message: UTILITY_GLYPHS.message,
+  play: UTILITY_GLYPHS.play,
+  stop: UTILITY_GLYPHS.stop,
+  external: UTILITY_GLYPHS.external,
+  download: UTILITY_GLYPHS.download,
+  inbox: UTILITY_GLYPHS.inbox,
+  history: UTILITY_GLYPHS.history,
+  home: UTILITY_GLYPHS.home,
+};
+
+function glyph(name, cls = "") {
+  const body = GLYPHS[name] || UTILITY_GLYPHS.file;
+  return `<svg class="${cls}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
+
+function mark(name, cls = "") {
+  const body = MARKS[name] || MARKS.annotationDot;
+  return `<svg class="${cls}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}
+
+/* Legacy call-site alias — all geometry flows through the glyph system. */
+const icon = glyph;
 // Window-control glyphs, injected once (hover-revealed traffic lights).
 function injectWindowGlyphs() {
   const close = document.getElementById("win-close");
@@ -601,7 +665,7 @@ function activeTaskCard(task) {
   const pct = Math.round((doneCount / steps.length) * 100);
   card.innerHTML = `
     <h3>${icon("activity")} Active Task
-      <span class="pill pill-blue">${icon("zap")} Agent registered</span>
+      <span class="pill pill-blue">${icon("agent")} Agent registered</span>
       <span style="margin-left:auto"><button class="card-link" data-go-task="${esc(task.task_id)}">Open task ${icon("arrowRight")}</button></span>
     </h3>
     <p style="margin:4px 0 0;font-weight:600;color:var(--color-civic-navy)">${esc(task.goal)}</p>
@@ -647,7 +711,7 @@ function validationCard() {
   const latest = allValidations().slice(0, 4);
   const allPass = latest.length && latest.every((v) => v.status === "passed");
   card.innerHTML = `
-    <h3>${icon("zap")} Validation Status
+    <h3>${icon("verification")} Validation Status
       ${latest.length ? `<span class="pill ${allPass ? "pill-green" : "pill-red"}">${allPass ? icon("checkCircle") : ""} All passing</span>` : ""}</h3>
     <p class="card-sub">Run the project's real checks. "Files edited" is never "done".</p>
     <div class="mini-list">
@@ -682,7 +746,7 @@ function recentArtifactsCard() {
   card.className = "card";
   const artifacts = (S.artifacts || []).slice(0, 4);
   card.innerHTML = `
-    <h3>${icon("box")} Recent Artifacts
+    <h3>${icon("artifact")} Recent Artifacts
       ${(S.artifacts || []).length ? `<span class="pill pill-blue tabular">${S.artifacts.length} new</span>` : ""}</h3>
     <div class="mini-list">
       ${artifacts.length ? artifacts.map((a) => `
@@ -743,7 +807,7 @@ function tasksView() {
   const wrap = document.createElement("div");
   wrap.innerHTML = `
     <div class="card">
-      <h3>${icon("zap")} New Task</h3>
+      <h3>${icon("task")} New Task</h3>
       <p class="card-sub">Give Lumi a goal for this project. The task is durable and resumes after restart.</p>
       <div class="field"><textarea class="textarea" id="task-goal" placeholder="e.g. Implement OAuth login and make all tests pass"></textarea></div>
       <button class="btn btn-primary" id="task-create">${icon("plus")} Create Task</button>
@@ -1374,7 +1438,7 @@ function artifactsView() {
             </tr>`).join("")}
         </table>
       </div>`
-      : `<div class="empty-state"><span class="big">${icon("box")}</span>
+      : `<div class="empty-state"><span class="big">${icon("artifact")}</span>
           No artifacts yet. Run a task that produces reports or exports and they will appear here with SHA-256 integrity refs.</div>`}`;
   return wrap;
 }
@@ -1436,7 +1500,7 @@ function settingsView() {
           <div class="kv"><span class="kv-key">Instruction sources</span><span class="kv-val">${p.instructions.length ? esc(p.instructions.join(", ")) : "none found"}</span></div>
         </div>
         <div class="card" style="margin-bottom:13px">
-          <h3>${icon("zap")} Capabilities (negotiated)</h3>
+          <h3>${icon("hash")} Capabilities (negotiated)</h3>
           <p class="card-sub">Only capabilities the runtime actually provides are advertised.</p>
           <div class="recent-meta">
             ${(p.capabilities || []).map((c) => `<span class="chip">${esc(c)}</span>`).join("") || '<span class="muted">none</span>'}
@@ -1449,7 +1513,7 @@ function settingsView() {
           </div>
         </div>
         <div class="card" style="margin-top:13px" id="memory-panel">
-          <h3>${icon("bulb")} Project Memory</h3>
+          <h3>${icon("insight")} Project Memory</h3>
           <p class="card-sub">Validated knowledge with provenance. Records tied to a Git HEAD go stale when HEAD moves; invalidation is reasoned and audit-retained.</p>
           <div id="memory-rows"></div>
           <div class="inline-form" style="margin-top:10px">
@@ -1636,6 +1700,8 @@ async function refresh() {
 window.addEventListener("hashchange", refresh);
 function boot() {
   injectWindowGlyphs();
+  const askIco = document.getElementById("palette-ask-ico");
+  if (askIco) askIco.innerHTML = mark("clarity");
   refresh();
   setInterval(loadSnapshot, 5000);
 
