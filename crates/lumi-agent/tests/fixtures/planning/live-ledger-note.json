@@ -1,0 +1,7 @@
+{
+  "scenario": "live-ledger-note",
+  "description": "LIVE-provider dogfood scenario. The turns array is intentionally empty: in live mode the MODEL plans the work against the goal, and the harness verifies the outcome independently. The goal deliberately names the exact output file so the expected_files check is objective.",
+  "goal": "Read README.md in the repository, then create the file notes/live-run.md containing a one-paragraph summary of what this project is for. Verify with git status when done.",
+  "turns": [],
+  "expected_files": ["repo/notes/live-run.md"]
+}

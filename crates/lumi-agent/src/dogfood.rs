@@ -14,8 +14,8 @@
 //!   --repo /path/to/repo --fixture scenario.json --out report.json`
 
 use crate::{
-    load_fixture, run_persisted_task, FixturePlanner, ReadFileTool, RunShellTool, TaskRunStatus,
-    WriteFileTool,
+    load_fixture, run_persisted_task, FixturePlanner, Planner, ReadFileTool, RunShellTool,
+    TaskRunStatus, WriteFileTool,
 };
 use lumi_audit::{AuditEventKind, ChainVerification, FixtureEnvironment, PolicyOutcome};
 use lumi_orchestrator::{ExecutorDescriptor, Orchestrator, OrchestratorConfig};
@@ -54,6 +54,11 @@ pub struct DogfoodReport {
     pub policy_denials: u64,
     pub audit_chain: String,
     pub completed_at_unix: u64,
+    /// Set for live-provider runs: the model that planned the work.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     pub checks: Vec<DogfoodCheck>,
 }
 
@@ -64,6 +69,9 @@ pub struct DogfoodConfig {
     pub source_repo: PathBuf,
     pub fixture_path: PathBuf,
     pub work_dir: PathBuf,
+    /// `Some((family, model))` for live-provider runs; recorded on the
+    /// report so evaluation evidence names the model that produced it.
+    pub provider: Option<(String, String)>,
 }
 
 fn git_args(repo: &Path, args: &[&str]) -> Command {
@@ -88,10 +96,30 @@ fn run_command(mut cmd: Command, what: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-/// Executes the dogfood pass. `# Errors` — staging or store failures are
-/// returned; evaluation failures are REPORTED (verified=false), not
-/// errors: a failing product is evidence, not a harness crash.
+/// Executes the dogfood pass with a live model planner (production
+/// planner over the caller's provider session/transport). The fixture
+/// still supplies the goal brief and expected files; the MODEL plans.
+pub fn run_dogfood_live(
+    config: &DogfoodConfig,
+    planner: &dyn Planner,
+) -> Result<DogfoodReport, String> {
+    run_dogfood_with_planner(config, planner)
+}
+
+/// Executes the dogfood pass with the deterministic fixture planner.
+/// `# Errors` — staging or store failures are returned; evaluation
+/// failures are REPORTED (verified=false), not errors: a failing product
+/// is evidence, not a harness crash.
 pub fn run_dogfood(config: &DogfoodConfig) -> Result<DogfoodReport, String> {
+    let fixture = load_fixture(&config.fixture_path).map_err(|e| e.to_string())?;
+    let planner = FixturePlanner::new(fixture);
+    run_dogfood_with_planner(config, &planner)
+}
+
+fn run_dogfood_with_planner(
+    config: &DogfoodConfig,
+    planner: &dyn Planner,
+) -> Result<DogfoodReport, String> {
     let fixture = load_fixture(&config.fixture_path).map_err(|e| e.to_string())?;
     let scenario = fixture.scenario.clone();
     let goal = fixture.goal.clone();
@@ -193,10 +221,9 @@ pub fn run_dogfood(config: &DogfoodConfig) -> Result<DogfoodReport, String> {
         .map_err(|e| e.to_string())?;
 
     let env = FixtureEnvironment::new().with_workspace(workspace.root().to_path_buf());
-    let planner = FixturePlanner::new(fixture);
     let outcome = run_persisted_task(
         &mut orchestrator,
-        &planner,
+        planner,
         vec![
             Box::new(ReadFileTool),
             Box::new(WriteFileTool),
@@ -323,6 +350,8 @@ pub fn run_dogfood(config: &DogfoodConfig) -> Result<DogfoodReport, String> {
         actions_executed,
         policy_denials: denials,
         audit_chain: if chain_ok { "intact" } else { "BROKEN" }.to_owned(),
+        provider: config.provider.as_ref().map(|(f, _)| f.clone()),
+        model: config.provider.as_ref().map(|(_, m)| m.clone()),
         completed_at_unix: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()

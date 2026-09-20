@@ -104,6 +104,7 @@ fn dogfood_pass_verifies_end_to_end_on_a_real_repo() {
         source_repo: source.clone(),
         fixture_path: fixture_path.clone(),
         work_dir: guard.0.join("work"),
+        provider: None,
     })
     .unwrap();
 
@@ -140,6 +141,7 @@ fn dogfood_pass_fails_when_the_claimed_work_is_absent() {
         source_repo: source.clone(),
         fixture_path,
         work_dir: guard.0.join("work"),
+        provider: None,
     })
     .unwrap();
 
