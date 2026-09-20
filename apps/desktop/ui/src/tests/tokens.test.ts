@@ -1,5 +1,8 @@
 /* Token bridge integrity (DESIGN.md §19): the Tailwind theme file must
-   define the contract tokens and the liquid-glass family. */
+   define the contract tokens and the liquid-glass family.
+   Background values track the approved docs/screens mockups (cool
+   near-white canvas) — an intentional, commented divergence from
+   §19's warm paper hex. */
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -9,7 +12,8 @@ const css = readFileSync(new URL("../styles/lumi.css", import.meta.url), "utf8")
 const REQUIRED_TOKENS = [
   "--color-lumi-blue: #006093",
   "--color-civic-navy: #102A43",
-  "--color-paper-white: #F4F0E8",
+  "--color-paper-white: #F6F7FA",
+  "--color-sidebar: #EDEEF3",
   "--color-signal-amber",
   "--color-risk-red: #C2410C",
   "--color-success-green: #1F7A4D",
