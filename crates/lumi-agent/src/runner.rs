@@ -62,6 +62,7 @@ pub struct TaskRunOutcome {
 /// Durable store failures (sticky: the caller sees the error and may
 /// retry the persistence step; the loop itself reports its own failures
 /// through [`TaskRunOutcome::Failed`]).
+#[allow(clippy::too_many_arguments)] // explicit wiring beats a config struct here
 pub fn run_persisted_task<S: StateStore>(
     orchestrator: &mut Orchestrator<S>,
     planner: &dyn Planner,
@@ -69,6 +70,7 @@ pub fn run_persisted_task<S: StateStore>(
     workspace: &Workspace,
     env: &dyn VerificationEnvironment,
     task: &Task,
+    resume_context: Option<&str>,
     run_id: RunId,
 ) -> Result<TaskRunOutcome, String> {
     let mut persisted = task.clone();
@@ -109,6 +111,7 @@ pub fn run_persisted_task<S: StateStore>(
         run_id.clone(),
         persisted.budget.clone(),
         &goal,
+        resume_context,
     );
     let outcome = loop_borrow.run();
     let budgets = *loop_borrow.consumed();

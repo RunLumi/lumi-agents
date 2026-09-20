@@ -213,6 +213,7 @@ fn fixture_scenario_completes_on_real_git_repo_with_durable_transitions() {
         &workspace,
         &env,
         &task,
+        None,
         RunId::generate(),
     )
     .unwrap();
@@ -299,6 +300,7 @@ fn exhausted_fixture_fails_honestly_and_persists_failure() {
         &workspace,
         &env,
         &task,
+        None,
         RunId::generate(),
     )
     .unwrap();
@@ -384,6 +386,7 @@ fn injected_untrusted_file_cannot_expand_authority() {
         &workspace,
         &env,
         &task,
+        None,
         RunId::generate(),
     )
     .unwrap();
@@ -590,6 +593,7 @@ fn approval_gated_step_pauses_loop_and_resumes_after_scoped_approval() {
             run_id.clone(),
             Budget::default(),
             "notify the webhook",
+            None,
         );
 
         // 1. The loop pauses with the exact normalized action to approve.

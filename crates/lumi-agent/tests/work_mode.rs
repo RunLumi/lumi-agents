@@ -189,6 +189,7 @@ fn work_mode_completes_write_then_answer() {
             lumi_protocol::RunId::parse("run-agent").unwrap(),
             Budget::default(),
             "Save a note",
+            None,
         );
         let outcome = agent.run();
         match outcome {
@@ -327,6 +328,7 @@ fn read_file_observation_feeds_back_to_planner() {
         lumi_protocol::RunId::parse("run-agent-read").unwrap(),
         Budget::default(),
         "Read the input",
+        None,
     );
     let outcome = agent.run();
     assert!(matches!(outcome, AgentRunOutcome::Completed { .. }));
@@ -361,6 +363,7 @@ fn shell_tool_runs_inside_workspace() {
         lumi_protocol::RunId::parse("run-agent").unwrap(),
         Budget::default(),
         "list files",
+        None,
     );
     let outcome = agent.run();
     assert!(
@@ -401,6 +404,7 @@ fn unknown_tool_from_planner_fails_the_run() {
         lumi_protocol::RunId::parse("run-agent").unwrap(),
         Budget::default(),
         "x",
+        None,
     );
     let outcome = agent.run();
     match outcome {
@@ -438,6 +442,7 @@ fn max_turns_bound_stops_runaway_loops() {
         lumi_protocol::RunId::parse("run-agent").unwrap(),
         Budget::default(),
         "loop",
+        None,
     );
     // Each write needs a distinct path or it collides with overwrite
     // refusal; either way the loop must stop at max_turns.

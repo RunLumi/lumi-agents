@@ -77,6 +77,7 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
         run_id: RunId,
         budget: Budget,
         goal: &str,
+        resume_context: Option<&str>,
     ) -> Self {
         let mut tool_map = HashMap::new();
         let mut names = Vec::new();
@@ -86,6 +87,14 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
         }
         let system =
             crate::planner::system_prompt(goal, &workspace.root().display().to_string(), &names);
+        // Durable progress from a previous interrupted attempt is
+        // RUNTIME-PROVIDED context (our own ledger, trusted provenance):
+        // it tells the planner what already happened so a re-run
+        // continues instead of redoing work.
+        let user_message = match resume_context {
+            Some(context) => format!("{goal}\n\n{context}"),
+            None => goal.to_owned(),
+        };
         Self {
             orchestrator,
             planner,
@@ -101,7 +110,7 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
             messages: vec![
                 ModelMessage::System { content: system },
                 ModelMessage::User {
-                    content: goal.to_owned(),
+                    content: user_message,
                 },
             ],
             turns: 0,

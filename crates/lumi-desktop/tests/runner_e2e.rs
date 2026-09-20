@@ -6,6 +6,7 @@
 
 use lumi_agent::{FixturePlanner, TaskRunStatus};
 use lumi_desktop::{is_runnable, run_desktop_task, DesktopRuntime, ProjectTaskSpec};
+use lumi_models::request::ModelMessage;
 use lumi_protocol::{TaskStatus, TenantId, Timestamp};
 use lumi_state::StateStore as _;
 use std::path::PathBuf;
@@ -272,4 +273,78 @@ fn desktop_runner_recovers_a_task_interrupted_by_restart() {
         .collect();
     assert_eq!(interrupted.len(), 1);
     assert!(interrupted[0].ended_at.is_some());
+}
+
+#[test]
+fn desktop_runner_rerun_carries_durable_progress_from_the_prior_attempt() {
+    let guard = DepotGuard(depot("resume"));
+    let repo = guard.0.join("repo");
+    seed_repo(&repo);
+    let state_path = guard.0.join("runtime-state.json");
+    let tenant = TenantId::parse(DesktopRuntime::LOCAL_TENANT).unwrap();
+
+    let mut runtime =
+        lumi_desktop::DesktopRuntime::new_for_tenant(state_path, tenant.clone()).unwrap();
+    let spec = ProjectTaskSpec {
+        tenant_id: tenant.clone(),
+        principal: lumi_agent::workflow_principal(DesktopRuntime::LOCAL_TENANT, "u-desktop"),
+        goal: "Read README.md, write notes/desktop-run.md.".to_owned(),
+        project_id: lumi_protocol::ProjectId::generate(),
+        environment_id: lumi_protocol::EnvironmentId::generate(),
+        workspace_root: repo.display().to_string(),
+        workspace_kind: lumi_protocol::WorkspaceKind::ProjectRoot,
+    };
+    let project_id = spec.project_id.clone();
+    let task = runtime.create_project_task(&spec).unwrap();
+
+    // Attempt 1: interrupted after the read (fixture exhausted mid-run).
+    let truncated = r##"{
+        "scenario": "truncated",
+        "goal": "Read README.md, write notes/desktop-run.md.",
+        "turns": [
+            { "type": "tool_calls", "calls": [
+                { "name": "read_file", "arguments": { "path": "README.md" } }
+            ]}
+        ]
+    }"##;
+    let planner = FixturePlanner::new(lumi_agent::parse_fixture(truncated).unwrap());
+    let first = run_desktop_task(&mut runtime, &task, &planner).unwrap();
+    assert_eq!(first.status, TaskRunStatus::Failed);
+    assert!(is_runnable(&TaskStatus::Failed), "failed re-arms");
+
+    // Attempt 2 (after re-arm): the planner must RECEIVE the previous
+    // attempt's verified progress, then finish the remaining work.
+    let full = lumi_agent::parse_fixture(SCENARIO).unwrap();
+    let planner = FixturePlanner::new(full);
+    let second = run_desktop_task(&mut runtime, &task, &planner).unwrap();
+    assert_eq!(second.status, TaskRunStatus::Completed, "{second:?}");
+
+    let received = planner.received();
+    let first_user = received
+        .first()
+        .and_then(|turn| {
+            turn.iter().find_map(|m| match m {
+                ModelMessage::User { content } => Some(content.clone()),
+                _ => None,
+            })
+        })
+        .unwrap_or_default();
+    assert!(
+        first_user.contains("DURABLE PROGRESS FROM THE PREVIOUS ATTEMPT"),
+        "re-run must carry durable progress: {first_user}"
+    );
+    assert!(
+        first_user.contains("read_file"),
+        "progress must name the verified prior action: {first_user}"
+    );
+
+    // The work completed and is inspectable in the evidence read model.
+    assert!(repo.join("notes/desktop-run.md").is_file());
+    let evidence = runtime.project_evidence(&project_id).unwrap();
+    assert!(
+        evidence
+            .iter()
+            .any(|entry| entry.operation == "write_file" && entry.trust_label == "Verified"),
+        "both attempts' verified actions surface as evidence: {evidence:?}"
+    );
 }

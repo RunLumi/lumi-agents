@@ -232,6 +232,7 @@ fn run_dogfood_with_planner(
         &workspace,
         &env,
         &task,
+        None,
         RunId::generate(),
     )?;
 

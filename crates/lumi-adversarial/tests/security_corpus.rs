@@ -518,6 +518,7 @@ fn hostile_planner_output_never_executes() {
         RunId::parse("run-adv-agent").unwrap(),
         Budget::default(),
         "hostile planner test",
+        None,
     );
     let outcome = agent.run();
     match outcome {
