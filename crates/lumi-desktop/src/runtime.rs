@@ -15,8 +15,8 @@ use lumi_handoff::{ProgressStep, ProgressView, TaskPhase, TrustLanguage};
 use lumi_orchestrator::{Orchestrator, OrchestratorConfig, TierPolicy};
 use lumi_policy::CapabilityRegistry;
 use lumi_protocol::{
-    EnvironmentId, ExecutionStatus, ProjectId, ProjectTaskBinding, Run, Task, TaskId, TaskMode,
-    TaskStatus, TenantId, Timestamp, WorkspaceKind,
+    EnvironmentId, ErrorEnvelope, ExecutionStatus, FailureCategory, ProjectId, ProjectTaskBinding,
+    Run, RunState, Task, TaskId, TaskMode, TaskStatus, TenantId, Timestamp, WorkspaceKind,
 };
 use lumi_state::{JsonStateStore, RetryPolicy, SideEffectStatus, StateStore};
 use std::collections::BTreeSet;
@@ -214,6 +214,80 @@ impl DesktopRuntime {
                 .cmp(&a.created_at.epoch_seconds())
         });
         Ok(tasks)
+    }
+
+    /// Crash recovery for interrupted Work-mode runs (spec 02 §2.8, the
+    /// shell-level half). At startup nothing can be RUNNING — the single
+    /// process that executes tasks is this one — so any RUNNING record
+    /// belongs to a crashed or force-quit prior session. Each is marked
+    /// FAILED with a crash envelope and its open run record is closed,
+    /// which re-arms the task: FAILED is runnable, so the user can
+    /// explicitly re-run it from the Tasks tab. Partial side effects the
+    /// interrupted run left behind stay visible as journal exceptions.
+    ///
+    /// The deep variant (mid-run resume from orchestrator checkpoints)
+    /// is deferred until the Work-mode runner persists checkpoints.
+    ///
+    /// # Errors
+    /// Durable store failures.
+    pub fn recover_interrupted_tasks(&mut self) -> Result<Vec<Task>, String> {
+        use lumi_state::StateStore as _;
+        let persisted = self
+            .orchestrator
+            .store
+            .read()
+            .map_err(|e| format!("read runtime state: {e}"))?;
+        // A store with work but no trusted tenant scope is refused at
+        // snapshot time; recovery must not touch it either.
+        let Some(scope) = self.tenant_scope.clone() else {
+            if persisted
+                .tasks
+                .iter()
+                .any(|task| task.status == TaskStatus::Running)
+            {
+                return Err(
+                    "runtime state has RUNNING tasks but no trusted tenant scope".to_owned(),
+                );
+            }
+            return Ok(Vec::new());
+        };
+
+        let mut recovered = Vec::new();
+        for task in &persisted.tasks {
+            if task.status != TaskStatus::Running || task.tenant_id != scope {
+                continue;
+            }
+            let mut failed = task.clone();
+            failed.status = TaskStatus::Failed;
+            self.orchestrator
+                .store
+                .save_task(&failed)
+                .map_err(|e| format!("persist recovered task: {e}"))?;
+            for mut run in persisted
+                .runs
+                .iter()
+                .filter(|run| {
+                    run.task_id == task.task_id && run.ended_at.is_none() && run.failure.is_none()
+                })
+                .cloned()
+            {
+                run.ended_at = Some(Timestamp::now());
+                run.state = RunState::Recovering;
+                run.failure = Some(ErrorEnvelope::new(
+                    FailureCategory::Crash,
+                    "interrupted: the app restarted while this task was running;                      review any changes, then run again",
+                ));
+                self.orchestrator
+                    .store
+                    .save_run(&run)
+                    .map_err(|e| format!("persist recovered run: {e}"))?;
+            }
+            recovered.push(failed);
+        }
+        if !recovered.is_empty() {
+            self.refresh_snapshot()?;
+        }
+        Ok(recovered)
     }
 
     /// Returns the exact cancellation token shared with the orchestrator.

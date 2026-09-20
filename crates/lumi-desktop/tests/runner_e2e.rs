@@ -6,7 +6,8 @@
 
 use lumi_agent::{FixturePlanner, TaskRunStatus};
 use lumi_desktop::{is_runnable, run_desktop_task, DesktopRuntime, ProjectTaskSpec};
-use lumi_protocol::{TaskStatus, TenantId};
+use lumi_protocol::{TaskStatus, TenantId, Timestamp};
+use lumi_state::StateStore as _;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -169,4 +170,90 @@ fn desktop_runner_refuses_unrunnable_and_unbound_tasks() {
     let planner = FixturePlanner::new(lumi_agent::parse_fixture(SCENARIO).unwrap());
     let err = run_desktop_task(&mut runtime, &running, &planner).unwrap_err();
     assert!(err.contains("RUNNING"), "{err}");
+}
+
+#[test]
+fn desktop_runner_recovers_a_task_interrupted_by_restart() {
+    let guard = DepotGuard(depot("interrupted"));
+    let repo = guard.0.join("repo");
+    seed_repo(&repo);
+    let state_path = guard.0.join("runtime-state.json");
+    let tenant = TenantId::parse(DesktopRuntime::LOCAL_TENANT).unwrap();
+
+    // Session A: create the task and fabricate the durable state a crash
+    // mid-run leaves behind — task RUNNING, run record open.
+    let task_id = {
+        let mut runtime =
+            lumi_desktop::DesktopRuntime::new_for_tenant(state_path.clone(), tenant.clone())
+                .unwrap();
+        let spec = ProjectTaskSpec {
+            tenant_id: tenant.clone(),
+            principal: lumi_agent::workflow_principal(DesktopRuntime::LOCAL_TENANT, "u-desktop"),
+            goal: "Read README.md, write notes/desktop-run.md.".to_owned(),
+            project_id: lumi_protocol::ProjectId::generate(),
+            environment_id: lumi_protocol::EnvironmentId::generate(),
+            workspace_root: repo.display().to_string(),
+            workspace_kind: lumi_protocol::WorkspaceKind::ProjectRoot,
+        };
+        let task = runtime.create_project_task(&spec).unwrap();
+        let mut running = task.clone();
+        running.status = TaskStatus::Running;
+        runtime.save_task(&running).unwrap();
+        runtime
+            .orchestrator
+            .store
+            .save_run(&lumi_protocol::Run {
+                run_id: lumi_protocol::RunId::generate(),
+                task_id: task.task_id.clone(),
+                runtime_version: "0.1.0".to_owned(),
+                workflow_version: None,
+                selected_providers: vec!["fixture".to_owned()],
+                started_at: Timestamp::now(),
+                ended_at: None,
+                state: lumi_protocol::RunState::Executing,
+                budgets_consumed: lumi_protocol::ConsumedBudget::default(),
+                failure: None,
+            })
+            .unwrap();
+        task.task_id
+    };
+    // Session A's runtime was dropped above — that IS the restart.
+
+    // Session B: restart over the same durable state. Startup recovery
+    // must re-arm the interrupted task instead of leaving it RUNNING.
+    let mut runtime_b =
+        lumi_desktop::DesktopRuntime::new_for_tenant(state_path.clone(), tenant.clone()).unwrap();
+    let recovered = runtime_b.recover_interrupted_tasks().unwrap();
+    assert_eq!(recovered.len(), 1, "the stale RUNNING task is recovered");
+    assert_eq!(recovered[0].status, TaskStatus::Failed);
+    assert!(is_runnable(&recovered[0].status), "FAILED re-arms the task");
+
+    // The recovered task re-runs through the real gate to completion.
+    let task_b = runtime_b.load_task(&task_id).unwrap();
+    assert_eq!(task_b.status, TaskStatus::Failed);
+    let planner = FixturePlanner::new(lumi_agent::parse_fixture(SCENARIO).unwrap());
+    let outcome = run_desktop_task(&mut runtime_b, &task_b, &planner).unwrap();
+    assert_eq!(outcome.status, TaskRunStatus::Completed, "{outcome:?}");
+    assert!(repo.join("notes/desktop-run.md").is_file());
+    assert_eq!(
+        runtime_b.load_task(&task_id).unwrap().status,
+        TaskStatus::Completed
+    );
+
+    // The interrupted attempt's run record stays closed with its crash
+    // envelope — the failure is visible, never silently rewritten.
+    let persisted = runtime_b.orchestrator.store.read().unwrap();
+    let interrupted: Vec<_> = persisted
+        .runs
+        .iter()
+        .filter(|run| {
+            run.task_id == task_id
+                && run
+                    .failure
+                    .as_ref()
+                    .is_some_and(|f| f.message.contains("interrupted"))
+        })
+        .collect();
+    assert_eq!(interrupted.len(), 1);
+    assert!(interrupted[0].ended_at.is_some());
 }

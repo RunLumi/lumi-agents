@@ -296,3 +296,48 @@ The decisive question is not whether Lumi has the longest feature list. It is
 whether a rational user can delegate consequential bounded work, return later,
 understand exactly what happened and why it counts as successful, and choose to
 let Lumi safely do the repeated case again.
+
+## Implementation status log
+
+### 2026-09-20 — Work mode becomes executable, inspectable, and shippable
+
+All of the following is merged to `main` with full CI green. This log records
+implementation reality; the strategy tables above remain intent until each row
+links its own evidence.
+
+| Milestone | Evidence |
+|---|---|
+| Spec 26 Folder-as-Project backend: durable projects, bounded files, path-scoped git, per-task change sets, honest five-state validations, bounded search, project memory | PRs #54–#63 |
+| Provider-neutral model layer: capability contracts, four driver families under one wire contract suite, fixture transport | `crates/lumi-models/tests/contract.rs` |
+| Work-mode planning loop proven offline: JSON planning fixtures; provider-wire test driving the real `ModelPlanner` through the OpenAI adapter on recorded HTTP; durable task runner (`AgentLoop` over any `StateStore`); approval pause + digest-bound resume; prompt-injection refusal fixtures | PR #90; `crates/lumi-agent/tests/{fixture_scenarios,provider_contract_loop}.rs` |
+| Real-repo dogfood pass: the loop executes on a clone of this repository and is verified independently of its own claim (files exist, git shows effects, durable task completed, zero denials, audit chain intact) | PR #90; `docs/dogfood.md`, `docs/evals/dogfood-run-real-repo.json` |
+| Desktop UI: shadcn/ui vendored and themed to DESIGN.md (§19 tokens, §10.1 buttons, §10.4 lit badges); ⌘K palette with live file search; Files tab (read / checksum-guarded edit / create / delete / filename+content search); Meastro UI gates incl. bilingual dictionary parity and token hygiene | PRs #88, #89, #94, #97; `apps/desktop/ui/src/tests/` |
+| Desktop delegation loop wired: `task_run` single-flight worker holding the runtime lock, project-scoped grants wired at run time, provider session in memory only (credential never persisted/logged), snapshot/task reads degrade to lock-free honest `Executing` state during runs, emergency stop interrupts via the shared token without taking the lock | PR #99; `crates/lumi-desktop/src/runner.rs`, `tests/runner_e2e.rs` |
+| Interrupted-run recovery: startup sweep re-arms stale RUNNING tasks (crash envelope on the task, open run record closed with `Recovering` state and failure reason) so the user can explicitly re-run; partial side effects stay visible as journal exceptions | this PR; `runner_e2e::desktop_runner_recovers_a_task_interrupted_by_restart` |
+| Release pipeline: macOS universal DMG + Windows x64 (NSIS + MSI), SHA-256 checksums, tag/version guard, dispatch-only validation mode | PR #96; `docs/release.md`; both platform bundles built green on a dispatch run |
+
+Measured at merge time: 590 workspace Rust tests passing (runner_e2e included),
+82/82 frontend tests (11 Meastro UI gates included), clippy desktop `--locked`
+green, dogfood report `verified: true` with 7/7 independent checks.
+
+Deferred, with reasons:
+
+- **Live-provider evaluation runs** (representative end-to-end runs driven by a
+  real model): no provider credentials exist in the build environment. The loop
+  is exercised through provider-wire replay and fixtures, and the desktop
+  accepts a real OpenAI-compatible key the moment one is configured. Smallest
+  external input: one API key in a test tenant.
+- **Deep mid-run resume (`plan_resume` from checkpoints)**: the Work-mode
+  runner does not persist orchestrator checkpoints yet; startup re-arm
+  (RUNNING → crash-marked FAILED, explicit re-run) shipped instead because it
+  is honest about what a crashed run leaves behind.
+- **Evidence tab backed by the audit ledger**: the tab renders an honest empty
+  state today; the ledger data exists in the runtime and needs a read model.
+- **Signing/notarization + SBOM** in the release pipeline; **parallel task
+  execution** (single-flight today by design); **automations wiring** — all P1
+  rows in the table above, deferred until the live-provider evaluation loop
+  produces measured evidence.
+
+Next highest-value action: wire the Evidence tab to the runtime audit ledger,
+persist Work-mode checkpoints for true mid-run resume, then run the
+live-provider dogfood pass as soon as a test-tenant API key is available.
