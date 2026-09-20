@@ -12,11 +12,16 @@
 //! obtains a human approval and resumes. Repeated Work-mode successes are
 //! pack candidates (§12.11).
 
+pub mod dogfood;
+pub mod fixture;
 pub mod loop_impl;
 pub mod planner;
+pub mod runner;
 pub mod tools;
 
+pub use fixture::{load_fixture, parse_fixture, FixturePlanner, PlanningFixture};
 pub use loop_impl::{AgentLoop, AgentRunOutcome};
 pub use planner::{ModelPlanner, Planner, ScriptedPlanner};
+pub use runner::{load_task, run_persisted_task, TaskRunOutcome, TaskRunStatus};
 pub use tools::ToolContext;
 pub use tools::{workflow_principal, ReadFileTool, RunShellTool, ToolError, WriteFileTool};

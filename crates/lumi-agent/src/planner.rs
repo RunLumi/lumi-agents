@@ -21,6 +21,12 @@ pub trait Planner {
     /// The trusted system instructions (task framing, tool usage rules,
     /// injection-hygiene rules).
     fn system_prompt(&self) -> String;
+
+    /// The provider family backing this planner, recorded on the durable
+    /// run for provider-neutrality evidence (e.g. `openai`, `fixture`).
+    fn provider_family(&self) -> &str {
+        "scripted"
+    }
 }
 
 /// A planner backed by one provider instance through `lumi-models`.
@@ -60,6 +66,10 @@ impl Planner for ModelPlanner<'_> {
 
     fn system_prompt(&self) -> String {
         self.system_prompt.clone()
+    }
+
+    fn provider_family(&self) -> &str {
+        &self.instance.provider_name
     }
 }
 

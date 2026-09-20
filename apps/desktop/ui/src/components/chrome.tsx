@@ -13,13 +13,13 @@ export function TrafficLights() {
   return (
     <div className="titlebar-strip">
       <div className="traffic-lights">
-        <button className="tl tl-close" title="Close" aria-label="Close window" onClick={() => void WIN().close()}>
+        <button className="tl tl-close" title={t("misc.close")} aria-label={t("misc.closeWindow")} onClick={() => void WIN().close()}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
         </button>
-        <button className="tl tl-min" title="Minimize" aria-label="Minimize window" onClick={() => void WIN().minimize()}>
+        <button className="tl tl-min" title={t("misc.minimize")} aria-label={t("misc.minimizeWindow")} onClick={() => void WIN().minimize()}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M5 12h14" /></svg>
         </button>
-        <button className="tl tl-max" title="Maximize" aria-label="Maximize window" onClick={() => void WIN().toggleMaximize()}>
+        <button className="tl tl-max" title={t("misc.maximize")} aria-label={t("misc.maximizeWindow")} onClick={() => void WIN().toggleMaximize()}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M5 5h14v14H5z" /></svg>
         </button>
       </div>
@@ -57,8 +57,8 @@ export function Sidebar({ active, badgeTasks, badgeApprovals, snapshot, collapse
     <aside className="sidebar">
       <TrafficLights />
       <div className="logo-row">
-        <img className="logo-full" src="assets/brand/lumi-fulltext.svg" alt="Lumi Agents" title="Lumi Agents" />
-        <img className="logo-icon" src="assets/brand/ic_launcher_foreground.png" alt="Lumi Agents" title="Lumi Agents" />
+        <img className="logo-full" src="assets/brand/lumi-fulltext.svg" alt={t("misc.brandName")} title={t("misc.brandName")} />
+        <img className="logo-icon" src="assets/brand/ic_launcher_foreground.png" alt={t("misc.brandName")} title={t("misc.brandName")} />
       </div>
       <nav className="nav">
         {NAV.map(({ key, glyph: g, i18n }) => (
@@ -71,7 +71,7 @@ export function Sidebar({ active, badgeTasks, badgeApprovals, snapshot, collapse
         ))}
       </nav>
       <div className="spacer" />
-      <button className="collapse-toggle" title={collapsed ? t("misc.expandMenu") : t("misc.collapseMenu")} aria-label="Toggle menu" onClick={onToggleCollapse}>
+      <button className="collapse-toggle" title={collapsed ? t("misc.expandMenu") : t("misc.collapseMenu")} aria-label={t("misc.toggleMenu")} onClick={onToggleCollapse}>
         <Glyph name="chevronLeft" className={collapsed ? "rot-180" : ""} />
       </button>
       <div className="engine-card">
@@ -92,7 +92,7 @@ export function Sidebar({ active, badgeTasks, badgeApprovals, snapshot, collapse
 
 export function LangSwitch({ lang, onSwitch }: { lang: Lang; onSwitch: (lang: Lang) => void }) {
   return (
-    <div className="lang-switch" role="group" aria-label="Language">
+    <div className="lang-switch" role="group" aria-label={t("misc.language")}>
       <button className={`lang-opt${lang === "en" ? " active" : ""}`} onClick={() => onSwitch("en")}>EN</button>
       <button className={`lang-opt${lang === "vi" ? " active" : ""}`} onClick={() => onSwitch("vi")}>VI</button>
     </div>

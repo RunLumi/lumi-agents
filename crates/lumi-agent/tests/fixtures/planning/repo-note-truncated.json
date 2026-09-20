@@ -1,0 +1,13 @@
+{
+  "scenario": "repo-note-truncated",
+  "description": "Same shape as repo-note but the fixture runs out of turns before the final answer: the loop must fail honestly instead of inventing completion.",
+  "goal": "Read README.md, then stop.",
+  "turns": [
+    {
+      "type": "tool_calls",
+      "calls": [
+        { "name": "read_file", "arguments": { "path": "repo/README.md" } }
+      ]
+    }
+  ]
+}

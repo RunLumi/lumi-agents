@@ -1,0 +1,53 @@
+{
+  "scenario": "openai-write-then-answer",
+  "description": "Provider-wire fixture: two OpenAI chat.completion responses (a write_file tool-call turn, then a final answer) served to the real OpenAI adapter through the fixture transport.",
+  "model": "gpt-4o-mini",
+  "responses": [
+    {
+      "status": 200,
+      "body": {
+        "id": "chatcmpl-fixture-1",
+        "object": "chat.completion",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call-fixture-1",
+                  "type": "function",
+                  "function": {
+                    "name": "write_file",
+                    "arguments": "{\"path\": \"out/provider-note.txt\", \"content\": \"written through the capability contract\"}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": { "prompt_tokens": 21, "completion_tokens": 14 }
+      }
+    },
+    {
+      "status": 200,
+      "body": {
+        "id": "chatcmpl-fixture-2",
+        "object": "chat.completion",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The provider-wire planning loop wrote the note and verified the result."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": { "prompt_tokens": 48, "completion_tokens": 12 }
+      }
+    }
+  ]
+}

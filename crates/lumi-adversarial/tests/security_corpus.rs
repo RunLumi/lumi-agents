@@ -521,7 +521,7 @@ fn hostile_planner_output_never_executes() {
     );
     let outcome = agent.run();
     match outcome {
-        AgentRunOutcome::Failed { reason } => {
+        AgentRunOutcome::Failed { reason, .. } => {
             assert!(reason.contains("unknown tool"), "{reason}");
         }
         other => panic!("hostile planner must not complete: {other:?}"),
