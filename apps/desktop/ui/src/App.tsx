@@ -1,32 +1,24 @@
-import { useState, useEffect } from "react";
-import { Sidebar } from "./components/chrome";
-import { Glyph } from "./components/Icons";
+import { useCallback, useEffect, useState } from "react";
+import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
+import { openPath } from "@tauri-apps/plugin-opener";
+import { Sidebar, Topbar } from "./components/chrome";
+import type { NavKey } from "./components/chrome";
+import { ProjectsHome } from "./views/ProjectsHome";
+import { ProjectDetail } from "./views/ProjectDetail";
+import { toast } from "./lib/ui";
+import { t, detect } from "./lib/i18n";
+import { setLang } from "./lib/i18n";
+import type { Lang } from "./lib/i18n";
 import {
-  projectListRecent,
-  projectOverview,
-  getOperationsSnapshot,
-  emergencyStop,
-  gitStatus,
-  taskList,
-  changeSets,
-  artifactsList,
+  emergencyStop, getOperationsSnapshot, projectListRecent, projectOpenFolder,
+  projectOverview, gitStatus, taskList, changeSets, artifactsList,
 } from "./ipc/commands";
 import type {
-  ProjectSummary,
-  ProjectOverview,
-  GitStatus,
-  Task,
-  ChangeSet,
-  ArtifactEntry,
-  OperationsSnapshot,
+  ArtifactEntry, ChangeSet, GitStatus, OperationsSnapshot,
+  ProjectOverview, ProjectSummary, Task,
 } from "./ipc/types";
 
-type Tab =
-  | "home" | "tasks" | "files" | "changes" | "git"
-  | "artifacts" | "evidence" | "approvals" | "settings";
-
 interface ProjectData {
-  summary: ProjectSummary;
   overview: ProjectOverview;
   git: GitStatus | null;
   tasks: Task[];
@@ -34,12 +26,23 @@ interface ProjectData {
   artifacts: ArtifactEntry[];
 }
 
+async function loadProject(pid: string): Promise<ProjectData> {
+  const [overview, git, tasks, sets, artifacts] = await Promise.all([
+    projectOverview(pid),
+    gitStatus(pid).catch(() => null),
+    taskList(pid),
+    changeSets(pid),
+    artifactsList(pid),
+  ]);
+  return { overview, git, tasks, sets, artifacts };
+}
+
 export default function App() {
+  const [lang, setLangState] = useState<Lang>(detect());
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [data, setData] = useState<ProjectData | null>(null);
   const [snapshot, setSnapshot] = useState<OperationsSnapshot | null>(null);
-  const [tab, setTab] = useState<Tab>("home");
 
   useEffect(() => {
     projectListRecent().then(setProjects).catch(() => {});
@@ -52,184 +55,104 @@ export default function App() {
 
   useEffect(() => {
     if (!projectId) return;
-    projectOverview(projectId).then(setOverview).catch(() => {});
-    gitStatus(projectId).then(setGit).catch(() => {});
-    taskList(projectId).then(setTasks).catch(() => {});
-    changeSets(projectId).then(setSets).catch(() => {});
-    artifactsList(projectId).then(setArtifacts).catch(() => {});
+    loadProject(projectId).then(setData).catch(() => {});
   }, [projectId]);
 
-  const setOverview = (o: ProjectOverview) => setData((d) => d ? { ...d, overview: o } : d);
-  const setGit = (g: GitStatus | null) => setData((d) => d ? { ...d, git: g } : d);
-  const setTasks = (t: Task[]) => setData((d) => d ? { ...d, tasks: t } : d);
-  const setSets = (s: ChangeSet[]) => setData((d) => d ? { ...d, sets: s } : d);
-  const setArtifacts = (a: ArtifactEntry[]) => setData((d) => d ? { ...d, artifacts: a } : d);
-
-  const openProject = (pid: string) => {
+  const openProject = useCallback((pid: string) => {
     setProjectId(pid);
-    setTab("home");
-    projectOverview(pid).then(setOverview).catch(() => {});
-    gitStatus(pid).then(setGit).catch(() => {});
-    taskList(pid).then(setTasks).catch(() => {});
-    changeSets(pid).then(setSets).catch(() => {});
-    artifactsList(pid).then(setArtifacts).catch(() => {});
-  };
+    setData(null);
+  }, []);
 
-  const activeNav = projectId ? (tab === "settings" ? "settings" : tab) : "projects";
+  const closeProject = useCallback(() => {
+    setProjectId(null);
+    setData(null);
+  }, []);
+
+  const reload = useCallback(() => {
+    if (projectId) loadProject(projectId).then(setData).catch(() => {});
+    projectListRecent().then(setProjects).catch(() => {});
+  }, [projectId]);
+
+  const openFolder = useCallback(async () => {
+    const picked = await openFolderDialog({ directory: true, multiple: false });
+    if (typeof picked !== "string" || !picked) return;
+    try {
+      const opened = await projectOpenFolder(picked);
+      projectListRecent().then(setProjects).catch(() => {});
+      openProject(opened.project.project_id);
+      toast(t("misc.projectOpened"), "success");
+    } catch {
+      toast(t("misc.openFailed"), "error");
+    }
+  }, [openProject]);
+
+  const switchLanguage = useCallback((next: Lang) => {
+    setLang(next);
+    setLangState(next);
+  }, []);
+
+  const stopAll = useCallback(() => {
+    emergencyStop().then(() => {
+      toast(t("misc.stopped"), "success");
+      getOperationsSnapshot().then(setSnapshot).catch(() => {});
+    }).catch(() => toast(t("misc.stopFail"), "error"));
+  }, []);
+
+  const activeNav: NavKey = projectId ? "tasks" : "projects";
   const badgeTasks = data?.tasks.filter(
-    (t) => !["COMPLETED", "FAILED", "CANCELLED"].includes(t.status)
+    (task) => !["COMPLETED", "FAILED", "CANCELLED"].includes(task.status),
   ).length ?? 0;
+  const badgeApprovals = snapshot?.pending_approvals?.length ?? 0;
+
+  const crumbs = projectId && data
+    ? [{ label: t("nav.projects"), go: "#projects" }, { label: data.overview.display_name }]
+    : [{ label: t("nav.projects") }];
 
   return (
     <div className="app">
       <Sidebar
-        active={activeNav as any}
+        active={activeNav}
         badgeTasks={badgeTasks}
-        badgeApprovals={0}
+        badgeApprovals={badgeApprovals}
         snapshot={snapshot}
         collapsed={false}
         onToggleCollapse={() => {}}
-        onNav={(key: string) => {
-          if (key === "projects") { setProjectId(null); setTab("home" as Tab); }
-          else if (projectId) setTab(key as Tab);
+        onNav={(key) => {
+          if (key === "projects") closeProject();
         }}
-        onStop={() => {
-          emergencyStop().then(() => {
-            getOperationsSnapshot().then(setSnapshot).catch(() => {});
-          });
-        }}
+        onStop={stopAll}
       />
       <div className="main">
-        <header className="topbar" data-tauri-drag-region>
-          <div className="breadcrumb">
-            <span className="crumb">Projects</span>
-            {projectId && data && (
-              <>
-                <span className="crumb-sep">›</span>
-                <span className="crumb">{data.overview.display_name}</span>
-                <span className="crumb-sep">›</span>
-                <span className="crumb current">{tab}</span>
-              </>
-            )}
-            {!projectId && <span className="crumb current">Projects</span>}
-          </div>
-          <div className="topbar-right">
-            <button className="btn btn-danger-outline btn-sm" onClick={() => emergencyStop().catch(() => {})}>
-              <Glyph name="stop" /> Stop Agent
+        <Topbar
+          crumbs={crumbs}
+          onSearch={openFolder}
+          onStop={stopAll}
+          lang={lang}
+          onSwitch={switchLanguage}
+          right={
+            <button className="btn btn-primary btn-sm" onClick={openFolder}>
+              {t("projects.openFolder")}
             </button>
-          </div>
-        </header>
+          }
+        />
         <main className="content">
-          {projects == null ? (
-            <div className="empty-state">Loading projects…</div>
-          ) : !projectId ? (
-            <ProjectList projects={projects} onOpen={openProject} />
-          ) : data ? (
-            <ProjectView data={data} tab={tab} setTab={setTab} />
-          ) : null}
+          {projectId && data ? (
+            <ProjectDetail
+              overview={data.overview}
+              git={data.git}
+              tasks={data.tasks}
+              sets={data.sets}
+              artifacts={data.artifacts}
+              reload={reload}
+              onReveal={() => openPath(data.overview.primary_root).catch(() => {})}
+            />
+          ) : projects ? (
+            <ProjectsHome projects={projects} onOpen={openProject} />
+          ) : (
+            <div className="empty-state">{t("misc.loading")}</div>
+          )}
         </main>
       </div>
     </div>
-  );
-}
-
-function ProjectList({ projects, onOpen }: {
-  projects: ProjectSummary[];
-  onOpen: (pid: string) => void;
-}) {
-  return (
-    <div>
-      <div className="section-head"><h2>Recent Projects</h2></div>
-      <p className="section-sub">Click to open and continue with Lumi.</p>
-      {!projects.length ? (
-        <div className="empty-state">No projects yet.</div>
-      ) : (
-        <div className="recent-grid">
-          {projects.map((p) => (
-            <button key={p.project_id} className="recent-card" onClick={() => onOpen(p.project_id)}>
-              <div className="recent-top">
-                <span className="recent-ico"><Glyph name="folder" /></span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <div className="recent-name">{p.display_name}</div>
-                  <div className="recent-desc">{p.detected_source}</div>
-                </span>
-                <span className={`pill ${p.health === "available" ? "pill-green" : "pill-amber"}`}>
-                  {p.health === "available" ? "Available" : "Needs attention"}
-                </span>
-              </div>
-              <div className="recent-meta">
-                <span className="chip">{p.primary_root}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProjectView({ data, tab, setTab }: {
-  data: ProjectData;
-  tab: string;
-  setTab: (t: Tab) => void;
-}) {
-  const { overview, git, tasks, artifacts } = data;
-  return (
-    <div>
-      <div className="project-head">
-        <div className="project-ico"><Glyph name="folder" /></div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 className="project-title">{overview.display_name}</h1>
-          <p className="project-desc">{overview.detected_source}</p>
-          <div className="project-chips">
-            <span className="chip">{overview.primary_root}</span>
-            {git?.branch && <span className="chip">{git.branch}</span>}
-            <span className="pill pill-green">Local • Safe</span>
-          </div>
-        </div>
-      </div>
-      <div className="tabs">
-        {(["home", "tasks", "files", "changes", "git", "artifacts", "evidence", "approvals", "settings"] as const).map((t) => (
-          <button key={t} className={`tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
-      <div className="card" style={{ padding: 20 }}>
-        <h2 style={{ marginTop: 0, textTransform: "capitalize", color: "var(--color-civic-navy)" }}>{tab}</h2>
-        {git && (
-          <div>
-            <div className="kv"><span className="kv-key">Branch</span><span className="kv-val mono">{git.branch ?? "detached"}</span></div>
-            <div className="kv"><span className="kv-key">Staged</span><span className="kv-val">{git.staged.length}</span></div>
-            <div className="kv"><span className="kv-key">Modified</span><span className="kv-val">{git.unstaged.length}</span></div>
-            <div className="kv"><span className="kv-key">Untracked</span><span className="kv-val">{git.untracked.length}</span></div>
-          </div>
-        )}
-        {tasks.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            {tasks.map((t, i) => (
-              <div key={i} className="mini-row">
-                <span style={{ flex: 1 }}>{t.goal}</span>
-                <span className="pill pill-blue">{t.status}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {artifacts.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <h3>Artifacts</h3>
-            <div className="mini-list">
-              {artifacts.map((a, i) => (
-                <div key={i} className="mini-row">
-                  <Glyph name="fileText" /><span style={{ flex: 1 }} className="mono">{a.name}</span>
-                  <span className="muted small">{a.size} B</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    <div id="toasts"></div>
-</div>
   );
 }
