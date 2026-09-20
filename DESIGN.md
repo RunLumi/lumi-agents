@@ -21,8 +21,7 @@ screens, mobile shells, or a framework merely to match an example.
 
 In this repository, inspect the shipped [desktop UI styles](apps/desktop/ui/src/styles/lumi.css),
 [markup](apps/desktop/ui/src/App.tsx), and [behavior](apps/desktop/ui/src) before
-implementation. The legacy [vanilla preview](apps/desktop/src) is retained only for
-development compatibility. Existing code or screenshots may lag this contract; record drift
+implementation. Existing code or screenshots may lag this contract; record drift
 rather than treating it as a new palette. This document does not prove deployed
 parity, installed fonts, accessibility compliance, or passing tests.
 
