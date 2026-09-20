@@ -11,7 +11,7 @@
   --color-lumi-blue: #006093;
   --color-lumi-blue-hover: #004F80;
   --color-lumi-blue-active: #003E6A;
-  --color-lumi-blue-soft: #E4F3FC;
+  --color-lumi-blue-soft: #E5EDFB; /* sampled E4EBFB-E5EEFF (screens) */
 
   /* Text */
   --color-civic-navy: #102A43;
@@ -19,8 +19,12 @@
   --color-soft-slate: #5E6677;
 
   /* Surfaces */
-  --color-paper-white: #F4F0E8;
+  /* Canvas tracked to docs/screens mockups (sampled F5F6F8-FAFBFD):
+     cool near-white, deliberately diverging from DESIGN.md §19's warm
+     paper per the approved screen designs. */
+  --color-paper-white: #F6F7FA;
   --color-surface-white: #FFFFFF;
+  --color-sidebar: #EDEEF3; /* sampled from docs/screens */
   --color-archive-gray: #E7EAF0;
   --color-border-subtle: #E7EAF0;
   --color-border: #D9DEE8;
@@ -169,7 +173,7 @@ button, .card, .nav-btn, .tab, .recent-card, .action-card {
 /* ============ Sidebar — Sheet on Canvas ============ */
 .sidebar {
   width: 232px; flex: none;
-  background: var(--color-surface-white);
+  background: var(--color-sidebar);
   border-right: 1px solid var(--color-border);
   display: flex; flex-direction: column;
   padding: 14px 12px 12px; gap: 2px;
