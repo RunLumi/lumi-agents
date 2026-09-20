@@ -753,6 +753,24 @@ body.sidebar-collapsed .nav-btn:hover::after { opacity: 1; }
   overflow: auto;
   padding: 8px;
 }
+/* Editable literal cell in the XLSX grid (Spec 30.9): borderless until
+   focus so the grid keeps its tabular read; formula cells stay text. */
+.xlsx-cell {
+  width: 100%;
+  min-width: 84px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 3px 8px;
+  font: inherit;
+  color: var(--color-ink);
+  white-space: pre;
+}
+.xlsx-cell:hover { border-color: var(--color-border-subtle); }
+.xlsx-cell:focus {
+  outline: none;
+  border-color: var(--color-lumi-blue);
+  background: var(--color-surface-white);
+}
 
 /* ============ Files ============ */
 .files-layout { display: grid; grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr); gap: 13px; align-items: start; }

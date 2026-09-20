@@ -284,10 +284,21 @@ pub enum FileSaveOp {
         path: String,
         content: String,
     },
+    /// Binary create (Spec 30 Office edits): payload arrives base64.
+    CreateBinary {
+        path: String,
+        content_base64: String,
+    },
     Edit {
         path: String,
         expected_sha256: String,
         content: String,
+    },
+    /// Binary edit (Spec 30 Office edits): payload arrives base64.
+    EditBinary {
+        path: String,
+        expected_sha256: String,
+        content_base64: String,
     },
     Delete {
         path: String,
@@ -324,9 +335,26 @@ pub fn gated_file_save(
 ) -> Result<(), String> {
     use lumi_state::StateStore as _;
 
+    // Binary payloads (Spec 30 Office edits) arrive base64-encoded from
+    // the UI; decode BEFORE anything is persisted so a malformed payload
+    // fails closed with no Task/Run/Action on the books.
+    let payload_bytes: Vec<u8> = match op {
+        FileSaveOp::Create { content, .. } | FileSaveOp::Edit { content, .. } => {
+            content.as_bytes().to_vec()
+        }
+        FileSaveOp::CreateBinary { content_base64, .. }
+        | FileSaveOp::EditBinary { content_base64, .. } => {
+            use base64::Engine as _;
+            base64::engine::general_purpose::STANDARD
+                .decode(content_base64)
+                .map_err(|e| format!("decode save payload: {e}"))?
+        }
+        FileSaveOp::Delete { .. } => Vec::new(),
+    };
+
     let (goal, path, capability, operation, postconditions, expected_sha) = match op {
-        FileSaveOp::Create { path, content } => {
-            let sha = lumi_protocol::canonical::sha256_hex(content.as_bytes());
+        FileSaveOp::Create { path, .. } | FileSaveOp::CreateBinary { path, .. } => {
+            let sha = lumi_protocol::canonical::sha256_hex(&payload_bytes);
             (
                 format!("Create {path}"),
                 path.clone(),
@@ -346,9 +374,14 @@ pub fn gated_file_save(
         FileSaveOp::Edit {
             path,
             expected_sha256,
-            content,
+            ..
+        }
+        | FileSaveOp::EditBinary {
+            path,
+            expected_sha256,
+            ..
         } => {
-            let sha = lumi_protocol::canonical::sha256_hex(content.as_bytes());
+            let sha = lumi_protocol::canonical::sha256_hex(&payload_bytes);
             (
                 format!("Edit {path}"),
                 path.clone(),
@@ -514,15 +547,22 @@ pub fn gated_file_save(
                 project_id,
                 task_id.as_str(),
                 |files| match &op_for_executor {
-                    FileSaveOp::Create { path, content } => files
-                        .create_file(Path::new(path), content.as_bytes())
-                        .map(|o| vec![o]),
+                    FileSaveOp::Create { path, .. } | FileSaveOp::CreateBinary { path, .. } => {
+                        files
+                            .create_file(Path::new(path), &payload_bytes)
+                            .map(|o| vec![o])
+                    }
                     FileSaveOp::Edit {
                         path,
                         expected_sha256,
-                        content,
+                        ..
+                    }
+                    | FileSaveOp::EditBinary {
+                        path,
+                        expected_sha256,
+                        ..
                     } => files
-                        .edit_file(Path::new(path), expected_sha256, content.as_bytes())
+                        .edit_file(Path::new(path), expected_sha256, &payload_bytes)
                         .map(|o| vec![o]),
                     FileSaveOp::Delete {
                         path,

@@ -7,6 +7,7 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+base64 = "0.22"
 lumi-agent = { path = "../lumi-agent" }
 lumi-models = { path = "../lumi-models" }
 lumi-protocol = { path = "../lumi-protocol" }

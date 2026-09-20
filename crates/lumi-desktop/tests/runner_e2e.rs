@@ -444,3 +444,104 @@ fn ui_file_saves_traverse_the_gate_and_verify() {
         lumi_audit::ChainVerification::Intact { .. }
     ));
 }
+
+#[test]
+fn gated_binary_save_roundtrip_and_fails_closed_on_bad_base64() {
+    let guard = DepotGuard(depot("binary-save"));
+    let repo = guard.0.join("repo");
+    seed_repo(&repo);
+    let state_path = guard.0.join("runtime-state.json");
+    let tenant = TenantId::parse(DesktopRuntime::LOCAL_TENANT).unwrap();
+
+    let mut runtime =
+        lumi_desktop::DesktopRuntime::new_for_tenant(state_path.clone(), tenant).unwrap();
+    let projects_dir = guard.0.join("projects");
+    std::fs::create_dir_all(&projects_dir).unwrap();
+    let mut projects = lumi_desktop::ProjectService::open(&projects_dir).unwrap();
+    let opened = projects
+        .open_folder(repo.to_str().unwrap(), Some("Binary Repo".to_owned()))
+        .unwrap();
+    let project_id = opened.project.project_id.clone();
+
+    // Spec 30 Office edits: arbitrary binary bytes (an XLSX is a zip)
+    // go through the same gate as text saves.
+    use base64::Engine as _;
+    let encode = |bytes: &[u8]| base64::engine::general_purpose::STANDARD.encode(bytes);
+    let original: Vec<u8> = (0u8..=255).cycle().take(1024).collect();
+    let encoded = encode(&original);
+    lumi_desktop::gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &lumi_desktop::FileSaveOp::CreateBinary {
+            path: "data/workbook.xlsx".to_owned(),
+            content_base64: encoded.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read(repo.join("data/workbook.xlsx")).unwrap(),
+        original
+    );
+
+    // Binary edit through the gate with the correct checksum.
+    let updated: Vec<u8> = original.iter().map(|b| b.wrapping_add(1)).collect();
+    lumi_desktop::gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &lumi_desktop::FileSaveOp::EditBinary {
+            path: "data/workbook.xlsx".to_owned(),
+            expected_sha256: lumi_protocol::canonical::sha256_hex(&original),
+            content_base64: encode(&updated),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read(repo.join("data/workbook.xlsx")).unwrap(),
+        updated
+    );
+
+    // The postcondition verified the REAL on-disk bytes: both saves
+    // surface as verified evidence over the audit ledger.
+    let pid = lumi_protocol::ProjectId::parse(&opened.project.project_id).unwrap();
+    let evidence = runtime.project_evidence(&pid).unwrap();
+    let verified_saves = evidence
+        .iter()
+        .filter(|e| {
+            (e.operation == "create_file" || e.operation == "edit_file")
+                && e.trust_label == "Verified"
+        })
+        .count();
+    assert!(
+        verified_saves >= 2,
+        "both binary saves verified: {evidence:?}"
+    );
+    assert!(matches!(
+        runtime.orchestrator.audit.verify_chain(),
+        lumi_audit::ChainVerification::Intact { .. }
+    ));
+
+    // Malformed base64 fails CLOSED before any durable record exists:
+    // no task, no run, no action, file untouched.
+    let before = runtime.orchestrator.store.read().unwrap().tasks.len();
+    let err = lumi_desktop::gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &lumi_desktop::FileSaveOp::EditBinary {
+            path: "data/workbook.xlsx".to_owned(),
+            expected_sha256: lumi_protocol::canonical::sha256_hex(&updated),
+            content_base64: "!!!not-base64!!!".to_owned(),
+        },
+    )
+    .unwrap_err();
+    assert!(err.contains("decode"), "{err}");
+    let after = runtime.orchestrator.store.read().unwrap().tasks.len();
+    assert_eq!(before, after, "no durable record for a decode failure");
+    assert_eq!(
+        std::fs::read(repo.join("data/workbook.xlsx")).unwrap(),
+        updated,
+        "file untouched by the failed save"
+    );
+}
