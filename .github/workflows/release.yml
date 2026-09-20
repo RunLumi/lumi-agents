@@ -1,0 +1,136 @@
+name: release
+
+# Builds the Lumi Agents desktop app for macOS and Windows and, on a
+# `v*` tag push, publishes the bundles to a GitHub release with
+# checksums. Manual runs (workflow_dispatch) build and upload artifacts
+# without creating a release — use them to validate the pipeline.
+#
+# Full process: docs/release.md.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: bundle (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # One macOS job builds a universal (arm64 + Intel) bundle.
+          - name: macos-universal
+            os: macos-latest
+            target: universal-apple-darwin
+            rust_targets: aarch64-apple-darwin x86_64-apple-darwin
+          - name: windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust_targets: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain (pinned)
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+          for target in ${{ matrix.rust_targets }}; do
+            rustup target add "$target"
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 22
+
+      - name: Verify tag matches app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          conf_version="$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$conf_version" != "$tag_version" ]; then
+            echo "::error::tag v$tag_version does not match tauri.conf.json version $conf_version"
+            echo "::error::bump apps/desktop/src-tauri/tauri.conf.json (and apps/desktop/ui/package.json) first — see docs/release.md"
+            exit 1
+          fi
+
+      - name: Install frontend dependencies (locked)
+        working-directory: apps/desktop/ui
+        run: npm ci
+
+      - name: Build frontend bundle
+        working-directory: apps/desktop/ui
+        run: npm run build
+
+      - name: Verify desktop dependency lockfile
+        working-directory: apps/desktop/src-tauri
+        run: cargo +1.98.1 fetch --locked
+
+      - name: Build desktop bundles (${{ matrix.target }})
+        working-directory: apps/desktop
+        run: ui/node_modules/.bin/tauri build --target ${{ matrix.target }}
+
+      - name: Collect release artifacts
+        run: |
+          mkdir -p release-artifacts
+          base="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
+          case "${{ matrix.target }}" in
+            *apple-darwin*)
+              cp "$base"/dmg/*.dmg release-artifacts/
+              ;;
+            *windows*)
+              cp "$base"/nsis/*-setup.exe release-artifacts/
+              cp "$base"/msi/*.msi release-artifacts/
+              ;;
+          esac
+          ls -la release-artifacts/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bundles-${{ matrix.name }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  github-release:
+    name: publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all bundles
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: bundles-*
+          merge-multiple: true
+          path: release-artifacts
+
+      - name: Generate SHA-256 checksums
+        run: |
+          cd release-artifacts
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        with:
+          files: release-artifacts/*
+          generate_release_notes: true
