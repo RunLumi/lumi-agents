@@ -1,0 +1,41 @@
+---
+import { site } from '../data/site.mjs';
+import { productFacts, publisher } from '../data/discovery.mjs';
+---
+<section class="facts-section section wrap" id="thong-tin" aria-labelledby="facts-title">
+  <div class="section-heading">
+    <div><p class="eyebrow">Thông tin trước khi dùng thử</p><h2 id="facts-title">Lumi Agents là gì?</h2></div>
+    <p class="section-intro">{site.description}</p>
+  </div>
+  <div class="facts-sheet">
+    <table>
+      <caption>Thông tin sản phẩm và giới hạn hiện tại</caption>
+      <thead><tr><th scope="col">Hạng mục</th><th scope="col">Thông tin đã công bố</th></tr></thead>
+      <tbody>{productFacts.map(fact => (
+        <tr><th scope="row">{fact.label}</th><td><p>{fact.value}</p><a class="facts-source" href={fact.source}>{fact.sourceLabel}<span aria-hidden="true"> ↗</span></a></td></tr>
+      ))}</tbody>
+    </table>
+  </div>
+  <p class="facts-attribution">Biên soạn và duy trì bởi <a href={publisher.url} rel="author">{publisher.name}</a>.<span aria-hidden="true"> · </span><a href="/llms.txt" type="text/plain">Thông tin dạng văn bản</a></p>
+</section>
+<style>
+  .facts-section { border-top: 1px solid var(--color-border); }
+  .facts-sheet { background: var(--color-surface-white); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: var(--shadow-card); }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+  caption { padding: 20px 24px; text-align: left; font-weight: 600; color: var(--color-civic-navy); }
+  th, td { padding: 18px 24px; text-align: left; vertical-align: top; overflow-wrap: anywhere; border-top: 1px solid var(--color-border); }
+  th { width: 28%; font-weight: 580; color: var(--color-civic-navy); }
+  thead { background: var(--color-paper-white); }
+  thead th { font-size: 12px; font-family: var(--font-mono); }
+  td p { line-height: 1.7; }
+  .facts-source { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-size: 12px; color: var(--color-lumi-blue); text-decoration: underline; text-underline-offset: 3px; }
+  .facts-attribution { display: flex; align-items: center; flex-wrap: wrap; gap: 0 5px; margin-top: 20px; font-size: 12px; color: var(--color-soft-slate); }
+  .facts-attribution a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
+  @media (max-width: 600px) {
+    caption { padding: 16px 12px; }
+    th, td { padding: 14px 12px; }
+    th { width: 32%; }
+    table { font-size: 13px; }
+    thead th { font-size: 11px; }
+  }
+</style>

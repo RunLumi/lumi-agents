@@ -28,6 +28,7 @@ for (const [name, width, height] of [['mobile', 375, 812], ['small-mobile', 320,
     await mkdir('test-results/screenshots', { recursive: true });
     await page.screenshot({ path: `test-results/screenshots/${name}.png`, fullPage: true });
     if (name === 'desktop') await page.screenshot({ path: 'test-results/screenshots/desktop-fold.png' });
+    await page.locator('#thong-tin').screenshot({ path: `test-results/screenshots/facts-${name}.png` });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(244, 240, 232)');
     expect(await page.evaluate(() => document.fonts.check('600 32px "Geist Variable"', 'Giữ quyền làm chủ'))).toBe(true);
@@ -77,6 +78,7 @@ test('no-JavaScript retains content, FAQ, mobile menu and primary contact', asyn
     const page = await context.newPage();
     await page.goto('http://127.0.0.1:4321/');
     await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('#thong-tin table')).toBeVisible();
     await expect(page.locator('#panel-finance')).toBeVisible();
     await page.locator('.faq-list summary').first().click();
     await expect(page.locator('.faq-list details').first()).toHaveAttribute('open', '');
@@ -93,4 +95,27 @@ test('reduced motion is honored and unknown paths have a proper 404', async ({ p
   const response = await page.goto('/this-page-does-not-exist/');
   expect(response.status()).toBe(404);
   await page.evaluate(() => document.fonts.ready);
+});
+
+// Compare rendered DOM, not only shared source imports: schema must describe
+// the actual FAQ visitors can expand, including punctuation and Vietnamese text.
+test('FAQ schema matches rendered answers and the fact sheet is accessible', async ({ page, request }) => {
+  await page.goto('/');
+  const { questions, visibleFaqs } = await page.evaluate(() => {
+    const graph = [...document.querySelectorAll('script[type="application/ld+json"]')]
+      .flatMap(script => JSON.parse(script.textContent)['@graph'] || []);
+    const faq = graph.find(item => item['@type'] === 'FAQPage');
+    return {
+      questions: faq.mainEntity.map(item => [item.name, item.acceptedAnswer.text]),
+      visibleFaqs: [...document.querySelectorAll('.faq-list details')]
+        .map(detail => [detail.querySelector('summary').textContent.trim(), detail.querySelector('p').textContent.trim()]),
+    };
+  });
+  expect(questions).toEqual(visibleFaqs);
+  await expect(page.getByRole('table', { name: 'Thông tin sản phẩm và giới hạn hiện tại' })).toBeVisible();
+  await expect(page.locator('#thong-tin a[rel="author"]')).toHaveText('RunLumi');
+  const response = await request.get('/llms.txt');
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toContain('text/plain');
+  expect(await response.text()).toContain('# Lumi Agents');
 });
