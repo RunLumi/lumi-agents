@@ -105,7 +105,10 @@ The trusted host opens an authorized resource into a document session containing
 - content type, size and supported feature profile;
 - adapter ID/version and capability set;
 - preview-fidelity, edit-preservation and calculation status separately;
-- source version, draft version, dirty state and validation results.
+- source version, draft version, dirty state and validation results;
+- originating task/run/artifact refs, if any, as provenance only;
+- execution `task_id` and `run_id` for gated document operations, plus the
+  prepared-save/action/idempotency identity when a save is prepared.
 
 Illustrative operations, not currently implemented IPC names:
 
@@ -123,6 +126,22 @@ Possessing a handle is not authorization. No arbitrary host path or URL from a
 renderer. Chunk lengths, writes, output formats and destination grants are
 bounded. Use binary transfer or a session-scoped streaming protocol for large
 content; do not repeatedly serialize entire documents as base64/JSON IPC.
+
+For a standalone UI operation with no owning execution Task/Run, the host creates
+and persists a lightweight project-bound Task/Run under the authenticated USER
+principal before its first ActionProposal. It follows Spec 02 without requiring
+an LLM or another orchestrator. Human editing of an agent/Automation artifact
+uses its own human operation Task/Run, with the producing run linked as provenance;
+never borrow an unrelated, terminal or privileged agent run. Agent-owned saves
+retain their actual active Task/Run and authority.
+
+Bind the document session and prepared save to these durable IDs, environment,
+workspace, candidate hash and idempotency key. Recovery resumes that operation
+through Spec 02 rather than minting a new identity to repeat an ambiguous write.
+A new explicit save after completion creates a new operation identity; ordinary
+keystrokes do not create tasks. A retry uses the existing identity unless the
+normal recovery protocol explicitly creates a linked new Run. Failure to persist
+this binding blocks save preparation/publication, not just final audit.
 
 Adapters expose inspect/preview/dispose and, only when qualified, edit/serialize/
 validate. Keep package-specific models behind the adapter. Reuse project,
@@ -287,8 +306,9 @@ exception. Private staging/draft persistence is separately scoped local work,
 not permission to publish into a project or export a file.
 
 ```text
-inspect source + hash -> edit draft -> prepare candidate in authorized staging
--> validate format/preservation
+inspect source + hash -> edit draft
+-> persist correct execution Task/Run binding (30.5)
+-> prepare candidate in authorized staging -> validate format/preservation
 -> normalize save ActionProposal + risk/capability + expected source/candidate hashes
 -> persist consequential intent and idempotency state before publication I/O
 -> policy authorizes -> obtain/validate/consume required scoped approval
@@ -298,13 +318,13 @@ inspect source + hash -> edit draft -> prepare candidate in authorized staging
 
 Use `LOCAL_WRITE` for ordinary authorized local saves; classify destructive
 replacement or external export with the stricter applicable risk. Bind principal,
-project/environment, destination, source version, candidate checksum, overwrite
-mode and verifier obligations into the normalized action. A changed candidate or
-target invalidates approval. A direct human Save intent may satisfy the normal
-user-action authorization rules, but does not bypass policy, durable intent,
-idempotency, required approval, execution evidence or verification. Persistence
-failure before dispatch prevents publication; ambiguous publication is reconciled
-before retry. No-op/duplicate admission must not execute a second write.
+task/run, project/environment, destination, source version, candidate checksum,
+overwrite mode and verifier obligations into the normalized action. A changed
+candidate or target invalidates approval. A direct human Save intent may satisfy
+the normal user-action authorization rules, but does not bypass policy, durable
+intent, idempotency, required approval, execution evidence or verification.
+Persistence failure before dispatch prevents publication; ambiguous publication
+is reconciled before retry. No-op/duplicate admission must not execute a second write.
 
 No direct renderer disk writes. Reuse canonical path/symlink defenses, stale-write
 checks and per-file serialization. Use a stable file handle/identity and
@@ -449,6 +469,7 @@ Test through actual Tauri entrypoints, not only injected JavaScript mocks:
 17. Worker/adapter failure, cache isolation/invalidation and repeated open/close do not leak memory or freeze emergency stop.
 18. Actual WKWebView and WebView2 tests: bundled assets/CSP/workers, keyboard/IME, HiDPI, focus, screen-reader paths and size budgets.
 19. UI and agent saves traverse the same normalized action gate: failed intent persistence causes zero publication, changed candidate invalidates approval, revoked scope/cancel prevents dispatch, and duplicate/ambiguous retries cannot publish blindly.
+20. A standalone Files save creates a durable USER Task/Run before normalization; artifact edits retain producer provenance without borrowing producer authority; restart/retry preserves the operation identity and failed binding persistence causes zero publication.
 
 Public fixtures are synthetic/licensed; private Ads/customer documents are never
 uploaded to public CI. Office reference renders can be produced in a separately
