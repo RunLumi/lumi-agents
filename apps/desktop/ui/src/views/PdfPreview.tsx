@@ -21,9 +21,12 @@ export default function PdfPreview({
   const [failed, setFailed] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<Map<number, number> | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const docRef = useRef<any>(null);
   const canvases = useRef<Map<number, HTMLCanvasElement>>(new Map());
+  const thumbs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+  const scrollBoxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -45,6 +48,26 @@ export default function PdfPreview({
         if (!alive) return;
         docRef.current = doc;
         setNumPages(doc.numPages);
+        // Spec 30.11 thumbnails: small-scale renders for the rail,
+        // bounded to the first 100 pages of large documents.
+        const limit = Math.min(doc.numPages, 100);
+        for (let p = 1; p <= limit; p++) {
+          const thumb = thumbs.current.get(p);
+          const page = await doc.getPage(p).catch(() => null);
+          if (!thumb || !page) continue;
+          const base = page.getViewport({ scale: 1 });
+          const scale = 96 / base.width;
+          const viewport = page.getViewport({ scale });
+          const dpr = window.devicePixelRatio || 1;
+          thumb.width = viewport.width * dpr;
+          thumb.height = viewport.height * dpr;
+          thumb.style.width = `${viewport.width}px`;
+          thumb.style.height = `${viewport.height}px`;
+          const ctx = thumb.getContext("2d");
+          if (!ctx) continue;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          await page.render({ canvas: thumb, canvasContext: ctx, viewport }).promise;
+        }
       } catch (e) {
         if (alive) setFailed(String(e));
       }
@@ -76,7 +99,7 @@ export default function PdfPreview({
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
         canvas.dataset.rendered = "1";
       }
     })();
@@ -84,6 +107,13 @@ export default function PdfPreview({
       cancelled = true;
     };
   }, [numPages, hits]);
+
+  const scrollToPage = (page: number) => {
+    setCurrentPage(page);
+    canvases.current
+      .get(page)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const search = useMemo(
     () => async () => {
@@ -145,11 +175,7 @@ export default function PdfPreview({
               key={page}
               className="mini-row"
               style={{ cursor: "pointer", textAlign: "left" }}
-              onClick={() =>
-                canvases.current
-                  .get(page)
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
+              onClick={() => scrollToPage(page)}
             >
               <span className="small">
                 {t("preview.pdfPage")} {page} — {count}
@@ -158,18 +184,68 @@ export default function PdfPreview({
           ))}
         </div>
       )}
-      <div style={{ overflow: "auto", maxHeight: 560 }}>
-        {Array.from({ length: numPages }, (_, i) => (
-          <div key={i + 1} style={{ marginBottom: 12 }}>
-            <PdfCanvas
-              register={(canvas) => {
-                if (canvas) canvases.current.set(i + 1, canvas);
-                else canvases.current.delete(i + 1);
-              }}
-              page={i + 1}
-            />
-          </div>
-        ))}
+      <div style={{ display: "flex", gap: 12 }}>
+        <div
+          aria-label={t("preview.pdfThumbnails")}
+          style={{
+            width: 104,
+            flex: "none",
+            maxHeight: 560,
+            overflow: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          {Array.from({ length: numPages }, (_, i) => {
+            const page = i + 1;
+            const selected = page === currentPage;
+            return (
+              <button
+                key={page}
+                onClick={() => scrollToPage(page)}
+                aria-label={`${t("preview.pdfPage")} ${page}`}
+                style={{
+                  border: `2px solid ${selected ? "var(--color-lumi-blue)" : "var(--color-border)"}`,
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface-white)",
+                  padding: 2,
+                  cursor: "pointer",
+                }}
+              >
+                <canvas
+                  data-thumb={page}
+                  style={{ width: "100%", display: "block" }}
+                />
+              </button>
+            );
+          })}
+        </div>
+        <div
+          ref={scrollBoxRef}
+          onScroll={(e) => {
+            const box = e.currentTarget;
+            const mid = box.scrollTop + box.clientHeight / 3;
+            let current = 1;
+            for (const [page, canvas] of canvases.current) {
+              if (canvas.offsetTop <= mid) current = page;
+            }
+            setCurrentPage(current);
+          }}
+          style={{ flex: 1, minWidth: 0, maxHeight: 560, overflow: "auto" }}
+        >
+          {Array.from({ length: numPages }, (_, i) => (
+            <div key={i + 1} style={{ marginBottom: 12 }}>
+              <PdfCanvas
+                register={(canvas) => {
+                  if (canvas) canvases.current.set(i + 1, canvas);
+                  else canvases.current.delete(i + 1);
+                }}
+                page={i + 1}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
