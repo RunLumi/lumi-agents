@@ -1,10 +1,10 @@
 name: Web landing page
 on:
   pull_request:
-    paths: ['web/**', '.github/workflows/web.yml', 'DESIGN.md', 'ICON.md']
+    paths: ['web/**', '.github/workflows/web.yml', 'DESIGN.md', 'ICON.md', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'scripts/copy_product_notices.mjs']
   push:
     branches: [main]
-    paths: ['web/**', '.github/workflows/web.yml', 'DESIGN.md', 'ICON.md']
+    paths: ['web/**', '.github/workflows/web.yml', 'DESIGN.md', 'ICON.md', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'scripts/copy_product_notices.mjs']
 permissions:
   contents: read
 concurrency:

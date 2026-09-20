@@ -73,6 +73,6 @@ The referenced project declares MIT.
 
 Contributions intentionally submitted to this repository are accepted under Apache-2.0 unless a separate written agreement applies.
 
-Before accepting broad external contribution volume, RunLumi should add a contributor policy and decide whether a CLA/DCO is appropriate.
+The prospective contribution policy is now resolved by [ADR 0012](0012-community-rights-commercial-boundary.md): Apache inbound/outbound plus DCO, with no mandatory assignment or bespoke CLA for ordinary contributions. Historical rights and special imports still require review.
 
 This ADR is an engineering licensing decision, not legal advice.
