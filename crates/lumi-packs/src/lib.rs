@@ -11,6 +11,8 @@
 //! resolved at run time from schema-validated inputs; credentials appear
 //! only as [`lumi_protocol::SecretRef`]s resolved by the runtime.
 
+pub mod admission;
+
 pub mod manifest;
 pub mod role;
 pub mod runner;
