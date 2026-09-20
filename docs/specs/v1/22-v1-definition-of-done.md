@@ -18,6 +18,7 @@ V1 MUST have:
 - Project-bound shell/code execution;
 - Git inspection and bounded local Git operations;
 - Project task history/change-set visibility;
+- local Document Workspace with the explicit preview/basic-edit matrix in spec 30;
 - Workflow mode workflow-pack runner;
 - durable task/run state;
 - checkpoint/resume;
@@ -181,7 +182,7 @@ Must be current:
 - AGENTS.md;
 - roadmap;
 - architecture;
-- v1 specs including specs 26–29;
+- v1 specs including specs 26–30;
 - security model;
 - provider docs;
 - release gates;
@@ -206,6 +207,8 @@ Not required:
 
 - public marketplace;
 - full IDE replacement;
+- full Office suite, macros, universal Office fidelity or Excel-compatible calculation engine;
+- real-time document collaboration or mandatory Office document server;
 - whole-disk indexing;
 - full Linux desktop;
 - first-party replacement for Cua;
@@ -244,3 +247,24 @@ Before claiming the project extension feature ready, demonstrate
 
 Use synthetic adversarial fixtures and separately record supported-platform
 credential/sandbox canaries. Passing document/example checks does not pass this gate.
+
+## 22.15 Document Workspace gate
+
+Before claiming [Spec 30](30-document-workspace-preview-edit.md) ready, demonstrate:
+
+- Files, Artifacts and Automation results open the same authorized file/version;
+- staged React integration preserves the existing desktop/host boundary;
+- offline text/Markdown, CSV, raster-image and PDF preview/basic-edit scope works as specified;
+- DOCX/XLSX/PPTX preview and bounded native editing pass their declared feature profiles;
+- unsupported document features, approximate previews and stale formula caches are explicit;
+- no-op saves leave sources unchanged; edited Office copies and qualified replacement preserve promised content;
+- candidate bytes reopen and validate before publication, with source conflicts and recovery handled;
+- document HTML/SVG/XML cannot invoke host commands, read secrets, run macros or fetch unapproved resources;
+- malformed/oversized files, worker crashes, cancel, disk-full and Windows file locks fail without losing work;
+- exact package/transitive/font/binary licenses, integrity and advisory checks are recorded;
+- real WKWebView/WebView2 keyboard/IME/accessibility and resource-budget tests pass.
+
+Spec 30.18 defines the detailed corpus. Delivery may be phased, but missing native
+Office editing remains an explicit incomplete capability, not a feature quietly
+redefined as preview-only. Library documentation and repository CI alone do not
+certify format preservation, safe execution or native-app performance.
