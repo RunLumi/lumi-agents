@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": [
-      "ES2023"
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -11,7 +13,8 @@
     "strict": true,
     "types": [
       "node"
-    ]
+    ],
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src/tests"
