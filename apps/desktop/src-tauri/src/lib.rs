@@ -272,6 +272,62 @@ fn file_create(
 }
 
 #[tauri::command]
+fn file_create_base64(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    path: String,
+    content_base64: String,
+) -> Result<(), String> {
+    // Spec 30.12: binary Office artifacts save through the same gate —
+    // USER Task/Run + ActionProposal + checksum postconditions.
+    let mut runtime = state
+        .runtime
+        .try_lock()
+        .map_err(|_| "A task is running; saves are paused until it finishes.".to_owned())?;
+    let mut projects = state
+        .projects
+        .lock()
+        .expect("project service lock poisoned");
+    gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &FileSaveOp::CreateBinary {
+            path,
+            content_base64,
+        },
+    )
+}
+
+#[tauri::command]
+fn file_edit_base64(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    path: String,
+    expected_sha256: String,
+    content_base64: String,
+) -> Result<(), String> {
+    let mut runtime = state
+        .runtime
+        .try_lock()
+        .map_err(|_| "A task is running; saves are paused until it finishes.".to_owned())?;
+    let mut projects = state
+        .projects
+        .lock()
+        .expect("project service lock poisoned");
+    gated_file_save(
+        &mut runtime,
+        &mut projects,
+        &project_id,
+        &FileSaveOp::EditBinary {
+            path,
+            expected_sha256,
+            content_base64,
+        },
+    )
+}
+
+#[tauri::command]
 fn file_edit(
     state: tauri::State<'_, AppState>,
     project_id: String,
@@ -877,6 +933,8 @@ pub fn run() {
             connections_connect,
             connections_disconnect,
             connections_verify,
+            file_create_base64,
+            file_edit_base64,
             provider_get_config,
             provider_set_config,
             provider_clear_config,

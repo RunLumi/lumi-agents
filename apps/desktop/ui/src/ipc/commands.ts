@@ -124,6 +124,23 @@ export const connectionsDisconnect = (projectId: string, connectionId: string) =
 export const connectionsVerify = (projectId: string, connectionId: string) =>
   getTransport().invoke<boolean>("connections_verify", { projectId, connectionId });
 
+// binary gated saves (Spec 30: Office artifacts traverse the same
+// gate as text saves; the payload arrives base64-encoded)
+export const fileCreateBase64 = (projectId: string, path: string, contentBase64: string) =>
+  getTransport().invoke<void>("file_create_base64", { projectId, path, contentBase64 });
+export const fileEditBase64 = (
+  projectId: string,
+  path: string,
+  expectedSha256: string,
+  contentBase64: string,
+) =>
+  getTransport().invoke<void>("file_edit_base64", {
+    projectId,
+    path,
+    expectedSha256,
+    contentBase64,
+  });
+
 // preview (Spec 30 phase A: binary formats via bounded base64)
 export interface FileContentBase64 {
   path: string;
@@ -210,4 +227,6 @@ export const COMMAND_NAMES = [
   "connections_connect",
   "connections_disconnect",
   "connections_verify",
+  "file_create_base64",
+  "file_edit_base64",
 ] as const;

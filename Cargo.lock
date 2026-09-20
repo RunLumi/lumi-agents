@@ -490,6 +490,7 @@ dependencies = [
 name = "lumi-desktop"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "lumi-agent",
  "lumi-audit",
  "lumi-handoff",
