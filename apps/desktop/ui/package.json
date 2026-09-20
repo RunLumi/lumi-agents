@@ -15,6 +15,7 @@
     "test": "node --test src/tests/*.test.ts"
   },
   "dependencies": {
+    "@codemirror/lang-markdown": "6.5.2",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
     "@radix-ui/react-alert-dialog": "1.1.23",
@@ -26,9 +27,11 @@
     "@tauri-apps/api": "^2.7.0",
     "@tauri-apps/plugin-dialog": "2.7.3",
     "@tauri-apps/plugin-opener": "2.5.5",
+    "@uiw/react-codemirror": "4.25.11",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
+    "pdfjs-dist": "6.3.289",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "10.1.0",

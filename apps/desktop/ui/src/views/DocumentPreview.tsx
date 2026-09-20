@@ -4,11 +4,13 @@
    inert <img> data URLs. CSV/TSV is a literal bounded table — no type
    coercion, duplicate headers and ragged rows preserved. Unsupported
    formats state so explicitly instead of faking a viewer. */
-import { memo, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { t } from "../lib/i18n";
 import { fileReadBase64 } from "../ipc/commands";
+
+const PdfPreview = lazy(() => import("./PdfPreview"));
 
 const IMAGE_TYPES: Record<string, string> = {
   png: "image/png",
@@ -20,11 +22,17 @@ const IMAGE_TYPES: Record<string, string> = {
 };
 
 const OFFICE_TYPES = new Set([
-  "pdf", "docx", "xlsx", "pptx", "doc", "xls", "ppt",
+  "docx", "xlsx", "pptx", "doc", "xls", "ppt",
   "docm", "xlsm", "pptm", "heic", "tiff",
 ]);
 
-export type PreviewKind = "text" | "markdown" | "image" | "csv" | "unsupported";
+export type PreviewKind =
+  | "text"
+  | "markdown"
+  | "image"
+  | "csv"
+  | "pdf"
+  | "unsupported";
 
 export function extensionOf(path: string): string {
   const base = path.split("/").pop() ?? path;
@@ -39,6 +47,7 @@ export function previewKindFor(path: string, isTextFile: boolean): PreviewKind {
   if (ext === "md" || ext === "markdown") return "markdown";
   if (ext in IMAGE_TYPES) return "image";
   if (ext === "csv" || ext === "tsv") return "csv";
+  if (ext === "pdf") return "pdf";
   if (OFFICE_TYPES.has(ext)) return "unsupported";
   return isTextFile ? "text" : "unsupported";
 }
@@ -174,6 +183,12 @@ export const DocumentPreview = memo(function DocumentPreview({
       return <ImagePreview path={path} project={project} />;
     case "csv":
       return <CsvPreview content={content} />;
+    case "pdf":
+      return (
+        <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+          <PdfPreview path={path} project={project} />
+        </Suspense>
+      );
     case "unsupported": {
       const ext = extensionOf(path);
       // Readable text (e.g. .gitignore-style or unknown text) still gets

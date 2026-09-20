@@ -3,12 +3,12 @@
    protection (file_edit + expected sha256), create, delete, and search
    (file_search, filename or text mode). Nothing here is decorative:
    every mutation goes through the project service's boundary checks. */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Glyph } from "../components/Icons";
 import { t } from "../lib/i18n";
 import { fmtSize, toast } from "../lib/ui";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger,
@@ -17,6 +17,8 @@ import {
   fileCreate, fileDelete, fileEdit, fileList, fileRead, fileSearch,
 } from "../ipc/commands";
 import { DocumentPreview, previewKindFor } from "./DocumentPreview";
+
+const CodeEditor = lazy(() => import("./CodeEditor"));
 import type { ListedEntry, SearchHit } from "../ipc/types";
 
 export interface FileRequest {
@@ -230,12 +232,15 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
             <p className="muted small">{t("files.contextGuard")}</p>
             {editing ? (
               <>
-                <Textarea
-                  className="editor-area"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  spellCheck={false}
-                />
+                {/* Spec 30.7: CodeMirror editing surface — undo/redo
+                    history and the Mod-f find/replace panel. */}
+                <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+                  <CodeEditor
+                    value={draft}
+                    path={selected.path}
+                    onChange={setDraft}
+                  />
+                </Suspense>
                 <div className="inline-form">
                   <Button variant="secondary" size="sm" onClick={() => { setEditing(false); setDraft(selected.content); }}>
                     {t("files.cancel")}
