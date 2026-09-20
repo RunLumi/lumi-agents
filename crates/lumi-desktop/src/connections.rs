@@ -47,6 +47,30 @@ fn records_for<'a>(records: &'a [ConnectionRecord], project_id: &str) -> Vec<&'a
         .collect()
 }
 
+/// Verifies a connection's credential is still present in the broker
+/// WITHOUT exposing it (Spec 29: status breadth). Returns false when
+/// the connection is unknown to this project.
+///
+/// # Errors
+/// Store or broker failures other than absence.
+pub fn verify_connection<B: SecretBackend>(
+    broker: &SecretBroker<B>,
+    records_path: &Path,
+    project_id: &str,
+    connection_id: &str,
+) -> Result<bool, String> {
+    let records = load_connection_records(records_path)?;
+    let Some(record) = records
+        .iter()
+        .find(|r| r.project_id == project_id && r.connection_id == connection_id)
+    else {
+        return Ok(false);
+    };
+    broker
+        .exists(&lumi_protocol::SecretRef(record.credential_ref.clone()))
+        .map_err(|e| format!("verify credential: {e}"))
+}
+
 /// Registers a connection: validates input, stores the credential in
 /// the broker under a project-scoped reference, and persists metadata
 /// (never the credential value).
@@ -204,5 +228,16 @@ impl ConnectionsStore {
     #[must_use]
     pub fn list(&self, project_id: &str) -> Vec<ConnectionRecord> {
         list_connections(&self.records_path, project_id).unwrap_or_default()
+    }
+
+    /// # Errors
+    /// Broker failures other than absence.
+    pub fn verify<B: SecretBackend>(
+        &self,
+        broker: &SecretBroker<B>,
+        project_id: &str,
+        connection_id: &str,
+    ) -> Result<bool, String> {
+        verify_connection(broker, &self.records_path, project_id, connection_id)
     }
 }

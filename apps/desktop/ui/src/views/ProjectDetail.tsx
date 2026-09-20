@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/overlays";
 import { FilesTab, type FileRequest } from "./FilesTab";
 import { TasksPanel } from "./TasksPanel";
 import {
-  connectionsConnect, connectionsDisconnect, connectionsList, gitBranches,
+  connectionsConnect, connectionsDisconnect, connectionsList, connectionsVerify, gitBranches,
   gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
 } from "../ipc/commands";
 import type { ConnectionRecord } from "../ipc/commands";
@@ -165,6 +165,16 @@ export function ProjectDetail({
     connectionsDisconnect(overview.project_id, record.connection_id).then(() => {
       toast(t("connections.disconnected"), "success");
       refreshConnections();
+    }).catch((e) => toast(String(e), "error"));
+  };
+
+  // Per-row verify state: undefined = not checked, true/false = broker
+  // result. The check never surfaces the credential value.
+  const [verifyState, setVerifyState] = useState<Record<string, boolean | undefined>>({});
+  const verifyConnection = (record: ConnectionRecord) => {
+    connectionsVerify(overview.project_id, record.connection_id).then((present) => {
+      setVerifyState((prev) => ({ ...prev, [record.connection_id]: present }));
+      toast(present ? t("connections.verifyOk") : t("connections.verifyMissing"), present ? "success" : "error");
     }).catch((e) => toast(String(e), "error"));
   };
   const [commitMsg, setCommitMsg] = useState("");
@@ -515,11 +525,25 @@ export function ProjectDetail({
                   {connections.map((record) => (
                     <div key={record.connection_id} className="mini-row">
                       <Glyph name="branch" />
-                      <span style={{ flex: 1, minWidth: 0 }} className="small">{record.name}</span>
-                      <span className="mono muted small" style={{ maxWidth: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ flex: 1, minWidth: 0 }} className="small">
+                        {record.name}
+                        <span className="muted small" style={{ marginLeft: 6 }}>
+                          {new Date(record.created_at).toLocaleDateString()}
+                        </span>
+                      </span>
+                      <span className="mono muted small" style={{ maxWidth: "38%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {record.endpoint}
                       </span>
-                      <StatusBadge variant="status-done">{t("connections.connected")}</StatusBadge>
+                      {verifyState[record.connection_id] === true ? (
+                        <StatusBadge variant="status-done">{t("connections.verifyOk")}</StatusBadge>
+                      ) : verifyState[record.connection_id] === false ? (
+                        <StatusBadge variant="status-critical">{t("connections.verifyMissing")}</StatusBadge>
+                      ) : (
+                        <StatusBadge variant="status-done">{t("connections.connected")}</StatusBadge>
+                      )}
+                      <Button variant="secondary" size="sm" onClick={() => verifyConnection(record)}>
+                        {t("connections.verify")}
+                      </Button>
                       <Button variant="secondary" size="sm" onClick={() => disconnectConnection(record)}>
                         {t("connections.disconnect")}
                       </Button>
