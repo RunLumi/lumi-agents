@@ -9,6 +9,7 @@
 //! UI state: all state comes from the orchestrator, ledger, and store.
 
 pub mod api;
+pub mod automations;
 pub mod permissions;
 pub mod projects;
 pub mod runner;
@@ -17,6 +18,9 @@ pub mod runtime;
 pub use api::{
     ConnectionState, DesktopBackend, EconomicsSummary, EvidenceSummaryEntry, ExecutionState,
     IssuedApproval, KillSwitchState, OperationsSnapshot, PendingApproval,
+};
+pub use automations::{
+    due_automations, fire_automation, load_automations, save_automations, AutomationRecord,
 };
 pub use permissions::{PermissionCheckResult, PermissionState, PermissionStatus};
 pub use projects::{

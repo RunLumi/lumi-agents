@@ -498,6 +498,7 @@ dependencies = [
  "lumi-policy",
  "lumi-project",
  "lumi-protocol",
+ "lumi-scheduler",
  "lumi-state",
  "lumi-workspaces",
  "serde",
