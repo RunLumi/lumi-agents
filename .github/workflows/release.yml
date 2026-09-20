@@ -82,13 +82,57 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: cargo +1.98.1 fetch --locked
 
+      # Spec 21.4: signing/notarization activate automatically when the
+      # org configures these secrets (see docs/release.md). Without them
+      # the build proceeds unsigned and the limitation is disclosed.
+      - name: Configure macOS signing (secrets-gated)
+        if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "APPLE_CERTIFICATE present: bundler will sign and notarize"
+          else
+            echo "::notice::no APPLE_CERTIFICATE secret — macOS build stays unsigned (documented limitation)"
+          fi
+
       - name: Build desktop bundles (${{ matrix.target }})
         working-directory: apps/desktop
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: ui/node_modules/.bin/tauri build --target ${{ matrix.target }}
+
+      # Spec 21.3: SBOM for every external release (CycloneDX).
+      - name: Generate Rust SBOM (CycloneDX)
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: apps/desktop/src-tauri
+        run: |
+          cargo +1.98.1 install cargo-cyclonedx --locked
+          cargo +1.98.1 cyclonedx --all --format json --output-path ../../../../sbom
+          cp ../../../../sbom/*.cdx.json ../../release-artifacts/ 2>/dev/null || true
+
+      - name: Generate npm SBOM (CycloneDX)
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: apps/desktop/ui
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm --output-file "$GITHUB_WORKSPACE/sbom/npm-sbom.json"
+          mkdir -p "$GITHUB_WORKSPACE/release-artifacts"
+          cp "$GITHUB_WORKSPACE/sbom/npm-sbom.json" "$GITHUB_WORKSPACE/release-artifacts/" || true
 
       - name: Collect release artifacts
         run: |
           mkdir -p release-artifacts
+          mkdir -p sbom
           cp LICENSE release-artifacts/LICENSE.txt
           cp NOTICE release-artifacts/NOTICE.txt
           cp THIRD_PARTY_NOTICES.md release-artifacts/THIRD_PARTY_NOTICES.md
@@ -104,6 +148,19 @@ jobs:
               ;;
           esac
           ls -la release-artifacts/
+
+      # Spec 21.3: SBOM ships with every external release.
+      - name: Generate Rust SBOM (CycloneDX)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          cargo +1.98.1 install cargo-cyclonedx --locked
+          cargo +1.98.1 cyclonedx --all --format json --output-path sbom
+          cp sbom/*.cdx.json release-artifacts/ 2>/dev/null || true
+
+      - name: Generate npm SBOM (CycloneDX)
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: apps/desktop/ui
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-file "$GITHUB_WORKSPACE/release-artifacts/npm-sbom.json"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
