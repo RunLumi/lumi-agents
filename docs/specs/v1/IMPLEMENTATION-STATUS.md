@@ -30,7 +30,7 @@ surface or breadth missing — the named gap is the follow-up), **absent**
 | 21 | Release certification | partial | `lumi-certification` + `docs/release.md`; **CycloneDX SBOMs for both Rust workspace and npm UI graph in release.yml**, SHA-256SUMS per release; code signing/notarization plumbed and secrets-gated (APPLE_* — activation pending org certificates) |
 | 22 | V1 definition of done | meta | tracked via `docs/plan.md` status log |
 | 23 | UX/handoff | implemented | `lumi-handoff` progress/exception/trust language drives the desktop views |
-| 24 | Skills/subagents | partial | skills exist in packs; subagent orchestration deferred |
+| 24 | Skills/subagents | **done (core)** | skills exist in packs; **`run_subagent` bounded delegation shipped (PR: spec24-subagents)**: narrowed capabilities, carved budget, turn deadline, no self-approval, honest failures; **§24.13 economics measured on every outcome (duration_ms, actions, model cost, vision/external-write counts)**; parallel fan-out economics evaluation deferred (needs live multi-provider runs) |
 | 25 | Implementation order | meta | satisfied historically; see plan.md |
 | 26 | Project workspace | implemented | Spec 26 backend + desktop Projects surface (PRs #54–#63) |
 | 27 | Global/project automations | **partial → advancing** | PR #119: admitted schedule firings now materialize durable project-bound tasks with dedup/catch-up/quiet-hours policy via the scheduler gate. Remaining: desktop management surface (list/edit/enable), event triggers beyond cron, notification fan-out |
