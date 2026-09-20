@@ -3,14 +3,13 @@ import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '../styles/global.css';
 import { site, previewBuild } from '../data/site.mjs';
-interface Props { title?: string; description?: string; noindex?: boolean }
-const { title = site.title, description = site.description, noindex = false } = Astro.props;
+import { publisher, createStructuredData, serializeStructuredData } from '../data/discovery.mjs';
+interface Props { title?: string; description?: string; noindex?: boolean; includeFaq?: boolean }
+const { title = site.title, description = site.description, noindex = false, includeFaq = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, site.origin).href;
-const schema = JSON.stringify({
-  '@context': 'https://schema.org', '@type': 'WebSite', name: site.name,
-  url: site.origin, inLanguage: 'vi-VN', description,
-  publisher: { '@type': 'Organization', name: 'RunLumi', url: 'https://runlumi.app' },
-}).replace(/</g, '\\u003c');
+const schema = serializeStructuredData(createStructuredData({
+  pathname: Astro.url.pathname, title, description, includeFaq: includeFaq && !noindex,
+}));
 ---
 <!doctype html>
 <html lang="vi">
@@ -20,6 +19,7 @@ const schema = JSON.stringify({
     <meta name="theme-color" content="#F4F0E8" />
     <meta name="color-scheme" content="light" />
     <meta name="description" content={description} />
+    <meta name="author" content={publisher.name} />
     <meta name="robots" content={noindex || previewBuild ? 'noindex, nofollow' : 'index, follow'} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/brand/lumi-logo.svg" type="image/svg+xml" />

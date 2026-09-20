@@ -27,7 +27,7 @@ const csp = [
 ].join('; ');
 // Pages joins values from matching rules. Do not put Cache-Control on /*:
 // it would collide with immutable fingerprinted assets instead of overriding.
-const headers = `/*\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()\n  X-Frame-Options: DENY\n${previewBuild ? '  X-Robots-Tag: noindex, nofollow\n' : ''}\n/\n  Cache-Control: public, max-age=0, must-revalidate\n\n/_astro/*\n  Cache-Control: public, max-age=31536000, immutable\n\n/samples/*\n  X-Robots-Tag: noindex\n\nhttps://:project.pages.dev/*\n  X-Robots-Tag: noindex\n\nhttps://:version.:project.pages.dev/*\n  X-Robots-Tag: noindex\n`;
+const headers = `/*\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()\n  X-Frame-Options: DENY\n${previewBuild ? '  X-Robots-Tag: noindex, nofollow\n' : ''}\n/\n  Cache-Control: public, max-age=0, must-revalidate\n\n/llms.txt\n  Content-Type: text/plain; charset=utf-8\n  Cache-Control: public, max-age=0, must-revalidate\n\n/_astro/*\n  Cache-Control: public, max-age=31536000, immutable\n\n/samples/*\n  X-Robots-Tag: noindex\n\nhttps://:project.pages.dev/*\n  X-Robots-Tag: noindex\n\nhttps://:version.:project.pages.dev/*\n  X-Robots-Tag: noindex\n`;
 if (headers.split('\n').some(line => line.length > 2000)) throw new Error('A Pages header line exceeds its documented 2,000-character limit.');
 await writeFile('dist/_headers', headers);
 
