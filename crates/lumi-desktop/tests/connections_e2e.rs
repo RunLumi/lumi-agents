@@ -112,3 +112,43 @@ fn connections_validate_input_and_scope_per_project() {
     // Unknown disconnect returns false, not an error.
     assert!(!store.disconnect(&broker, PROJECT, "conn-ghost").unwrap());
 }
+
+#[test]
+fn connections_verify_reports_presence_without_exposing_values() {
+    let guard = DepotGuard(depot("verify"));
+    let records_path = guard.0.join("connections.json");
+    let store = ConnectionsStore::new(records_path.clone());
+    let broker = SecretBroker::new(InMemorySecretBackend::default());
+
+    let record = store
+        .connect(&broker, PROJECT, "erp", "api_key", "https://erp", "tok-1")
+        .unwrap();
+
+    // Known connection with a live broker secret: verified.
+    assert!(store
+        .verify(&broker, PROJECT, &record.connection_id)
+        .unwrap());
+
+    // Unknown connection: false, not an error.
+    assert!(!store.verify(&broker, PROJECT, "conn-ghost").unwrap());
+
+    // Revoked secret: verification fails honestly.
+    store
+        .disconnect(&broker, PROJECT, &record.connection_id)
+        .unwrap();
+
+    let record = store
+        .connect(&broker, PROJECT, "erp", "api_key", "https://erp", "tok-2")
+        .unwrap();
+    broker
+        .revoke(&lumi_protocol::SecretRef(record.credential_ref.clone()))
+        .unwrap();
+    assert!(!store
+        .verify(&broker, PROJECT, &record.connection_id)
+        .unwrap());
+
+    // The verify path never returns the credential value anywhere: the
+    // metadata file still contains only the reference.
+    let raw = std::fs::read_to_string(&records_path).unwrap();
+    assert!(!raw.contains("tok-2"), "credential leaked to disk");
+}

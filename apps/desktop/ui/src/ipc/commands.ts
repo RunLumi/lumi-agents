@@ -120,6 +120,9 @@ export const connectionsConnect = (
 ) => getTransport().invoke<ConnectionRecord>("connections_connect", { projectId, ...input });
 export const connectionsDisconnect = (projectId: string, connectionId: string) =>
   getTransport().invoke<boolean>("connections_disconnect", { projectId, connectionId });
+// Checks the broker still holds the credential; never returns its value.
+export const connectionsVerify = (projectId: string, connectionId: string) =>
+  getTransport().invoke<boolean>("connections_verify", { projectId, connectionId });
 
 // preview (Spec 30 phase A: binary formats via bounded base64)
 export interface FileContentBase64 {
@@ -206,4 +209,5 @@ export const COMMAND_NAMES = [
   "connections_list",
   "connections_connect",
   "connections_disconnect",
+  "connections_verify",
 ] as const;

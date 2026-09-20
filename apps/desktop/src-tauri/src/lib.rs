@@ -782,6 +782,16 @@ fn connections_connect(
 }
 
 #[tauri::command]
+fn connections_verify(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    connection_id: String,
+) -> Result<bool, String> {
+    let connections = state.connections.lock().expect("connections lock poisoned");
+    connections.verify(&state.broker, &project_id, &connection_id)
+}
+
+#[tauri::command]
 fn connections_disconnect(
     state: tauri::State<'_, AppState>,
     project_id: String,
@@ -866,6 +876,7 @@ pub fn run() {
             connections_list,
             connections_connect,
             connections_disconnect,
+            connections_verify,
             provider_get_config,
             provider_set_config,
             provider_clear_config,
