@@ -11,6 +11,8 @@ import { t } from "../lib/i18n";
 import { fileReadBase64 } from "../ipc/commands";
 
 const PdfPreview = lazy(() => import("./PdfPreview"));
+const DocxPreview = lazy(() => import("./DocxPreview"));
+const XlsxPreview = lazy(() => import("./XlsxPreview"));
 
 const IMAGE_TYPES: Record<string, string> = {
   png: "image/png",
@@ -22,7 +24,7 @@ const IMAGE_TYPES: Record<string, string> = {
 };
 
 const OFFICE_TYPES = new Set([
-  "docx", "xlsx", "pptx", "doc", "xls", "ppt",
+  "pptx", "doc", "xls", "ppt",
   "docm", "xlsm", "pptm", "heic", "tiff",
 ]);
 
@@ -32,6 +34,8 @@ export type PreviewKind =
   | "image"
   | "csv"
   | "pdf"
+  | "docx"
+  | "xlsx"
   | "unsupported";
 
 export function extensionOf(path: string): string {
@@ -48,6 +52,8 @@ export function previewKindFor(path: string, isTextFile: boolean): PreviewKind {
   if (ext in IMAGE_TYPES) return "image";
   if (ext === "csv" || ext === "tsv") return "csv";
   if (ext === "pdf") return "pdf";
+  if (ext === "docx") return "docx";
+  if (ext === "xlsx") return "xlsx";
   if (OFFICE_TYPES.has(ext)) return "unsupported";
   return isTextFile ? "text" : "unsupported";
 }
@@ -92,7 +98,7 @@ function MarkdownPreview({ content }: { content: string }) {
   );
 }
 
-function ImagePreview({ path, project }: { path: string; project: string }) {
+export function ImagePreview({ path, project }: { path: string; project: string }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -187,6 +193,18 @@ export const DocumentPreview = memo(function DocumentPreview({
       return (
         <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
           <PdfPreview path={path} project={project} />
+        </Suspense>
+      );
+    case "docx":
+      return (
+        <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+          <DocxPreview path={path} project={project} />
+        </Suspense>
+      );
+    case "xlsx":
+      return (
+        <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+          <XlsxPreview path={path} project={project} />
         </Suspense>
       );
     case "unsupported": {

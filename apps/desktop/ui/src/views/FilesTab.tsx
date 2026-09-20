@@ -16,9 +16,13 @@ import {
 import {
   fileCreate, fileDelete, fileEdit, fileList, fileRead, fileSearch,
 } from "../ipc/commands";
-import { DocumentPreview, previewKindFor } from "./DocumentPreview";
+import { DocumentPreview, ImagePreview, previewKindFor } from "./DocumentPreview";
+
+
 
 const CodeEditor = lazy(() => import("./CodeEditor"));
+const PdfPreview = lazy(() => import("./PdfPreview"));
+const XlsxPreview = lazy(() => import("./XlsxPreview"));
 import type { ListedEntry, SearchHit } from "../ipc/types";
 
 export interface FileRequest {
@@ -41,7 +45,9 @@ function parentDir(path: string): string {
 export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: Props) {
   const [cwd, setCwd] = useState("");
   const [entries, setEntries] = useState<ListedEntry[] | null>(null);
-  const [selected, setSelected] = useState<{ path: string; content: string; sha256: string } | null>(null);
+  const [selected, setSelected] = useState<
+    { path: string; content: string; sha256: string; binary: false } | { path: string; binary: true } | null
+  >(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   // Spec 30 phase A: md/csv render read-only previews; editing requires
@@ -61,8 +67,16 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
       setCwd(path);
       return;
     }
+    const kind = previewKindFor(path, true);
+    // Binary preview formats self-fetch via the bounded base64 IPC
+    // (XLSX is a binary container too — its viewer parses the workbook).
+    if (kind === "image" || kind === "pdf" || kind === "xlsx") {
+      setSelected({ path, binary: true });
+      setEditing(false);
+      return;
+    }
     fileRead(projectId, path).then((fc) => {
-      setSelected({ path: fc.path, content: fc.content, sha256: fc.sha256 });
+      setSelected({ path: fc.path, content: fc.content, sha256: fc.sha256, binary: false });
       setEditing(false);
       setDraft(fc.content);
     }).catch(() => toast(t("files.saveFail"), "error"));
@@ -86,7 +100,7 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
   }, [request, openPath, onRequestConsumed]);
 
   const saveEdit = () => {
-    if (!selected) return;
+    if (!selected || selected.binary) return;
     fileEdit(projectId, selected.path, selected.sha256, draft).then(() => {
       toast(t("files.saved"), "success");
       setEditing(false);
@@ -109,7 +123,7 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
   };
 
   const deleteSelected = () => {
-    if (!selected) return;
+    if (!selected || selected.binary) return;
     fileDelete(projectId, selected.path, selected.sha256).then(() => {
       toast(t("files.saved"), "success");
       setSelected(null);
@@ -204,8 +218,12 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
                 )}>
                 <Glyph name="copy" />
               </Button>
-              {!editing && (
-                <Button variant="secondary" size="sm" onClick={() => { setEditing(true); setDraft(selected.content); }}>
+              {!editing && !selected.binary && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { setEditing(true); setDraft(selected.content); }}
+                >
                   {t("files.edit")}
                 </Button>
               )}
@@ -230,7 +248,19 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
               </AlertDialog>
             </div>
             <p className="muted small">{t("files.contextGuard")}</p>
-            {editing ? (
+            {selected.binary ? (
+              previewKindFor(selected.path, true) === "pdf" ? (
+                <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+                  <PdfPreview path={selected.path} project={projectId} />
+                </Suspense>
+              ) : previewKindFor(selected.path, true) === "xlsx" ? (
+                <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+                  <XlsxPreview path={selected.path} project={projectId} />
+                </Suspense>
+              ) : (
+                <ImagePreview path={selected.path} project={projectId} />
+              )
+            ) : editing ? (
               <>
                 {/* Spec 30.7: CodeMirror editing surface — undo/redo
                     history and the Mod-f find/replace panel. */}
