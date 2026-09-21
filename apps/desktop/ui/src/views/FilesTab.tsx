@@ -21,6 +21,7 @@ import { DocumentPreview, previewKindFor } from "./DocumentPreview";
 import { isBinaryKind } from "../lib/previewKinds";
 
 const CodeEditor = lazy(() => import("./CodeEditor"));
+const CodeView = lazy(() => import("./CodeView"));
 import type { ListedEntry, SearchHit } from "../ipc/types";
 
 export interface FileRequest {
@@ -275,7 +276,9 @@ export function FilesTab({ projectId, request, onRequestConsumed, onMutated }: P
             ) : previewable ? (
               <DocumentPreview path={selected.path} project={projectId} content={selected.content} />
             ) : (
-              <pre className="code-body" style={{ maxHeight: 420, overflow: "auto" }}>{selected.content}</pre>
+              <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+                <CodeView value={selected.content} path={selected.path} />
+              </Suspense>
             )}
           </>
         )}

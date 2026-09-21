@@ -454,3 +454,19 @@ the read-only path never mounts them. Editing, animation, and media
 playback stay disabled and disclosed; `.pptm`/`.ppt` remain honestly
 unsupported. Basic-edit qualification (supported-operation profile +
 hostile-file corpus) is the remaining §30.10 gate, tracked on row 30.
+
+## 2026-09-21 (later): code files display properly — spec30-code-display
+
+User-reported gap: only markdown was highlighted; every other code file
+rendered as an undecorated pre block in both read and edit modes. Now the
+file path drives per-language syntax highlighting through
+@codemirror/language-data — dedicated packages for rust, python,
+js/jsx/ts/tsx, json, yaml, sql, html, css, c/cpp, go, and java; bundled
+legacy StreamLanguage modes for shell, toml, ruby, php, lua, and ~130
+more. The read surface is a new read-only CodeView (line numbers,
+search keymap, no editing); CodeEditor shares the same resolution so
+editing is highlighted identically. Unknown extensions and failed lazy
+loads degrade to plain text — display never errors because a
+highlighter did. All language packages live in a lazy chunk (428 KB)
+loaded only when a code file opens; the entry bundle grew 28 KB for the
+description table.
