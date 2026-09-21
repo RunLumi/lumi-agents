@@ -79,7 +79,12 @@ fn snapshot(state: &AppState, project: &str) -> Result<EngagementSnapshot, Strin
                 ToolId::Browser if browser_ready => ("ready", "browser_ready"),
                 ToolId::Browser if origins.is_empty() => ("setup_required", "browser_scope"),
                 ToolId::Browser => ("setup_required", "browser_setup"),
-                ToolId::Chrome => ("unavailable", "chrome_unavailable"),
+                ToolId::Chrome if state
+                    .chrome_bindings
+                    .lock()
+                    .map(|bindings| bindings.contains_key(project))
+                    .unwrap_or(false) => ("ready", "chrome_ready"),
+                ToolId::Chrome => ("setup_required", "chrome_attach"),
                 ToolId::Computer if state.native_adapter.is_some() => ("ready", "computer_ready"),
                 ToolId::Computer => ("setup_required", "computer_setup"),
             };
@@ -136,6 +141,98 @@ pub fn engagement_set_browser_origins(
     with_store(&state, |store| store.set_origins(&project_id, origins))?;
     snapshot(&state, &project_id)
 }
+
+#[derive(Debug, Serialize)]
+pub struct ChromeAttachDto {
+    pub project_id: String,
+    pub pid: u32,
+    pub window_id: u64,
+    pub target_id: String,
+    pub tab_id: String,
+    pub origins: Vec<String>,
+}
+
+/// Explicitly attaches one selected authenticated Chrome window. The caller
+/// supplies the visible PID/window and the project-approved origin ceiling;
+/// no browser profile is guessed or enumerated here.
+#[tauri::command]
+pub fn chrome_attach(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+    pid: u32,
+    window_id: u64,
+    origins: Vec<String>,
+) -> Result<ChromeAttachDto, String> {
+    check_project(&state, &project_id)?;
+    let project_origins = with_store(&state, |s| s.origins(&project_id))?;
+    let requested = lumi_desktop::browser_tools::normalize_origins(&origins)?;
+    if requested.is_empty() || requested.iter().any(|origin| !project_origins.contains(origin)) {
+        return Err("Chrome origins must be a non-empty subset of the project's approved origins".into());
+    }
+    let adapter = lumi_native::CuaDriverAdapter::connect_installed_existing_profile(
+        lumi_native::RuntimeGeneration::default(),
+    )
+    .map_err(|error| error.to_string())?
+    .ok_or("reviewed Cua Driver 0.28.2 is not installed")?;
+    let handle = lumi_native::SessionHandle {
+        session_id: format!("chrome-{project_id}-{pid}-{window_id}"),
+        generation: lumi_native::RuntimeGeneration::default(),
+    };
+    let binding = adapter
+        .prepare_existing_chrome(&handle, &project_id, &requested, pid, window_id)
+        .map_err(|error| error.to_string())?;
+    let dto = ChromeAttachDto {
+        project_id: project_id.clone(),
+        pid,
+        window_id,
+        target_id: binding.target_id.clone(),
+        tab_id: binding.tab_id.clone(),
+        origins: binding.allowed_origins.clone(),
+    };
+    state
+        .chrome_adapter
+        .lock()
+        .map_err(|_| "Chrome adapter registry poisoned")?
+        .replace(Arc::new(adapter));
+    state
+        .chrome_bindings
+        .lock()
+        .map_err(|_| "Chrome binding registry poisoned")?
+        .insert(project_id, binding);
+    Ok(dto)
+}
+
+#[tauri::command]
+pub fn chrome_revoke(
+    state: tauri::State<'_, AppState>,
+    project_id: String,
+) -> Result<(), String> {
+    let binding = state
+        .chrome_bindings
+        .lock()
+        .map_err(|_| "Chrome binding registry poisoned")?
+        .remove(&project_id);
+    if let Some(binding) = binding {
+        if let Some(adapter) = state
+            .chrome_adapter
+            .lock()
+            .map_err(|_| "Chrome adapter registry poisoned")?
+            .as_ref()
+        {
+            let handle = lumi_native::SessionHandle {
+                session_id: binding.session_id,
+                generation: lumi_native::RuntimeGeneration::default(),
+            };
+            let _ = adapter.revoke_session(&handle);
+        }
+    }
+    state
+        .chrome_adapter
+        .lock()
+        .map_err(|_| "Chrome adapter registry poisoned")?
+        .take();
+    Ok(())
+}
 fn validate_options(
     state: &AppState,
     project: &str,
@@ -144,8 +241,15 @@ fn validate_options(
 ) -> Result<(), String> {
     let selected =
         engagement::normalized_tools(goal, &options.tools, options.automation_id.is_some())?;
-    if selected.contains(&ToolId::Chrome) {
-        return Err("authenticated Chrome sessions are not enabled in this build".into());
+    if selected.contains(&ToolId::Chrome)
+        && (options.chrome_binding.is_none()
+            || state
+                .chrome_adapter
+                .lock()
+                .map_err(|_| "Chrome adapter registry poisoned")?
+                .is_none())
+    {
+        return Err("attach a selected Chrome session for this project before running the task".into());
     }
     if selected.contains(&ToolId::Browser) {
         if !state.browser_ready.load(Ordering::SeqCst) {
@@ -200,6 +304,12 @@ pub fn engagement_create_task(
         browser_origins: with_store(&state, |s| s.origins(&request.project_id))?,
         automation_id: None,
         authorization_until: None,
+        chrome_binding: state
+            .chrome_bindings
+            .lock()
+            .map_err(|_| "Chrome binding registry poisoned")?
+            .get(&request.project_id)
+            .cloned(),
     };
     validate_options(&state, &request.project_id, &request.goal, &options)?;
     let task = {
@@ -309,6 +419,7 @@ fn launch(
     let store = Arc::clone(&state.engagement);
     let config = state.browser_config.clone();
     let state_native = state.native_adapter.clone();
+    let state_chrome = state.chrome_adapter.lock().map_err(|_| "Chrome adapter registry poisoned")?.clone();
     let cancel = state.cancel.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _permit = permit;
@@ -321,6 +432,7 @@ fn launch(
                 &UreqTransport,
                 config.as_ref(),
                 state_native.as_ref(),
+                state_chrome.as_ref(),
                 revoked,
             ),
             Err(_) => Err("runtime lock poisoned".into()),
@@ -484,6 +596,7 @@ fn dispatch_automation(
         } else {
             automation.input.authorization_until
         },
+        chrome_binding: None,
     };
     check_project(state, &automation.project_id)?;
     validate_options(

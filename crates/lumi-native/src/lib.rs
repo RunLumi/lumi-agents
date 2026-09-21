@@ -23,7 +23,7 @@ mod mcp;
 pub mod session;
 pub mod target;
 
-pub use cua::{CuaDriverAdapter, CuaUpstreamConfig, PinnedBinary};
+pub use cua::{ChromeBinding, CuaDriverAdapter, CuaUpstreamConfig, PinnedBinary};
 pub use driver::{DesktopDriver, EffectOracle, NativeOperation, NativeOutcome, RefusalReason};
 pub use executor::NativeExecutor;
 pub use session::{

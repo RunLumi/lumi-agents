@@ -21,8 +21,9 @@ Changing website scope pauses affected browser automations for re-authorization.
 The managed browser can read public pages and return bounded text and links to
 the agent, which can create a new verified project file. JavaScript, sign-in,
 forms, uploads, personal Chrome profiles and browser write effects are deliberately
-unavailable on this path. `@chrome` remains unavailable. `@computer` requires the
-fixed-path, digest-verified Cua 0.28.2 installation and otherwise reports setup
+unavailable on this path. `@chrome` requires an explicit Settings attach of one
+selected Chrome window and approved origins; it never aliases the managed reader.
+`@computer` requires the fixed-path, digest-verified Cua 0.28.2 installation and otherwise reports setup
 required rather than silently executing through shell. Natural-language goals work with
 the selected capabilities; unknown capabilities are never inferred as grants.
 

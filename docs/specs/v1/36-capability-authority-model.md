@@ -1,6 +1,6 @@
 # 36. Capability and authority model
 
-Status: **Backend catalog and structured selection implemented; computer adapter partial; Chrome planned**
+Status: **Backend catalog and structured selection implemented; Chrome/computer adapters partial**
 Date: 2026-09-21
 
 ## Source of truth
@@ -22,7 +22,7 @@ output and tool observations cannot grant a capability.
 | files | implemented | Project workspace |
 | shell | implemented, interactive only | explicit project-local command |
 | browser | implemented | approved public HTTPS read origins |
-| chrome | unavailable | authenticated selected session not wired |
+| chrome | setup_required or ready | explicit selected-window attach; read/navigate only in approved origins |
 | computer | setup_required or ready | fixed-path verified Cua 0.28.2 adapter on supported host; no unattended execution |
 
 Readiness is observed by the host. The UI cannot promote an unavailable or stale

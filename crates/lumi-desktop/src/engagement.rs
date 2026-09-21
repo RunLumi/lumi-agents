@@ -97,6 +97,8 @@ pub struct TaskOptions {
     pub browser_origins: Vec<String>,
     pub automation_id: Option<String>,
     pub authorization_until: Option<i64>,
+    #[serde(default)]
+    pub chrome_binding: Option<lumi_native::ChromeBinding>,
 }
 impl TaskOptions {
     #[must_use]

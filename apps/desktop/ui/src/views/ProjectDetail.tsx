@@ -22,7 +22,7 @@ import { TaskComposer } from "./TaskComposer";
 import { AutomationsPanel } from "./AutomationsPanel";
 import { requestedTools, type AutomationSeed } from "../lib/engagement";
 import {
-  connectionsConnect, connectionsDisconnect, connectionsList, connectionsVerify, gitBranches,
+  chromeAttach, chromeRevoke, connectionsConnect, connectionsDisconnect, connectionsList, connectionsVerify, gitBranches,
   gitCommit, gitLog, gitSwitch, projectRelink, projectRemove,
 } from "../ipc/commands";
 import type { ConnectionRecord } from "../ipc/commands";
@@ -137,6 +137,10 @@ export function ProjectDetail({
   const [connKind, setConnKind] = useState("api_key");
   const [connEndpoint, setConnEndpoint] = useState("");
   const [connCredential, setConnCredential] = useState("");
+  const [chromePid, setChromePid] = useState("");
+  const [chromeWindowId, setChromeWindowId] = useState("");
+  const [chromeOrigins, setChromeOrigins] = useState("");
+  const [chromeAttached, setChromeAttached] = useState(false);
 
   const refreshConnections = useCallback(() => {
     connectionsList(overview.project_id).then(setConnections).catch(() => {});
@@ -177,6 +181,27 @@ export function ProjectDetail({
     connectionsVerify(overview.project_id, record.connection_id).then((present) => {
       setVerifyState((prev) => ({ ...prev, [record.connection_id]: present }));
       toast(present ? t("connections.verifyOk") : t("connections.verifyMissing"), present ? "success" : "error");
+    }).catch((e) => toast(String(e), "error"));
+  };
+
+  const attachChrome = () => {
+    const pid = Number(chromePid);
+    const windowId = Number(chromeWindowId);
+    const origins = chromeOrigins.split(/[\n,]/).map((origin) => origin.trim()).filter(Boolean);
+    if (!Number.isInteger(pid) || pid <= 0 || !Number.isInteger(windowId) || windowId <= 0 || origins.length === 0) {
+      toast(t("chrome.invalidAttach"), "error");
+      return;
+    }
+    chromeAttach(overview.project_id, pid, windowId, origins).then(() => {
+      setChromeAttached(true);
+      toast(t("chrome.attached"), "success");
+    }).catch((e) => toast(String(e), "error"));
+  };
+
+  const revokeChrome = () => {
+    chromeRevoke(overview.project_id).then(() => {
+      setChromeAttached(false);
+      toast(t("chrome.revoked"), "success");
     }).catch((e) => toast(String(e), "error"));
   };
 
@@ -559,6 +584,18 @@ export function ProjectDetail({
                 <Button size="sm" onClick={connectConnection}>{t("connections.add")}</Button>
               </div>
               <p className="muted small">{t("connections.kind")}: {connKind}</p>
+              <h3 style={{ marginTop: 20 }}>{t("chrome.title")}</h3>
+              <p className="muted small">{t("chrome.desc")}</p>
+              <div className="inline-form">
+                <Input value={chromePid} onChange={(e) => setChromePid(e.target.value)} placeholder={t("chrome.pid")} inputMode="numeric" />
+                <Input value={chromeWindowId} onChange={(e) => setChromeWindowId(e.target.value)} placeholder={t("chrome.windowId")} inputMode="numeric" />
+              </div>
+              <Input value={chromeOrigins} onChange={(e) => setChromeOrigins(e.target.value)} placeholder={t("chrome.origins")} aria-label={t("chrome.origins")} />
+              <div className="inline-form" style={{ marginTop: 8 }}>
+                <Button size="sm" onClick={attachChrome}>{t("chrome.attach")}</Button>
+                <Button variant="secondary" size="sm" onClick={revokeChrome}>{t("chrome.revoke")}</Button>
+                {chromeAttached && <StatusBadge variant="status-done">{t("chrome.attachedStatus")}</StatusBadge>}
+              </div>
             </div>
             <div className="card">
               <h3>{t("settings.caps")}</h3>

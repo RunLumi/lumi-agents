@@ -67,11 +67,12 @@ matrix is not signed macOS/Windows release certification.
   deprecated transitive packages. The worker audit's zero count does not cover
   the frontend graph. The production build also warns about large bundles.
   These warnings have not been fixed or represented as a clean security audit.
-- Existing Chrome profile attachment, authenticated/JavaScript browser workflows,
-  browser mutations and uploads/download interaction are not implemented on this
-  new tool path. Native computer execution is wired through the verified Cua
-  adapter for interactive tasks, but no live app canary or Windows executable pin
-  has been validated.
+- Authenticated Chrome attachment is now wired through an explicit selected
+  PID/window and project origin ceiling, with read/navigate-only task support.
+  A live authenticated Chrome canary, browser mutations, typing, uploads and
+  downloads remain unvalidated. Native computer execution is wired through the
+  verified Cua adapter for interactive tasks, but no live app canary or Windows
+  executable pin has been validated.
 - Provider recovery is now opt-in through the existing OS-backed broker on macOS
   and Windows; Linux remains session-only. No cloud runner or OS background
   service is implemented here.
