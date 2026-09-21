@@ -33,8 +33,15 @@ test("zip archives get their own read-only listing kind", () => {
   assert.equal(previewKindFor("bundle.zip", true), "zip");
 });
 
+test("pptx previews via its qualified adapter; macro/legacy stay unsupported", () => {
+  assert.equal(previewKindFor("deck.pptx", true), "pptx");
+  for (const ext of ["doc", "xls", "ppt", "docm", "xlsm", "pptm", "heic", "tiff", "tif"]) {
+    assert.equal(previewKindFor(`f.${ext}`, true), "unsupported", ext);
+  }
+});
+
 test("legacy office, macro-enabled, and undecodable images stay honestly unsupported", () => {
-  for (const ext of ["doc", "xls", "ppt", "docm", "xlsm", "pptm", "heic", "tiff", "tif", "pptx"]) {
+  for (const ext of ["doc", "xls", "ppt", "docm", "xlsm", "pptm", "heic", "tiff", "tif"]) {
     assert.equal(previewKindFor(`f.${ext}`, true), "unsupported", ext);
   }
 });
