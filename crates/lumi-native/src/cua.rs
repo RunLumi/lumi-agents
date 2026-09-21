@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::sync::Arc;
+use url::Url;
 
 /// A pinned upstream binary (§7.10).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,6 +74,20 @@ pub struct CuaUpstreamConfig {
     pub windows: Option<PinnedBinary>,
 }
 
+/// An opaque browser binding returned only after an explicit selected
+/// profile/window attach. The project and origin scope travel with the
+/// binding; callers must not construct these identifiers themselves.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChromeBinding {
+    pub project_id: String,
+    pub session_id: String,
+    pub allowed_origins: Vec<String>,
+    pub target_id: String,
+    pub tab_id: String,
+    pub pid: u32,
+    pub window_id: u64,
+}
+
 impl CuaUpstreamConfig {
     /// Verifies every configured pin (fail closed on any mismatch).
     ///
@@ -120,6 +135,27 @@ impl CuaDriverAdapter {
         config: CuaUpstreamConfig,
         current_generation: RuntimeGeneration,
     ) -> Result<Self, NativeError> {
+        Self::connect_with_args(config, current_generation, &["mcp", "--direct"])
+    }
+
+    /// Connect through the explicit existing-profile grant. This is only for
+    /// a visible, user-initiated Chrome attach flow.
+    pub fn connect_existing_profile(
+        config: CuaUpstreamConfig,
+        current_generation: RuntimeGeneration,
+    ) -> Result<Self, NativeError> {
+        Self::connect_with_args(
+            config,
+            current_generation,
+            &["mcp", "--direct", "--grant", "existing-profile"],
+        )
+    }
+
+    fn connect_with_args(
+        config: CuaUpstreamConfig,
+        current_generation: RuntimeGeneration,
+        args: &[&str],
+    ) -> Result<Self, NativeError> {
         let pin = platform_pin(&config)?;
         if pin.version != "0.28.2" {
             return Err(NativeError::new(
@@ -131,7 +167,8 @@ impl CuaDriverAdapter {
             ));
         }
         pin.verify()?;
-        let transport: Arc<dyn CuaTransport> = Arc::new(ProcessMcpTransport::spawn(&pin.path)?);
+        let transport: Arc<dyn CuaTransport> =
+            Arc::new(ProcessMcpTransport::spawn_with_args(&pin.path, args)?);
         verify_discovery(transport.as_ref(), &pin.version)?;
         Ok(Self {
             config,
@@ -171,6 +208,33 @@ impl CuaDriverAdapter {
         Self::connect(config, current_generation).map(Some)
     }
 
+    #[cfg(target_os = "macos")]
+    pub fn connect_installed_existing_profile(
+        current_generation: RuntimeGeneration,
+    ) -> Result<Option<Self>, NativeError> {
+        const SHA256: &str = "af30d29cf33bd3bbda1330be7225b18881ea4c5af6df374e08627914b5ac334d";
+        let mut candidates =
+            vec![Path::new("/Applications/CuaDriver.app/Contents/MacOS/cua-driver").to_path_buf()];
+        if let Some(home) = std::env::var_os("HOME") {
+            candidates.push(Path::new(&home).join(".local/bin/cua-driver"));
+        }
+        let Some(path) = candidates.into_iter().find(|path| path.is_file()) else {
+            return Ok(None);
+        };
+        let config = CuaUpstreamConfig {
+            macos: Some(PinnedBinary {
+                version: "0.28.2".into(),
+                target: "aarch64-apple-darwin".into(),
+                sha256: SHA256.into(),
+                path: path.to_string_lossy().into_owned(),
+                license: "MIT".into(),
+                update_owner: "runtime-team".into(),
+            }),
+            windows: None,
+        };
+        Self::connect_existing_profile(config, current_generation).map(Some)
+    }
+
     fn transport(&self) -> Result<&dyn CuaTransport, NativeError> {
         self.transport.as_deref().ok_or_else(|| {
             NativeError::new(
@@ -189,6 +253,133 @@ impl CuaDriverAdapter {
 
     fn start_session(&self, handle: &SessionHandle) -> Result<Value, NativeError> {
         self.call("start_session", json!({"session": handle.session_id}))
+    }
+
+    /// Prepare one user-selected existing Chrome window. This does not
+    /// navigate or expose page content; it only returns an opaque binding
+    /// carrying the project-approved origin ceiling.
+    pub fn prepare_existing_chrome(
+        &self,
+        handle: &SessionHandle,
+        project_id: &str,
+        allowed_origins: &[String],
+        pid: u32,
+        window_id: u64,
+    ) -> Result<ChromeBinding, NativeError> {
+        if project_id.trim().is_empty() || allowed_origins.is_empty() || allowed_origins.len() > 32
+        {
+            return Err(NativeError::new(
+                FailureCategory::PolicyDenyExpected,
+                "Chrome attach requires a project and a bounded origin scope",
+            ));
+        }
+        self.start_session(handle)?;
+        let prepared = self.call(
+            "browser_prepare",
+            json!({
+                "session": handle.session_id,
+                "pid": pid,
+                "window_id": window_id,
+                "strategy": {"kind": "existing_profile"}
+            }),
+        )?;
+        let target_id = prepared
+            .get("target_id")
+            .or_else(|| prepared.get("targetId"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                NativeError::new(
+                    FailureCategory::VersionIncompatible,
+                    "Chrome binding omitted target_id",
+                )
+            })?
+            .to_owned();
+        let tab_id = prepared
+            .get("tab_id")
+            .or_else(|| prepared.get("tabId"))
+            .and_then(Value::as_str)
+            .or_else(|| {
+                prepared
+                    .get("tabs")
+                    .and_then(Value::as_array)
+                    .and_then(|tabs| tabs.first())
+                    .and_then(|tab| {
+                        tab.get("tab_id")
+                            .or_else(|| tab.get("tabId"))
+                            .or_else(|| tab.get("id"))
+                    })
+                    .and_then(Value::as_str)
+            })
+            .ok_or_else(|| {
+                NativeError::new(
+                    FailureCategory::VersionIncompatible,
+                    "Chrome binding omitted tab_id",
+                )
+            })?
+            .to_owned();
+        Ok(ChromeBinding {
+            project_id: project_id.to_owned(),
+            session_id: handle.session_id.clone(),
+            allowed_origins: allowed_origins.to_vec(),
+            target_id,
+            tab_id,
+            pid,
+            window_id,
+        })
+    }
+
+    pub fn chrome_state(
+        &self,
+        handle: &SessionHandle,
+        binding: &ChromeBinding,
+    ) -> Result<Value, NativeError> {
+        self.call(
+            "get_browser_state",
+            json!({
+                "session": handle.session_id,
+                "target_id": binding.target_id,
+                "tab_id": binding.tab_id,
+                "snapshot_format": "semantic_v2",
+                "include_screenshot": false
+            }),
+        )
+    }
+
+    pub fn chrome_navigate(
+        &self,
+        handle: &SessionHandle,
+        binding: &ChromeBinding,
+        url: &str,
+    ) -> Result<Value, NativeError> {
+        let parsed = Url::parse(url).map_err(|_| {
+            NativeError::new(FailureCategory::PolicyDenyExpected, "Chrome URL is invalid")
+        })?;
+        if parsed.scheme() != "https"
+            || !binding
+                .allowed_origins
+                .iter()
+                .any(|origin| origin == &parsed.origin().ascii_serialization())
+        {
+            return Err(NativeError::new(
+                FailureCategory::PolicyDenyExpected,
+                "Chrome URL is outside the project origin scope",
+            ));
+        }
+        self.call(
+            "browser_navigate",
+            json!({
+                "session": handle.session_id,
+                "target_id": binding.target_id,
+                "tab_id": binding.tab_id,
+                "url": url
+            }),
+        )?;
+        self.chrome_state(handle, binding)
+    }
+
+    pub fn revoke_session(&self, handle: &SessionHandle) -> Result<(), NativeError> {
+        self.call("revoke", json!({"session": handle.session_id}))?;
+        Ok(())
     }
 
     fn resolve_window(&self, target: &SemanticTarget) -> Result<ResolvedWindow, NativeError> {

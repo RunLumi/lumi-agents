@@ -125,6 +125,21 @@ export const connectionsDisconnect = (projectId: string, connectionId: string) =
 export const connectionsVerify = (projectId: string, connectionId: string) =>
   getTransport().invoke<boolean>("connections_verify", { projectId, connectionId });
 
+export interface ChromeAttachRecord {
+  project_id: string;
+  pid: number;
+  window_id: number;
+  target_id: string;
+  tab_id: string;
+  origins: string[];
+}
+export const chromeAttach = (projectId: string, pid: number, windowId: number, origins: string[]) =>
+  getTransport().invoke<ChromeAttachRecord>("chrome_attach", {
+    projectId, pid, windowId, origins,
+  });
+export const chromeRevoke = (projectId: string) =>
+  getTransport().invoke<void>("chrome_revoke", { projectId });
+
 // binary gated saves (Spec 30: Office artifacts traverse the same
 // gate as text saves; the payload arrives base64-encoded)
 export const fileCreateBase64 = (projectId: string, path: string, contentBase64: string) =>
@@ -238,6 +253,8 @@ export const COMMAND_NAMES = [
   "connections_connect",
   "connections_disconnect",
   "connections_verify",
+  "chrome_attach",
+  "chrome_revoke",
   "file_create_base64",
   "file_edit_base64",
 ] as const;

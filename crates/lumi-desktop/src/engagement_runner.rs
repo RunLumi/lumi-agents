@@ -1,6 +1,7 @@
 //! Selected capabilities for foreground and scheduled Work-mode runs.
 //! Both entry points use the existing planner, orchestrator and verifier.
 use crate::browser_tools::{BoundedTool, BrowserConfig, BrowserReadTool};
+use crate::chrome_tools::ChromeTool;
 use crate::computer_tools::ComputerTool;
 use crate::engagement::{normalized_tools, now, TaskOptions, ToolId, MAX_RUN_SECONDS};
 use crate::runner::{is_runnable, provider_parts, resume_context_from_ledger, ProviderSession};
@@ -28,6 +29,7 @@ pub fn run_selected_task(
     transport: &dyn HttpTransport,
     browser: Option<&BrowserConfig>,
     computer: Option<&Arc<CuaDriverAdapter>>,
+    chrome: Option<&Arc<CuaDriverAdapter>>,
     revoked: Arc<AtomicBool>,
 ) -> Result<lumi_agent::runner::TaskRunOutcome, String> {
     if !is_runnable(&task.status) {
@@ -72,6 +74,21 @@ pub fn run_selected_task(
                 session_id: format!("task-{}", task.task_id),
                 generation: RuntimeGeneration::default(),
             },
+            Arc::clone(&revoked),
+            expires_at,
+        )));
+    }
+    if selected.contains(&ToolId::Chrome) {
+        let adapter = chrome
+            .ok_or("attached Chrome session is unavailable")?
+            .clone();
+        let binding = options
+            .chrome_binding
+            .clone()
+            .ok_or("attached Chrome binding is unavailable")?;
+        tools.push(Box::new(ChromeTool::new(
+            adapter,
+            binding,
             Arc::clone(&revoked),
             expires_at,
         )));

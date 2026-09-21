@@ -54,9 +54,9 @@ pub(crate) struct ProcessMcpTransport {
 }
 
 impl ProcessMcpTransport {
-    pub(crate) fn spawn(binary: &str) -> Result<Self, NativeError> {
+    pub(crate) fn spawn_with_args(binary: &str, args: &[&str]) -> Result<Self, NativeError> {
         let mut child = Command::new(binary)
-            .args(["mcp", "--direct"])
+            .args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

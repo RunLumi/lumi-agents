@@ -49,6 +49,8 @@ pub struct AppState {
     pub browser_ready: AtomicBool,
     pub automation_revocations: Mutex<std::collections::BTreeMap<String, Arc<AtomicBool>>>,
     pub native_adapter: Option<Arc<lumi_native::CuaDriverAdapter>>,
+    pub chrome_adapter: Mutex<Option<Arc<lumi_native::CuaDriverAdapter>>>,
+    pub chrome_bindings: Mutex<std::collections::BTreeMap<String, lumi_native::ChromeBinding>>,
 }
 
 fn discover_native_adapter() -> Option<Arc<lumi_native::CuaDriverAdapter>> {
@@ -99,6 +101,8 @@ impl AppState {
             browser_ready: AtomicBool::new(false),
             automation_revocations: Mutex::new(std::collections::BTreeMap::new()),
             native_adapter: discover_native_adapter(),
+            chrome_adapter: Mutex::new(None),
+            chrome_bindings: Mutex::new(std::collections::BTreeMap::new()),
         }
     }
 
@@ -930,6 +934,8 @@ pub fn run() {
             engagement_snapshot,
             engagement_check_browser,
             engagement_set_browser_origins,
+            chrome_attach,
+            chrome_revoke,
             engagement_create_task,
             automation_list,
             automation_preview,

@@ -1,6 +1,6 @@
 # 33. Browser and Chrome environments
 
-Status: **Browser read path implemented; Chrome session path planned**
+Status: **Browser read path implemented; explicit Chrome session attach/read path partial**
 Date: 2026-09-21
 
 ## Implemented
@@ -13,7 +13,15 @@ Date: 2026-09-21
 - Browser observations are labeled untrusted and cannot grant capabilities.
 - Worker bytes are checked against the build’s reviewed source before launch.
 
-## Planned
+## Chrome session path implemented in this slice
+
+The desktop Settings surface can attach one user-selected Chrome PID/window
+through the reviewed Cua Driver `existing-profile` grant. The resulting binding
+is project-scoped, carries an explicit approved-origin ceiling, is held only in
+runtime memory, and can be revoked. Tasks can read the selected tab or navigate
+within that origin ceiling. Page content remains untrusted.
+
+## Remaining work
 
 Authenticated Chrome requires an explicit selected session/profile/tab, visible
 ownership, origin/account scope, expiry, revocation and a reviewed extension or

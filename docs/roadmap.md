@@ -92,7 +92,9 @@ Staging and fixtures cannot establish production capacity replacement.
 Project engagement is being delivered as one local runtime path: structured
 capability selection, project-scoped public browser reading, durable local
 automations, bounded provider recovery, and independently verified Tasks. The
-Authenticated Chrome remains explicit follow-up work. The native computer adapter
+Authenticated Chrome is partially wired for explicit selected-window attach,
+project origin scope, revocation and read/navigate-only tasks; live authenticated
+canary and mutation support remain follow-up work. The native computer adapter
 is wired for interactive macOS setup when the reviewed Cua 0.28.2 binary is
 installed and verified; live canary and Windows pinning remain follow-up work.
 See Specs [32](specs/v1/32-task-composer-tool-sessions-and-approval-continuation.md),
