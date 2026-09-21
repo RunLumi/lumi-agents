@@ -9,20 +9,19 @@
 //! UI state: all state comes from the orchestrator, ledger, and store.
 
 pub mod api;
-pub mod automations;
+pub mod browser_tools;
 pub mod connections;
+pub mod engagement;
+pub mod engagement_runner;
 pub mod permissions;
 pub mod projects;
+pub mod provider_storage;
 pub mod runner;
 pub mod runtime;
 
 pub use api::{
     ConnectionState, DesktopBackend, EconomicsSummary, EvidenceSummaryEntry, ExecutionState,
     IssuedApproval, KillSwitchState, OperationsSnapshot, PendingApproval,
-};
-pub use automations::{
-    create_automation, delete_automation, due_automations, fire_automation, load_automations,
-    save_automations, set_automation_enabled, AutomationRecord,
 };
 pub use connections::{
     connect_connection, disconnect_connection, list_connections, ConnectionRecord, ConnectionsStore,

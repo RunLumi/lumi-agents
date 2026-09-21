@@ -48,11 +48,5 @@
     "DCO": "Developer Certificate of Origin 1.1; unchanged reference terms, not Apache relicensing"
   },
   "scope_note": "Original public product code/docs use Apache-2.0; third-party code/assets and reference terms retain their own licenses. No commercial module is introduced or retroactively restricted.",
-  "baseline_unlocked_packages": [
-    {
-      "manifest": "workers/playwright/package.json",
-      "baseline_commit": "46d91abfb0649ee08ecf48c88c8d7e99855d56bd",
-      "reason": "The existing browser worker has no committed npm lock. Dependency resolution is outside this licensing-only change; do not interpret this exception as dependency or release certification."
-    }
-  ]
+  "baseline_unlocked_packages": []
 }

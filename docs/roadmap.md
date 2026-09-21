@@ -1,6 +1,6 @@
 # Roadmap: verified digital labor
 
-Updated 2026-09-19. Implementation status lives in [readiness](v1-readiness.md),
+Updated 2026-09-21. Implementation status lives in [readiness](v1-readiness.md),
 not this roadmap. The [execution plan](plan.md) and GitHub issues are the active
 work graph. Normative contracts remain in [specs/v1](specs/v1/00-v1-index.md).
 
@@ -88,6 +88,16 @@ Internal mature-role targets, not customer guarantees:
 Staging and fixtures cannot establish production capacity replacement.
 
 ## Near-term work
+
+Project engagement is being delivered as one local runtime path: structured
+capability selection, project-scoped public browser reading, durable local
+automations, bounded provider recovery, and independently verified Tasks. The
+authenticated Chrome and native computer adapters remain explicit follow-up work;
+their unavailable states are intentional until platform authority and real canaries
+exist. See Specs [32](specs/v1/32-task-composer-tool-sessions-and-approval-continuation.md),
+[33](specs/v1/33-browser-and-chrome.md), [34](specs/v1/34-computer-use.md),
+[35](specs/v1/35-automations-runtime.md), and
+[36](specs/v1/36-capability-authority-model.md).
 
 1. Repair durable persistence/replay defects (#43) and executor, artifact and
    approval boundary gaps (#44); reconcile readiness before customer canaries.

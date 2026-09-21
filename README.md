@@ -50,6 +50,12 @@ The [roadmap](docs/roadmap.md) puts real-system canaries, human-time measurement
 role economics and independent deployment reuse ahead of horizontal feature
 breadth. The [execution plan](docs/plan.md) links the active GitHub work graph.
 
+Project engagement currently provides a multiline Project task composer, structured
+files/shell/public-browser capability selection, local durable Project Automations,
+and evidence-bound task execution. Authenticated Chrome and native computer use
+remain explicitly unavailable until their session, permission, revocation and
+post-state verification contracts are implemented and exercised on real platforms.
+
 ## Repository
 
 - `crates/`: protocol, policy, state, audit/verification, orchestration, execution,

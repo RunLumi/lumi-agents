@@ -112,6 +112,25 @@ impl BrowserWorkerHandle {
             .unwrap_or_else(std::env::current_dir)
             .map_err(|e| WorkerError::Spawn(e.to_string()))?;
         let mut command = Command::new(&config.program);
+        command.env_clear();
+        for name in [
+            "PATH",
+            "HOME",
+            "USERPROFILE",
+            "LOCALAPPDATA",
+            "SystemRoot",
+            "SYSTEMROOT",
+            "TEMP",
+            "TMP",
+            "DISPLAY",
+            "WAYLAND_DISPLAY",
+            "XDG_RUNTIME_DIR",
+            "PLAYWRIGHT_BROWSERS_PATH",
+        ] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
         command.arg(&config.script);
         for arg in &config.args {
             command.arg(arg);
@@ -308,6 +327,40 @@ impl BrowserWorkerHandle {
 
 impl Drop for BrowserWorkerHandle {
     fn drop(&mut self) {
-        self.kill();
+        if Arc::strong_count(&self.shared) == 1 {
+            self.kill();
+        }
+    }
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+    #[test]
+    #[ignore = "subprocess fixture invoked only by the lifecycle regression"]
+    fn sleeping_child() {
+        std::thread::sleep(Duration::from_secs(60));
+    }
+    #[test]
+    fn dropping_a_clone_does_not_stop_the_shared_worker() {
+        let config = BrowserWorkerConfig {
+            program: std::env::current_exe()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+            script: "--ignored".into(),
+            args: vec![
+                "--exact".into(),
+                "worker::lifecycle_tests::sleeping_child".into(),
+            ],
+            working_dir: None,
+            session: SessionParams::default(),
+        };
+        let handle = BrowserWorkerHandle::spawn(&config).unwrap();
+        drop(handle.clone());
+        std::thread::sleep(Duration::from_millis(40));
+        assert!(!handle.has_exited());
+        handle.kill();
+        assert!(handle.has_exited());
     }
 }

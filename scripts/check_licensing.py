@@ -38,10 +38,11 @@ def check(root: Path = ROOT) -> list[str]:
             require(hashlib.sha256(file.read_bytes()).hexdigest() == scope.get(key),
                     f'{path} changed: explicit text/attribution review required')
 
-    # A pre-existing missing browser-worker lock is recorded, not resolved by a
-    # licensing-only change. No new absent-lock exception is implicitly accepted.
+    # Missing locks are not accepted for first-party packages. Keep this field
+    # for backwards-compatible scope files, but require it to be empty after a
+    # package has been reviewed and locked.
     unlocked = scope.get('baseline_unlocked_packages', [])
-    expected_unlocked = ['workers/playwright/package.json']
+    expected_unlocked: list[str] = []
     require(isinstance(unlocked, list) and all(isinstance(x, dict) for x in unlocked),
             'invalid baseline lock exceptions')
     if not isinstance(unlocked, list) or not all(isinstance(x, dict) for x in unlocked):
@@ -67,10 +68,7 @@ def check(root: Path = ROOT) -> list[str]:
                 require(data.get('private') is True, f'{path}: publication needs an explicit release review')
                 require('licenses' not in data, f'{path}: conflicting legacy licenses field')
                 lock = file.with_name('package-lock.json')
-                if path in expected_unlocked:
-                    require(not lock.exists(), f'{path}: remove stale baseline lock exception after reviewing new lock')
-                else:
-                    require(lock.is_file(), f'{path}: missing lock')
+                require(lock.is_file(), f'{path}: missing lock')
                 if lock.is_file():
                     lockdata = json.loads(lock.read_text())
                     require(lockdata.get('packages', {}).get('', {}).get('license') == 'Apache-2.0',
@@ -135,7 +133,7 @@ def main() -> int:
         return 1
     print(f'PASS: {len(inventory(ROOT, "Cargo.toml"))} Rust manifests, '
           f'{len(inventory(ROOT, "package.json"))} npm manifests; Apache community scope, text and notice wiring.')
-    print('Known baseline gap: workers/playwright has no committed npm lock; dependency certification is not asserted.')
+    print('All first-party npm manifests have committed locks; dependency certification remains separate from this metadata check.')
     print('Evidence: metadata and packaging contracts only; no legal-title, trademark or complete SBOM certification.')
     return 0
 

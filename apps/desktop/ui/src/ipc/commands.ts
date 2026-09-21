@@ -27,11 +27,12 @@ export interface ProviderConfigDto {
   family?: string | null;
   endpoint?: string | null;
   model?: string | null;
+  remembered: boolean;
 }
 export const providerGetConfig = () =>
   getTransport().invoke<ProviderConfigDto>("provider_get_config");
 export const providerSetConfig = (config: {
-  family: string; endpoint: string; model: string; apiKey: string;
+  family: string; endpoint: string; model: string; apiKey: string; remember: boolean;
 }) => getTransport().invoke<ProviderConfigDto>("provider_set_config", config);
 export const providerClearConfig = () =>
   getTransport().invoke<ProviderConfigDto>("provider_clear_config");
@@ -141,38 +142,6 @@ export const fileEditBase64 = (
     contentBase64,
   });
 
-// project automations (Spec 27: schedules materialize durable tasks)
-export interface AutomationRecord {
-  automation_id: string;
-  schedule: { cron_expression: string; timezone: string; enabled: boolean };
-  project_id: string;
-  workspace_root: string;
-  goal: string;
-  enabled: boolean;
-}
-export const automationsList = (projectId: string) =>
-  getTransport().invoke<AutomationRecord[]>("automations_list", { projectId });
-export const automationsCreate = (projectId: string, goal: string, cron: string) =>
-  getTransport().invoke<AutomationRecord>("automations_create", { projectId, goal, cron });
-export const automationsSetEnabled = (
-  projectId: string,
-  automationId: string,
-  enabled: boolean,
-) =>
-  getTransport().invoke<AutomationRecord>("automations_set_enabled", {
-    projectId,
-    automationId,
-    enabled,
-  });
-export const automationsDelete = (projectId: string, automationId: string) =>
-  getTransport().invoke<boolean>("automations_delete", { projectId, automationId });
-export interface TickResult {
-  fired: string[];
-  refused: string[];
-}
-export const automationsTick = (localOffsetSeconds: number) =>
-  getTransport().invoke<TickResult>("automations_tick", { localOffsetSeconds });
-
 // preview (Spec 30 phase A: binary formats via bounded base64)
 export interface FileContentBase64 {
   path: string;
@@ -253,6 +222,16 @@ export const COMMAND_NAMES = [
   "provider_set_config",
   "provider_clear_config",
   "task_run",
+  "engagement_snapshot",
+  "engagement_check_browser",
+  "engagement_set_browser_origins",
+  "engagement_create_task",
+  "automation_list",
+  "automation_preview",
+  "automation_save",
+  "automation_toggle",
+  "automation_delete",
+  "automation_run_now",
   "project_evidence",
   "file_read_base64",
   "connections_list",
@@ -261,9 +240,4 @@ export const COMMAND_NAMES = [
   "connections_verify",
   "file_create_base64",
   "file_edit_base64",
-  "automations_list",
-  "automations_create",
-  "automations_set_enabled",
-  "automations_delete",
-  "automations_tick",
 ] as const;

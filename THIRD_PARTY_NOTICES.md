@@ -26,9 +26,19 @@ Upstream: https://github.com/iFurySt/open-codex-computer-use
 
 ## Browser automation
 
-Playwright is the planned first-class semantic browser engine.
+Playwright is the semantic browser engine and the managed public-page reader.
 
-Its license and exact pinned dependency metadata must be recorded when it enters the build.
+- Package: `playwright` and its matching `playwright-core`, pinned to `1.63.0`.
+- Upstream: https://github.com/microsoft/playwright/tree/v1.63.0
+- License: Apache-2.0; retain upstream LICENSE/NOTICE files with redistribution.
+- Dependency integrity: `workers/playwright/package-lock.json`.
+- Update owner: Lumi runtime/browser maintainers.
+- This pin was published September 4, 2026. It replaces the old 1.49.1 pin after
+  the installation audit flagged a high-severity advisory; CI audits the new
+  lock and executes browser canaries before accepting it.
+- Chromium and other downloaded browser binaries have separate notices. Browser
+  installation in development/CI is not evidence of a complete licensed,
+  checksummed, signed desktop distribution.
 
 ## Default dependency policy
 

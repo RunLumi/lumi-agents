@@ -5,18 +5,20 @@
 //! approvals, or executor state.
 
 use lumi_desktop::{
-    gated_file_save, is_runnable, run_desktop_task_with_provider, ConnectionRecord,
+    gated_file_save, ConnectionRecord,
     ConnectionsStore, DesktopRuntime, FileSaveOp, KillSwitchState, OperationsSnapshot,
     ProjectService, ProviderSession,
 };
 use lumi_secrets::{KeyringBackend, SecretBroker};
-use lumi_models::ureq_transport::UreqTransport;
 use lumi_state::CancelToken;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use std::path::PathBuf;
+
+mod engagement_commands;
+use engagement_commands::*;
 
 /// Shared application state managed by Tauri.
 pub struct AppState {
@@ -33,6 +35,7 @@ pub struct AppState {
     /// The user's in-memory provider session. Never persisted; the
     /// credential never leaves this process boundary.
     pub provider: Arc<Mutex<Option<ProviderSession>>>,
+    pub provider_remembered: AtomicBool,
     /// Durable state file path, for lock-free task reads while a run
     /// holds the runtime mutex.
     pub state_path: std::path::PathBuf,
@@ -41,11 +44,10 @@ pub struct AppState {
     /// Secrets broker: credential values live here (OS keyring) and are
     /// resolved at the narrowest boundary only.
     pub broker: Arc<SecretBroker<KeyringBackend>>,
-    /// Automation schedules (Spec 27): JSON beside the runtime state,
-    /// ticked by the shell every 30s.
-    pub automations_path: std::path::PathBuf,
-    /// The scheduler policy engine backing automation admissions.
-    pub scheduler: Arc<Mutex<lumi_scheduler::Scheduler>>,
+    pub engagement: Arc<Mutex<Result<lumi_desktop::engagement::EngagementStore, String>>>,
+    pub browser_config: Option<lumi_desktop::browser_tools::BrowserConfig>,
+    pub browser_ready: AtomicBool,
+    pub automation_revocations: Mutex<std::collections::BTreeMap<String, Arc<AtomicBool>>>,
 }
 
 impl AppState {
@@ -65,6 +67,7 @@ impl AppState {
             stop_marker,
             running: Arc::new(AtomicBool::new(false)),
             provider: Arc::new(Mutex::new(None)),
+            provider_remembered: AtomicBool::new(false),
             state_path,
             connections: Arc::new(Mutex::new(ConnectionsStore::new(
                 state_dir.join("connections.json"),
@@ -72,8 +75,12 @@ impl AppState {
             broker: Arc::new(SecretBroker::new(KeyringBackend::with_service(
                 "Lumi Agents",
             ))),
-            automations_path: state_dir.join("automations.json"),
-            scheduler: Arc::new(Mutex::new(lumi_scheduler::Scheduler::new(true))),
+            engagement: Arc::new(Mutex::new(lumi_desktop::engagement::EngagementStore::open(
+                state_dir.join("engagement.json"),
+            ))),
+            browser_config: lumi_desktop::browser_tools::BrowserConfig::discover(None),
+            browser_ready: AtomicBool::new(false),
+            automation_revocations: Mutex::new(std::collections::BTreeMap::new()),
         }
     }
 
@@ -663,6 +670,7 @@ pub struct ProviderConfigDto {
     pub family: Option<String>,
     pub endpoint: Option<String>,
     pub model: Option<String>,
+    pub remembered: bool,
 }
 
 #[tauri::command]
@@ -674,12 +682,14 @@ fn provider_get_config(state: tauri::State<'_, AppState>) -> ProviderConfigDto {
             family: Some(session.family.clone()),
             endpoint: Some(session.endpoint.clone()),
             model: Some(session.model.clone()),
+            remembered: state.provider_remembered.load(Ordering::SeqCst),
         },
         None => ProviderConfigDto {
             configured: false,
             family: None,
             endpoint: None,
             model: None,
+            remembered: false,
         },
     }
 }
@@ -691,6 +701,7 @@ fn provider_set_config(
     endpoint: String,
     model: String,
     api_key: String,
+    remember: bool,
 ) -> Result<ProviderConfigDto, String> {
     let family = family.trim().to_lowercase();
     if !matches!(family.as_str(), "openai" | "openai-compatible") {
@@ -706,107 +717,43 @@ fn provider_set_config(
         model: model.trim().to_owned(),
         api_key: api_key.trim().to_owned(),
     };
+    lumi_desktop::provider_storage::validate_provider(&session)?;
+    if remember {
+        lumi_desktop::provider_storage::remember_os_provider(&session)?;
+    } else if state.provider_remembered.load(Ordering::SeqCst) {
+        lumi_desktop::provider_storage::forget_os_provider()?;
+    }
     let dto = ProviderConfigDto {
         configured: true,
         family: Some(session.family.clone()),
         endpoint: Some(session.endpoint.clone()),
         model: Some(session.model.clone()),
+        remembered: remember,
     };
     *state.provider.lock().expect("provider lock poisoned") = Some(session);
+    state.provider_remembered.store(remember, Ordering::SeqCst);
     Ok(dto)
 }
 
 #[tauri::command]
-fn provider_clear_config(state: tauri::State<'_, AppState>) -> ProviderConfigDto {
+fn provider_clear_config(state: tauri::State<'_, AppState>) -> Result<ProviderConfigDto, String> {
+    if state.provider_remembered.load(Ordering::SeqCst) {
+        lumi_desktop::provider_storage::forget_os_provider()?;
+    }
     *state.provider.lock().expect("provider lock poisoned") = None;
-    ProviderConfigDto {
+    state.provider_remembered.store(false, Ordering::SeqCst);
+    Ok(ProviderConfigDto {
         configured: false,
         family: None,
         endpoint: None,
         model: None,
-    }
-}
-
-/// What one scheduled run produced, for the UI toast/status.
-#[derive(Debug, Clone, Serialize)]
-pub struct TaskRunDto {
-    pub started: bool,
-    pub task_id: String,
-}
-
-struct RunningGuard(Arc<AtomicBool>);
-
-impl Drop for RunningGuard {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::SeqCst);
-    }
+        remembered: false,
+    })
 }
 
 #[tauri::command]
-fn task_run(
-    state: tauri::State<'_, AppState>,
-    task_id: String,
-) -> Result<TaskRunDto, String> {
-    // Validate under short locks BEFORE arming the single-flight flag so
-    // every rejection path below leaves the flag untouched.
-    let session = state
-        .provider
-        .lock()
-        .expect("provider lock poisoned")
-        .clone()
-        .ok_or_else(|| {
-            "No model provider is configured for this session. Add one above — it stays in memory only.".to_owned()
-        })?;
-    let task = {
-        let mut runtime = state
-            .runtime
-            .lock()
-            .expect("desktop runtime lock poisoned");
-        runtime.load_task(&lumi_protocol::TaskId::parse(&task_id).map_err(|e| e.to_string())?)?
-    };
-    if !is_runnable(&task.status) {
-        return Err(format!(
-            "task status {:?} cannot be run right now",
-            task.status
-        ));
-    }
-    if task
-        .project_binding
-        .as_ref()
-        .is_none_or(|b| b.workspace_root.is_empty())
-    {
-        return Err("task has no project workspace binding".to_owned());
-    }
-
-    // Single-flight: one Work-mode run at a time on this device.
-    if state.running.swap(true, Ordering::SeqCst) {
-        return Err("A task is already running. Stop it or wait for it to finish.".to_owned());
-    }
-    // The WORKER owns the flag reset: it holds the runtime mutex for the
-    // run's whole duration, and the shared cancel token still interrupts
-    // it (emergency_stop never takes this lock).
-    let worker_guard = RunningGuard(Arc::clone(&state.running));
-    let runtime = Arc::clone(&state.runtime);
-    tauri::async_runtime::spawn_blocking(move || {
-        let _reset = worker_guard;
-        let mut runtime = runtime
-            .lock()
-            .expect("desktop runtime lock poisoned");
-        let transport = UreqTransport;
-        match run_desktop_task_with_provider(&mut runtime, &task, &session, &transport) {
-            Ok(outcome) => log::info!(
-                "desktop task run finished: {:?} in {} turns",
-                outcome.status,
-                outcome.turns
-            ),
-            Err(e) => log::error!("desktop task run failed to execute: {e}"),
-        }
-    });
-
-    Ok(TaskRunDto {
-        started: true,
-        task_id,
-    })
+fn task_run(state: tauri::State<'_, AppState>, task_id: String) -> Result<engagement_commands::TaskRunDto, String> {
+    engagement_commands::start_task(&state, &task_id)
 }
 
 
@@ -842,122 +789,6 @@ fn connections_connect(
         &endpoint,
         &credential,
     )
-}
-
-// ===== Project automations (Spec 27) =====
-
-#[tauri::command]
-fn automations_list(
-    state: tauri::State<'_, AppState>,
-    project_id: String,
-) -> Result<Vec<lumi_desktop::AutomationRecord>, String> {
-    let records = lumi_desktop::load_automations(&state.automations_path)?;
-    Ok(records
-        .into_iter()
-        .filter(|a| a.project_id.as_str() == project_id)
-        .collect())
-}
-
-#[tauri::command]
-fn automations_create(
-    state: tauri::State<'_, AppState>,
-    project_id: String,
-    goal: String,
-    cron: String,
-) -> Result<lumi_desktop::AutomationRecord, String> {
-    let projects = state
-        .projects
-        .lock()
-        .expect("project service lock poisoned");
-    let overview = projects.overview(&project_id)?;
-    let tenant = lumi_protocol::TenantId::parse(lumi_desktop::DesktopRuntime::LOCAL_TENANT)
-        .map_err(|e| e.to_string())?;
-    let pid = lumi_protocol::ProjectId::parse(&project_id).map_err(|e| e.to_string())?;
-    lumi_desktop::create_automation(
-        &state.automations_path,
-        tenant,
-        pid,
-        overview.primary_root.clone(),
-        &goal,
-        &cron,
-    )
-}
-
-#[tauri::command]
-fn automations_set_enabled(
-    state: tauri::State<'_, AppState>,
-    project_id: String,
-    automation_id: String,
-    enabled: bool,
-) -> Result<lumi_desktop::AutomationRecord, String> {
-    lumi_desktop::set_automation_enabled(
-        &state.automations_path,
-        &project_id,
-        &automation_id,
-        enabled,
-    )
-}
-
-#[tauri::command]
-fn automations_delete(
-    state: tauri::State<'_, AppState>,
-    project_id: String,
-    automation_id: String,
-) -> Result<bool, String> {
-    lumi_desktop::delete_automation(&state.automations_path, &project_id, &automation_id)
-}
-
-/// One scheduler tick: fires every enabled automation whose cron
-/// matches the local wall clock. The webview supplies the device's
-/// current UTC offset (same device, local authority). When a Work-mode
-/// run holds the runtime, the tick is skipped honestly — the schedule's
-/// catch-up policy governs the missed window.
-#[tauri::command]
-fn automations_tick(
-    state: tauri::State<'_, AppState>,
-    local_offset_seconds: i32,
-) -> Result<TickResultDto, String> {
-    let records = lumi_desktop::load_automations(&state.automations_path)?;
-    let now = lumi_protocol::Timestamp::now();
-    let due = lumi_desktop::due_automations(&records, now, local_offset_seconds);
-    let mut fired = Vec::new();
-    let mut refused = Vec::new();
-    if due.is_empty() {
-        return Ok(TickResultDto { fired, refused });
-    }
-    let mut runtime_guard = match state.runtime.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => {
-            return Ok(TickResultDto {
-                fired,
-                refused: due.clone(),
-            });
-        }
-    };
-    let mut scheduler = state.scheduler.lock().expect("scheduler lock poisoned");
-    for automation_id in due {
-        match lumi_desktop::fire_automation(
-            &mut runtime_guard,
-            &mut scheduler,
-            &records,
-            &automation_id,
-            now,
-            0,
-        ) {
-            Ok(task) => fired.push(task.task_id.to_string()),
-            Err(e) => {
-                log::warn!("automation {automation_id} not fired: {e}");
-                refused.push(automation_id);
-            }
-        }
-    }
-    Ok(TickResultDto { fired, refused })
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TickResultDto {
-    pub fired: Vec<String>,
-    pub refused: Vec<String>,
 }
 
 #[tauri::command]
@@ -1016,7 +847,23 @@ pub fn run() {
                 Err(error) => return Err(std::io::Error::other(error.to_string()).into()),
             }
             let projects = ProjectService::open(&state_dir).map_err(std::io::Error::other)?;
-            app.manage(AppState::new(runtime, projects, state_dir));
+            let mut state = AppState::new(runtime, projects, state_dir);
+            match lumi_desktop::provider_storage::restore_os_provider() {
+                Ok(Some(session)) => {
+                    *state
+                        .provider
+                        .lock()
+                        .map_err(|_| std::io::Error::other("provider lock poisoned"))? = Some(session);
+                    state.provider_remembered.store(true, Ordering::SeqCst);
+                }
+                Ok(None) => {}
+                Err(error) => log::warn!("provider recovery unavailable: {error}"),
+            }
+            state.browser_config = lumi_desktop::browser_tools::BrowserConfig::discover(
+                app.path().resource_dir().ok().as_deref(),
+            );
+            app.manage(state);
+            engagement_commands::start_scheduler(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1056,17 +903,22 @@ pub fn run() {
             connections_connect,
             connections_disconnect,
             connections_verify,
-            automations_list,
-            automations_create,
-            automations_set_enabled,
-            automations_delete,
-            automations_tick,
             file_create_base64,
             file_edit_base64,
             provider_get_config,
             provider_set_config,
             provider_clear_config,
             task_run,
+            engagement_snapshot,
+            engagement_check_browser,
+            engagement_set_browser_origins,
+            engagement_create_task,
+            automation_list,
+            automation_preview,
+            automation_save,
+            automation_toggle,
+            automation_delete,
+            automation_run_now,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -69,9 +69,11 @@ class LicensingTests(unittest.TestCase):
             {'manifest': 'web/package.json', 'reason': 'skip it'}))
         self.assertTrue(any('lock exceptions' in e for e in check(self.root)))
 
-    def test_baseline_gap_must_be_updated_when_lock_added(self):
+    def test_baseline_lock_exceptions_are_rejected_after_lock_added(self):
         (self.root / 'workers/playwright/package-lock.json').write_text('{"packages":{"":{"license":"Apache-2.0"}}}')
-        self.assertTrue(any('stale baseline lock exception' in e for e in check(self.root)))
+        self.mutate_json('docs/licensing/scope.json', lambda d: d.update(baseline_unlocked_packages=[
+            {'manifest': 'workers/playwright/package.json', 'reason': 'obsolete'}]))
+        self.assertTrue(any('lock exceptions' in e for e in check(self.root)))
 
     def test_publication_not_accidentally_enabled(self):
         self.mutate_json('web/package.json', lambda d: d.update(private=False))

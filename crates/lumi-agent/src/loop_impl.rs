@@ -1,45 +1,37 @@
-//! The agent loop: plan → propose → gate → execute → observe.
+//! The agent loop: plan -> propose -> gate -> execute -> observe.
 //!
-//! The loop holds the conversation (trusted system prompt + goal +
-//! observations), plans via the [`Planner`], turns proposed tool calls
-//! into proposals through the tools themselves, and pushes each through
-//! the orchestrator gate. The verification environment is supplied by
-//! the host (it knows how to observe the world independently).
+//! The host owns system instructions, authority and verification. Model calls
+//! and their bounded observations stay paired by their original provider IDs.
 
 use crate::planner::Planner;
 use crate::tools::AgentTool;
 use lumi_models::request::ModelMessage;
-use lumi_orchestrator::Orchestrator;
-use lumi_protocol::{ActionProposal, Budget, ConsumedBudget, RunId, TaskId, Timestamp};
-
+use lumi_models::response::FinishReason;
+use lumi_orchestrator::{Orchestrator, StepOutcome};
+use lumi_protocol::{
+    ActionProposal, Budget, ConsumedBudget, FailureCategory, RunId, TaskId, Timestamp,
+};
 use std::collections::HashMap;
 
-/// Why the loop stopped.
 #[derive(Debug, Clone)]
 pub enum AgentRunOutcome {
-    /// The planner produced a final answer after verified steps.
-    Completed { answer: String, turns: u32 },
-    /// A step needs a scoped human approval. Grant one via
-    /// [`AgentLoop::continue_with_approval`] and resume.
+    Completed {
+        answer: String,
+        turns: u32,
+    },
     WaitingApproval {
         action: Box<ActionProposal>,
         action_digest: String,
         reason: String,
     },
-    /// Terminal failure: policy denial, unverified step, budget/turn
-    /// exhaustion, ambiguity, or planner error. The category is the
-    /// canonical taxonomy entry so durable records and evals improve the
-    /// correct layer.
     Failed {
-        category: lumi_protocol::FailureCategory,
+        category: FailureCategory,
         reason: String,
     },
 }
 
-/// The work-mode agent loop bound to one orchestrator, workspace, task,
-/// verification environment, and principal. Generic over the durable
-/// state store: the desktop shell runs it against `JsonStateStore`, tests
-/// against `InMemoryStateStore`.
+/// One host-bound work loop. The conversation remains alive across a human
+/// approval; resuming does not ask the model to reconstruct the approved action.
 pub struct AgentLoop<'a, S: lumi_state::StateStore> {
     pub orchestrator: &'a mut Orchestrator<S>,
     pub planner: &'a dyn Planner,
@@ -54,18 +46,14 @@ pub struct AgentLoop<'a, S: lumi_state::StateStore> {
     pub max_turns: u32,
     messages: Vec<ModelMessage>,
     turns: u32,
-    /// Observation payload of the last executed tool (fed back once).
     last_observation: Option<String>,
-    /// The pending tool call awaiting an approval decision.
-    pending: Option<(&'static str, Box<ActionProposal>)>,
+    pending: Option<(&'static str, String, Box<ActionProposal>)>,
     done: bool,
 }
 
 impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
-    /// Creates a loop with the trusted system prompt and the user goal.
-    /// Takes ownership of the tools (they live as long as the loop).
     #[must_use]
-    #[allow(clippy::too_many_arguments)] // explicit wiring beats a config struct here
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         orchestrator: &'a mut Orchestrator<S>,
         planner: &'a dyn Planner,
@@ -85,12 +73,11 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
             names.push(tool.name());
             tool_map.insert(tool.name().to_owned(), tool);
         }
-        let system =
-            crate::planner::system_prompt(goal, &workspace.root().display().to_string(), &names);
-        // Durable progress from a previous interrupted attempt is
-        // RUNTIME-PROVIDED context (our own ledger, trusted provenance):
-        // it tells the planner what already happened so a re-run
-        // continues instead of redoing work.
+        let system = if planner.system_prompt().trim().is_empty() {
+            crate::planner::system_prompt(goal, &workspace.root().display().to_string(), &names)
+        } else {
+            planner.system_prompt().to_owned()
+        };
         let user_message = match resume_context {
             Some(context) => format!("{goal}\n\n{context}"),
             None => goal.to_owned(),
@@ -120,17 +107,22 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
         }
     }
 
-    /// Runs the loop until completion, a needed approval, a failure, or
-    /// the turn/budget bound.
+    /// Runs until a final answer, approval, refusal or a bounded failure.
     #[allow(clippy::too_many_lines)]
     pub fn run(&mut self) -> AgentRunOutcome {
         if self.done {
             return AgentRunOutcome::Failed {
-                category: lumi_protocol::FailureCategory::Crash,
-                reason: "loop already finished".to_owned(),
+                category: FailureCategory::Crash,
+                reason: "loop already finished".into(),
             };
         }
-        // Destructure for disjoint field borrows inside the loop.
+        if let Some((_, _, action)) = &self.pending {
+            return AgentRunOutcome::WaitingApproval {
+                action: action.clone(),
+                action_digest: action.material_digest(),
+                reason: "the exact pending action still requires a human decision".into(),
+            };
+        }
         let AgentLoop {
             orchestrator,
             planner,
@@ -149,31 +141,29 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
             pending,
             done,
         } = self;
-
         loop {
+            if orchestrator.cancel.is_cancelled() {
+                *done = true;
+                return AgentRunOutcome::Failed {
+                    category: FailureCategory::UserCancel,
+                    reason: "task stopped before planning".into(),
+                };
+            }
             if *turns >= *max_turns {
                 *done = true;
                 return AgentRunOutcome::Failed {
-                    category: lumi_protocol::FailureCategory::BudgetExceeded,
+                    category: FailureCategory::BudgetExceeded,
                     reason: format!("turn budget exhausted ({max_turns})"),
                 };
             }
             if let Some(dimension) = budget.check(consumed, Timestamp::now()) {
                 *done = true;
                 return AgentRunOutcome::Failed {
-                    category: lumi_protocol::FailureCategory::BudgetExceeded,
+                    category: FailureCategory::BudgetExceeded,
                     reason: format!("task budget exhausted: {dimension:?}"),
                 };
             }
             *turns += 1;
-            if let Some(observation) = last_observation.take() {
-                messages.push(ModelMessage::ToolResult {
-                    tool_call_id: "last".to_owned(),
-                    content: observation,
-                });
-            }
-
-            // 1. Plan: model proposes tool calls or a final answer.
             let response = match planner.plan(messages) {
                 Ok(response) => response,
                 Err(e) => {
@@ -184,11 +174,42 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
                     };
                 }
             };
-
-            // 2. Final answer (no tool calls).
+            if orchestrator.cancel.is_cancelled() {
+                *done = true;
+                return AgentRunOutcome::Failed {
+                    category: FailureCategory::UserCancel,
+                    reason: "task stopped during planning".into(),
+                };
+            }
+            if let Some(dimension) = budget.check(consumed, Timestamp::now()) {
+                *done = true;
+                return AgentRunOutcome::Failed {
+                    category: FailureCategory::BudgetExceeded,
+                    reason: format!("task budget exhausted: {dimension:?}"),
+                };
+            }
+            if matches!(
+                response.finish_reason,
+                FinishReason::Refusal | FinishReason::Error | FinishReason::Length
+            ) {
+                *done = true;
+                return AgentRunOutcome::Failed {
+                    category: FailureCategory::ModelFormat,
+                    reason: format!(
+                        "model response is not complete: {:?}",
+                        response.finish_reason
+                    ),
+                };
+            }
             if response.tool_calls.is_empty() {
                 *done = true;
                 let answer = response.content.unwrap_or_default();
+                if response.finish_reason != FinishReason::Stop || answer.trim().is_empty() {
+                    return AgentRunOutcome::Failed {
+                        category: FailureCategory::ModelFormat,
+                        reason: "model returned neither a complete answer nor a tool call".into(),
+                    };
+                }
                 messages.push(ModelMessage::Assistant {
                     content: answer.clone(),
                 });
@@ -197,18 +218,25 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
                     turns: *turns,
                 };
             }
-
-            // 3. Execute proposed tool calls through the gate.
-            let mut retry_after_observation = false;
+            // Each executed call is represented immediately with its own result.
+            // On an approval pause, later unexecuted proposals are not represented
+            // as delivered calls; the model can plan them against refreshed state.
             for call in &response.tool_calls {
+                if call.id.trim().is_empty() {
+                    *done = true;
+                    return AgentRunOutcome::Failed {
+                        category: FailureCategory::ModelFormat,
+                        reason: "tool call is missing its correlation ID".into(),
+                    };
+                }
                 let Some(tool) = tools.get(call.name.as_str()) else {
                     *done = true;
                     return AgentRunOutcome::Failed {
-                        category: lumi_protocol::FailureCategory::ModelFormat,
+                        category: FailureCategory::ModelFormat,
                         reason: format!("planner proposed unknown tool {:?}", call.name),
                     };
                 };
-
+                messages.push(ModelMessage::AssistantToolCall { call: call.clone() });
                 let ctx = crate::ToolContext {
                     workspace,
                     task_id,
@@ -217,17 +245,16 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
                 let action = match tool.build_proposal(call.arguments.clone(), &ctx, run_id) {
                     Ok(action) => action,
                     Err(e) => {
-                        // Model-format error: feed back once as an
-                        // observation so the model can correct itself.
-                        last_observation.replace(format!(
-                            "TOOL_ERROR: invalid arguments for {}: {e}",
-                            call.name
-                        ));
-                        retry_after_observation = true;
+                        let content =
+                            format!("TOOL_ERROR: invalid arguments for {}: {e}", call.name);
+                        *last_observation = Some(content.clone());
+                        messages.push(ModelMessage::ToolResult {
+                            tool_call_id: call.id.clone(),
+                            content,
+                        });
                         break;
                     }
                 };
-
                 let outcome = {
                     let ctx = crate::ToolContext {
                         workspace,
@@ -238,87 +265,83 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
                     orchestrator.execute_step(&action, None, budget, consumed, *env, &mut executor)
                 };
                 match outcome {
-                    lumi_orchestrator::StepOutcome::VerifiedSuccess {
+                    StepOutcome::VerifiedSuccess {
                         verification,
                         observation,
                         ..
                     } => {
-                        // The tool's observation payload (file content,
-                        // shell output) is the result the planner sees.
-                        let payload = observation.unwrap_or_else(|| {
-                            format!("{} {:?}", action.operation, action.arguments)
+                        let payload = observation
+                            .unwrap_or_else(|| format!("{} completed", action.operation));
+                        let content = format!("OK (verification {verification:?}): {payload}");
+                        *last_observation = Some(content.clone());
+                        messages.push(ModelMessage::ToolResult {
+                            tool_call_id: call.id.clone(),
+                            content,
                         });
-                        last_observation
-                            .replace(format!("OK (verification {verification:?}): {payload}"));
                     }
-                    lumi_orchestrator::StepOutcome::ApprovalNeeded { reason, .. } => {
+                    StepOutcome::ApprovalNeeded { reason, .. } => {
                         let action_digest = action.material_digest();
-                        *pending = Some((tool.name(), Box::new(action.clone())));
+                        *pending = Some((tool.name(), call.id.clone(), Box::new(action.clone())));
                         return AgentRunOutcome::WaitingApproval {
                             action: Box::new(action),
                             action_digest,
                             reason,
                         };
                     }
-                    lumi_orchestrator::StepOutcome::Denied { reason } => {
+                    StepOutcome::Denied { reason } => {
                         *done = true;
                         return AgentRunOutcome::Failed {
-                            category: lumi_protocol::FailureCategory::PolicyDenyExpected,
+                            category: FailureCategory::PolicyDenyExpected,
                             reason: format!("policy denied {:?}: {reason}", call.name),
                         };
                     }
-                    lumi_orchestrator::StepOutcome::Unverified { detail, .. } => {
+                    StepOutcome::Unverified { detail, .. } => {
                         *done = true;
                         return AgentRunOutcome::Failed {
-                            category: lumi_protocol::FailureCategory::Postcondition,
+                            category: FailureCategory::Postcondition,
                             reason: format!("step not verified: {detail}"),
                         };
                     }
-                    lumi_orchestrator::StepOutcome::Retryable { error } => {
-                        last_observation
-                            .replace(format!("TOOL_ERROR (retryable): {}", error.message));
-                        retry_after_observation = true;
+                    StepOutcome::Retryable { error } => {
+                        let content = format!("TOOL_ERROR (retryable): {}", error.message);
+                        *last_observation = Some(content.clone());
+                        messages.push(ModelMessage::ToolResult {
+                            tool_call_id: call.id.clone(),
+                            content,
+                        });
                         break;
                     }
-                    lumi_orchestrator::StepOutcome::Ambiguous { .. } => {
+                    StepOutcome::Ambiguous { .. } => {
                         *done = true;
-                        return AgentRunOutcome::Failed {
-                            category: lumi_protocol::FailureCategory::AmbiguousState,
-                            reason: format!(
-                                "step {:?} ended AMBIGUOUS: verify external state before continuing",
-                                call.name
-                            ),
-                        };
+                        return AgentRunOutcome::Failed { category: FailureCategory::AmbiguousState, reason: format!("step {:?} ended AMBIGUOUS: verify external state before continuing", call.name) };
                     }
-                    lumi_orchestrator::StepOutcome::Stopped { reason } => {
+                    StepOutcome::Stopped { reason } => {
                         *done = true;
                         return AgentRunOutcome::Failed {
-                            category: lumi_protocol::FailureCategory::UserCancel,
+                            category: FailureCategory::UserCancel,
                             reason,
                         };
                     }
                 }
             }
-            let _ = retry_after_observation;
         }
     }
 
-    /// Resumes after a human approval: validates/consumes it through the
-    /// orchestrator, records the observation, and continues the loop.
     pub fn continue_with_approval(
         &mut self,
         approval_id: &lumi_protocol::ApprovalId,
     ) -> AgentRunOutcome {
-        let Some((tool_name, action)) = self.pending.take() else {
+        let Some((tool_name, call_id, action)) = self.pending.take() else {
             return AgentRunOutcome::Failed {
-                category: lumi_protocol::FailureCategory::ApprovalInvalid,
-                reason: "no pending action to approve".to_owned(),
+                category: FailureCategory::ApprovalInvalid,
+                reason: "no pending action to approve".into(),
             };
         };
         let Some(tool) = self.tools.get(tool_name) else {
+            self.done = true;
             return AgentRunOutcome::Failed {
-                category: lumi_protocol::FailureCategory::Crash,
-                reason: "pending tool no longer registered".to_owned(),
+                category: FailureCategory::Crash,
+                reason: "pending tool no longer registered".into(),
             };
         };
         let ctx = crate::ToolContext {
@@ -336,52 +359,59 @@ impl<'a, S: lumi_state::StateStore> AgentLoop<'a, S> {
             &mut executor,
         );
         match outcome {
-            lumi_orchestrator::StepOutcome::VerifiedSuccess { .. } => {
-                self.last_observation = Some(format!(
-                    "OK (approved): {} {:?}",
-                    action.operation, action.arguments
-                ));
+            StepOutcome::VerifiedSuccess {
+                verification,
+                observation,
+                ..
+            } => {
+                let payload =
+                    observation.unwrap_or_else(|| format!("{} completed", action.operation));
+                let content = format!("OK (approved; verification {verification:?}): {payload}");
+                self.last_observation = Some(content.clone());
+                self.messages.push(ModelMessage::ToolResult {
+                    tool_call_id: call_id,
+                    content,
+                });
                 self.run()
             }
-            lumi_orchestrator::StepOutcome::Ambiguous { .. } => {
+            StepOutcome::Ambiguous { .. } => {
                 self.done = true;
                 AgentRunOutcome::Failed {
-                    category: lumi_protocol::FailureCategory::AmbiguousState,
-                    reason: "approved step ended ambiguous; verify external state".to_owned(),
+                    category: FailureCategory::AmbiguousState,
+                    reason: "approved step ended ambiguous; verify external state".into(),
+                }
+            }
+            StepOutcome::Stopped { reason } => {
+                self.done = true;
+                AgentRunOutcome::Failed {
+                    category: FailureCategory::UserCancel,
+                    reason,
                 }
             }
             other => {
                 self.done = true;
                 AgentRunOutcome::Failed {
-                    category: lumi_protocol::FailureCategory::Postcondition,
+                    category: FailureCategory::Postcondition,
                     reason: format!("approved step did not verify: {other:?}"),
                 }
             }
         }
     }
 
-    /// The last observation payload, for UX display.
     #[must_use]
     pub fn last_observation(&self) -> Option<&str> {
         self.last_observation.as_deref()
     }
 
-    /// Mutable access to the orchestrator while the loop is paused — the
-    /// host needs the approval ledger (issue a scoped human approval,
-    /// query pending records) between `run()` and
-    /// [`AgentLoop::continue_with_approval`] without tearing down the
-    /// loop's conversation state.
     pub fn orchestrator_mut(&mut self) -> &mut Orchestrator<S> {
         self.orchestrator
     }
 
-    /// Budget consumed so far (recorded onto the durable run).
     #[must_use]
     pub const fn consumed(&self) -> &ConsumedBudget {
         &self.consumed
     }
 
-    /// Conversation turn count so far.
     #[must_use]
     pub const fn turns(&self) -> u32 {
         self.turns

@@ -41,6 +41,7 @@ export function TrafficLights() {
 const NAV: { key: NavKey; glyph: string; i18n: string }[] = [
   { key: "projects", glyph: "project", i18n: "nav.projects" },
   { key: "tasks", glyph: "task", i18n: "nav.tasks" },
+  { key: "automations", glyph: "task", i18n: "nav.automations" },
   { key: "files", glyph: "folder", i18n: "nav.files" },
   { key: "changes", glyph: "fileDiff", i18n: "nav.changes" },
   { key: "git", glyph: "branch", i18n: "nav.git" },
