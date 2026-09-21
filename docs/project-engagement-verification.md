@@ -69,10 +69,18 @@ matrix is not signed macOS/Windows release certification.
   These warnings have not been fixed or represented as a clean security audit.
 - Authenticated Chrome attachment is now wired through an explicit selected
   PID/window and project origin ceiling, with read/navigate-only task support.
-  A live authenticated Chrome canary, browser mutations, typing, uploads and
-  downloads remain unvalidated. Native computer execution is wired through the
-  verified Cua adapter for interactive tasks, but no live app canary or Windows
-  executable pin has been validated.
+A live authenticated Chrome canary, browser mutations, typing, uploads and
+downloads remain unvalidated. Native computer execution is wired through the
+verified Cua adapter for interactive tasks, but no live app canary or Windows
+executable pin has been validated.
+
+On 2026-09-21, a read-only canary used the official checksum-verified Cua
+Driver 0.28.2 temporary binary to enumerate host windows. Chrome was running,
+but no eligible visible Chrome window was available: all reported Chrome
+surfaces were off-screen or had degenerate bounds. No existing profile was
+attached, no page content was read, no permission was granted, and the
+temporary driver was stopped and removed. A normal user can complete the
+canary after opening/selecting a visible Chrome window in Project Settings.
 - Provider recovery is now opt-in through the existing OS-backed broker on macOS
   and Windows; Linux remains session-only. No cloud runner or OS background
   service is implemented here.
