@@ -241,16 +241,15 @@ fn validate_options(
 ) -> Result<(), String> {
     let selected =
         engagement::normalized_tools(goal, &options.tools, options.automation_id.is_some())?;
-    if selected.contains(&ToolId::Chrome) {
-        if options.chrome_binding.is_none()
+    if selected.contains(&ToolId::Chrome)
+        && (options.chrome_binding.is_none()
             || state
                 .chrome_adapter
                 .lock()
                 .map_err(|_| "Chrome adapter registry poisoned")?
-                .is_none()
-        {
-            return Err("attach a selected Chrome session for this project before running the task".into());
-        }
+                .is_none())
+    {
+        return Err("attach a selected Chrome session for this project before running the task".into());
     }
     if selected.contains(&ToolId::Browser) {
         if !state.browser_ready.load(Ordering::SeqCst) {

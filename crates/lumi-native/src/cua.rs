@@ -235,6 +235,13 @@ impl CuaDriverAdapter {
         Self::connect_existing_profile(config, current_generation).map(Some)
     }
 
+    #[cfg(not(target_os = "macos"))]
+    pub fn connect_installed_existing_profile(
+        _current_generation: RuntimeGeneration,
+    ) -> Result<Option<Self>, NativeError> {
+        Ok(None)
+    }
+
     fn transport(&self) -> Result<&dyn CuaTransport, NativeError> {
         self.transport.as_deref().ok_or_else(|| {
             NativeError::new(
