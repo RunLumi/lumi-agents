@@ -1,23 +1,20 @@
-/* CodeMirror 6 editor for Spec 30.7 text/Markdown editing: undo/redo
-   (history), find/replace (search panel, Mod-f), and per-language
-   syntax highlighting resolved from the file path (rust, python,
-   js/ts, json, yaml, sql, and ~140 legacy modes — see lib/codeLang).
-   Deliberately minimal per §30.15 — no autocompletion, folding or
-   active-line decoration in the basic profile. */
+/* Read-only code view (Spec 30.7): CodeMirror with per-language syntax
+   highlighting and line numbers over the bounded file read. Editing
+   happens through CodeEditor — this surface never mutates. Language
+   resolution is async and lazy; an unknown extension or a failed
+   highlighter load degrades to plain text instead of an error. */
 import { useEffect, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
 import type { LanguageSupport } from "@codemirror/language";
 import { languageFor } from "../lib/codeLang";
 
-export default function CodeEditor({
+export default function CodeView({
   value,
   path,
-  onChange,
 }: {
   value: string;
   path: string;
-  onChange: (value: string) => void;
 }) {
   const [lang, setLang] = useState<LanguageSupport | null>(null);
 
@@ -35,18 +32,18 @@ export default function CodeEditor({
   return (
     <CodeMirror
       value={value}
-      height="420px"
+      height="480px"
       theme="light"
+      editable={false}
       extensions={[EditorView.lineWrapping, ...(lang ? [lang] : [])]}
       basicSetup={{
         lineNumbers: true,
         foldGutter: false,
         highlightActiveLine: false,
         autocompletion: false,
-        searchKeymap: true, // Mod-f find/replace panel (§30.7)
-        history: true, // undo/redo
+        searchKeymap: true, // Mod-f find still useful read-only
+        history: false,
       }}
-      onChange={onChange}
       style={{ fontSize: 13 }}
     />
   );
