@@ -438,3 +438,19 @@ eslint clean. App rebuilt on merged main after both land.
   playback with an honest decode-failure message, and zip archives as a
   read-only entry listing (extraction is a gated write, not a preview
   side effect). Kind detection extracted to a pure, unit-tested module.
+
+## 2026-09-21: PPTX static preview — license approved, §30.10 phase C shipped
+
+The user approved the MPL-2.0 license question, unblocking the last office
+format. PPTX now previews statically through `pptx-react-viewer` in
+read-only mode: the MPL-2.0 `mtx-decompressor@1.6.0` dependency was recorded
+in the desktop MPL notices with its exact source archive and SHA-256, and
+the research doc carries the approval decision. Pin notes: `3.17.0` (the
+npm registry's supply-chain date-cutoff excludes 4.1.1; upgrade when it
+passes), loaded via the `./viewer` subpath so the ~8 MB viewer graph stays
+a lazy chunk — the app entry bundle is byte-identical in size. AI-chat and
+collaboration optional peers (`ai`, `yjs`) are build-time-only resolutions;
+the read-only path never mounts them. Editing, animation, and media
+playback stay disabled and disclosed; `.pptm`/`.ppt` remain honestly
+unsupported. Basic-edit qualification (supported-operation profile +
+hostile-file corpus) is the remaining §30.10 gate, tracked on row 30.

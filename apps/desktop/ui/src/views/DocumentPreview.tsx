@@ -26,6 +26,7 @@ const PdfPreview = lazy(() => import("./PdfPreview"));
 const DocxPreview = lazy(() => import("./DocxPreview"));
 const XlsxPreview = lazy(() => import("./XlsxPreview"));
 const ZipPreview = lazy(() => import("./ZipPreview"));
+const PptxPreview = lazy(() => import("./PptxPreview"));
 
 function MarkdownPreview({ content }: { content: string }) {
   const [view, setView] = useState<"rendered" | "source" | "split">("rendered");
@@ -203,6 +204,12 @@ export const DocumentPreview = memo(function DocumentPreview({
       return (
         <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
           <XlsxPreview path={path} project={project} />
+        </Suspense>
+      );
+    case "pptx":
+      return (
+        <Suspense fallback={<div className="muted small">{t("misc.loading")}</div>}>
+          <PptxPreview path={path} project={project} />
         </Suspense>
       );
     case "zip":

@@ -45,7 +45,6 @@ export const UNSUPPORTED_TYPES = new Set([
   "doc", "xls", "ppt",
   "docm", "xlsm", "pptm",
   "heic", "tiff", "tif",
-  "pptx",
 ]);
 
 export type PreviewKind =
@@ -57,6 +56,7 @@ export type PreviewKind =
   | "pdf"
   | "docx"
   | "xlsx"
+  | "pptx"
   | "zip"
   | "unsupported";
 
@@ -77,6 +77,7 @@ export function previewKindFor(path: string, isTextFile: boolean): PreviewKind {
   if (ext === "pdf") return "pdf";
   if (ext === "docx") return "docx";
   if (ext === "xlsx") return "xlsx";
+  if (ext === "pptx") return "pptx";
   if (ZIP_TYPES.has(ext)) return "zip";
   if (UNSUPPORTED_TYPES.has(ext)) return "unsupported";
   return isTextFile ? "text" : "unsupported";
