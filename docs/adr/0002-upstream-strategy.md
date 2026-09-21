@@ -7,7 +7,7 @@
 
 Do **not** fork a general computer-use project for the first release.
 
-Use Cua Driver as the primary native desktop upstream behind a Lumi-owned adapter. Pin the exact release and verify checksums. The current candidate is `cua-driver-rs-v0.28.2`.
+Use Cua Driver as the primary native desktop upstream behind a Lumi-owned adapter. Pin the exact release and verify checksums. The current reviewed release is `cua-driver-rs-v0.28.2`; the project adapter is partial until live canaries and Windows packaging are complete.
 
 Use `open-codex-computer-use` as a reference and interoperability/behavior comparison, not as the production dependency initially.
 

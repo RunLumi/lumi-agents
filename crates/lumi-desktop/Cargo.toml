@@ -22,6 +22,7 @@ lumi-secrets = { path = "../lumi-secrets" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 lumi-browser = { path = "../lumi-browser" }
+lumi-native = { path = "../lumi-native" }
 chrono = { version = "=0.4.45", default-features = false, features = ["std"] }
 chrono-tz = "=0.10.4"
 url = "=2.5.8"
