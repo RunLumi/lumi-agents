@@ -538,11 +538,11 @@ struct ResolvedElement {
     value: Option<String>,
 }
 
-fn platform_pin(config: &CuaUpstreamConfig) -> Result<&PinnedBinary, NativeError> {
+fn platform_pin(_config: &CuaUpstreamConfig) -> Result<&PinnedBinary, NativeError> {
     #[cfg(target_os = "macos")]
-    let pin = config.macos.as_ref();
+    let pin = _config.macos.as_ref();
     #[cfg(target_os = "windows")]
-    let pin = config.windows.as_ref();
+    let pin = _config.windows.as_ref();
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let pin: Option<&PinnedBinary> = None;
     pin.ok_or_else(|| {

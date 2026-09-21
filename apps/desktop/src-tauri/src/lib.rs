@@ -54,12 +54,12 @@ pub struct AppState {
 fn discover_native_adapter() -> Option<Arc<lumi_native::CuaDriverAdapter>> {
     #[cfg(target_os = "macos")]
     {
-        return lumi_native::CuaDriverAdapter::connect_installed(
+        lumi_native::CuaDriverAdapter::connect_installed(
             lumi_native::RuntimeGeneration::default(),
         )
         .ok()
         .flatten()
-        .map(Arc::new);
+        .map(Arc::new)
     }
     #[cfg(not(target_os = "macos"))]
     {
