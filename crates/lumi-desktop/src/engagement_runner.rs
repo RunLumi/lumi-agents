@@ -1,6 +1,7 @@
 //! Selected capabilities for foreground and scheduled Work-mode runs.
 //! Both entry points use the existing planner, orchestrator and verifier.
 use crate::browser_tools::{BoundedTool, BrowserConfig, BrowserReadTool};
+use crate::computer_tools::ComputerTool;
 use crate::engagement::{normalized_tools, now, TaskOptions, ToolId, MAX_RUN_SECONDS};
 use crate::runner::{is_runnable, provider_parts, resume_context_from_ledger, ProviderSession};
 use crate::DesktopRuntime;
@@ -9,6 +10,7 @@ use lumi_agent::tools::AgentTool;
 use lumi_agent::{ModelPlanner, ReadFileTool, RunShellTool, WriteFileTool};
 use lumi_models::request::ToolSpec;
 use lumi_models::transport::HttpTransport;
+use lumi_native::{CuaDriverAdapter, RuntimeGeneration, SessionHandle};
 use lumi_orchestrator::ExecutorDescriptor;
 use lumi_policy::{CapabilityGrant, GrantSource, ResourceScope};
 use lumi_protocol::{
@@ -25,6 +27,7 @@ pub fn run_selected_task(
     session: &ProviderSession,
     transport: &dyn HttpTransport,
     browser: Option<&BrowserConfig>,
+    computer: Option<&Arc<CuaDriverAdapter>>,
     revoked: Arc<AtomicBool>,
 ) -> Result<lumi_agent::runner::TaskRunOutcome, String> {
     if !is_runnable(&task.status) {
@@ -58,6 +61,20 @@ pub fn run_selected_task(
             Arc::clone(&revoked),
             expires_at,
         )?));
+    }
+    if selected.contains(&ToolId::Computer) {
+        let adapter = computer
+            .ok_or("native computer driver is not configured")?
+            .clone();
+        tools.push(Box::new(ComputerTool::new(
+            adapter,
+            SessionHandle {
+                session_id: format!("task-{}", task.task_id),
+                generation: RuntimeGeneration::default(),
+            },
+            Arc::clone(&revoked),
+            expires_at,
+        )));
     }
     let file_capabilities: Vec<_> = tools
         .iter()
@@ -112,6 +129,20 @@ pub fn run_selected_task(
                 "1.0.0",
                 [Capability::well_known(
                     lumi_protocol::capabilities::BROWSER_READ,
+                )],
+            ));
+    }
+    if selected.contains(&ToolId::Computer) {
+        runtime
+            .orchestrator
+            .config
+            .executors
+            .push(ExecutorDescriptor::new(
+                ExecutionTier::NativeSemantic,
+                "cua-driver",
+                "0.28.2",
+                [Capability::well_known(
+                    lumi_protocol::capabilities::DESKTOP_INTERACT,
                 )],
             ));
     }

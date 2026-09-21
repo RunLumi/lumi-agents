@@ -1,8 +1,9 @@
 # Project task engagement and local automations
 
 This change adds a multiline composer, explicit tool selection, a bounded
-managed-browser reader, and durable project automations. It is **not** a claim
-that authenticated Chrome or native computer control is operational.
+managed-browser reader, durable project automations, and a bounded native
+computer adapter for a verified local Cua installation. It is not a claim that
+authenticated Chrome or live native-computer canaries are complete.
 
 ## User journey
 
@@ -19,9 +20,10 @@ Changing website scope pauses affected browser automations for re-authorization.
 
 The managed browser can read public pages and return bounded text and links to
 the agent, which can create a new verified project file. JavaScript, sign-in,
-forms, uploads, personal Chrome profiles, native apps, and browser write effects
-are deliberately unavailable on this path. `@chrome` and `@computer` explain this
-rather than silently executing through shell. Natural-language goals work with
+forms, uploads, personal Chrome profiles and browser write effects are deliberately
+unavailable on this path. `@chrome` remains unavailable. `@computer` requires the
+fixed-path, digest-verified Cua 0.28.2 installation and otherwise reports setup
+required rather than silently executing through shell. Natural-language goals work with
 the selected capabilities; unknown capabilities are never inferred as grants.
 
 Development setup uses the existing pinned worker package under
@@ -74,8 +76,8 @@ network sandbox or a proof against all browser vulnerabilities.
 
 The durable scheduling host is the engagement adapter for desktop task admission.
 There is no second desktop automation store or shell tick path. Event/webhook
-triggers, remote scheduling, authenticated/browser-write flows, native-driver
-delivery, per-task live takeover and full interaction UI coverage remain separate
+triggers, remote scheduling, authenticated/browser-write flows, live native
+canaries, per-task live takeover and full interaction UI coverage remain separate
 work.
 
 ## Validation

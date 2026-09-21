@@ -80,7 +80,8 @@ fn snapshot(state: &AppState, project: &str) -> Result<EngagementSnapshot, Strin
                 ToolId::Browser if origins.is_empty() => ("setup_required", "browser_scope"),
                 ToolId::Browser => ("setup_required", "browser_setup"),
                 ToolId::Chrome => ("unavailable", "chrome_unavailable"),
-                ToolId::Computer => ("unavailable", "computer_unavailable"),
+                ToolId::Computer if state.native_adapter.is_some() => ("ready", "computer_ready"),
+                ToolId::Computer => ("setup_required", "computer_setup"),
             };
             CapabilityDto {
                 id: descriptor.id,
@@ -143,6 +144,9 @@ fn validate_options(
 ) -> Result<(), String> {
     let selected =
         engagement::normalized_tools(goal, &options.tools, options.automation_id.is_some())?;
+    if selected.contains(&ToolId::Chrome) {
+        return Err("authenticated Chrome sessions are not enabled in this build".into());
+    }
     if selected.contains(&ToolId::Browser) {
         if !state.browser_ready.load(Ordering::SeqCst) {
             return Err("check managed browser setup before running this task".into());
@@ -164,6 +168,9 @@ fn validate_options(
                     .into(),
             );
         }
+    }
+    if selected.contains(&ToolId::Computer) && state.native_adapter.is_none() {
+        return Err("install the reviewed Cua Driver 0.28.2 before running computer tasks".into());
     }
     if options
         .authorization_until
@@ -301,6 +308,7 @@ fn launch(
     let runtime = Arc::clone(&state.runtime);
     let store = Arc::clone(&state.engagement);
     let config = state.browser_config.clone();
+    let state_native = state.native_adapter.clone();
     let cancel = state.cancel.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _permit = permit;
@@ -312,6 +320,7 @@ fn launch(
                 &session,
                 &UreqTransport,
                 config.as_ref(),
+                state_native.as_ref(),
                 revoked,
             ),
             Err(_) => Err("runtime lock poisoned".into()),

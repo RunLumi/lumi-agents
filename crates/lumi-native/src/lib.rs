@@ -19,10 +19,11 @@
 pub mod cua;
 pub mod driver;
 pub mod executor;
+mod mcp;
 pub mod session;
 pub mod target;
 
-pub use cua::{CuaUpstreamConfig, PinnedBinary};
+pub use cua::{CuaDriverAdapter, CuaUpstreamConfig, PinnedBinary};
 pub use driver::{DesktopDriver, EffectOracle, NativeOperation, NativeOutcome, RefusalReason};
 pub use executor::NativeExecutor;
 pub use session::{

@@ -10,6 +10,7 @@
 
 pub mod api;
 pub mod browser_tools;
+pub mod computer_tools;
 pub mod connections;
 pub mod engagement;
 pub mod engagement_runner;

@@ -48,6 +48,23 @@ pub struct AppState {
     pub browser_config: Option<lumi_desktop::browser_tools::BrowserConfig>,
     pub browser_ready: AtomicBool,
     pub automation_revocations: Mutex<std::collections::BTreeMap<String, Arc<AtomicBool>>>,
+    pub native_adapter: Option<Arc<lumi_native::CuaDriverAdapter>>,
+}
+
+fn discover_native_adapter() -> Option<Arc<lumi_native::CuaDriverAdapter>> {
+    #[cfg(target_os = "macos")]
+    {
+        return lumi_native::CuaDriverAdapter::connect_installed(
+            lumi_native::RuntimeGeneration::default(),
+        )
+        .ok()
+        .flatten()
+        .map(Arc::new);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
 }
 
 impl AppState {
@@ -81,6 +98,7 @@ impl AppState {
             browser_config: lumi_desktop::browser_tools::BrowserConfig::discover(None),
             browser_ready: AtomicBool::new(false),
             automation_revocations: Mutex::new(std::collections::BTreeMap::new()),
+            native_adapter: discover_native_adapter(),
         }
     }
 

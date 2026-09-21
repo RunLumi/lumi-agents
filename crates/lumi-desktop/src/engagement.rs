@@ -818,7 +818,7 @@ pub fn normalized_tools(
     selected.insert(ToolId::Files);
     for tool in &selected {
         let descriptor = capability_descriptor(*tool);
-        if !descriptor.implemented {
+        if !descriptor.implemented && unattended {
             return Err(format!(
                 "{} is not implemented in this build",
                 descriptor.authority_class
@@ -916,6 +916,11 @@ mod tests {
             normalized_tools("quoted @shell", &[ToolId::Browser], false).unwrap(),
             vec![ToolId::Files, ToolId::Browser]
         );
+        assert_eq!(
+            normalized_tools("native task", &[ToolId::Computer], false).unwrap(),
+            vec![ToolId::Files, ToolId::Computer]
+        );
+        assert!(normalized_tools("native task", &[ToolId::Computer], true).is_err());
     }
     #[test]
     fn single_owner_and_restart_do_not_replay_claimed_occurrences() {

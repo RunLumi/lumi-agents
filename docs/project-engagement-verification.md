@@ -1,11 +1,11 @@
 # Project engagement verification
 
-Review date: 2026-09-21. Feature PR: [#117](https://github.com/RunLumi/lumi-agents/pull/117); repair branch is still pending reconciliation and merge.
+Review date: 2026-09-21. Feature PR: [#117](https://github.com/RunLumi/lumi-agents/pull/117); merged as `624e895bcec02b390d428dbc0381f248d2469fa1`.
 
 This is a partial implementation of the broader browser/computer engagement
-proposal. The multiline composer, capability discovery, scoped public-page reader
-and durable project automations are implemented. Full authenticated Chrome and
-native-computer workflows are not. The repository's customer-unattended and V1
+proposal. The multiline composer, capability discovery, scoped public-page reader,
+durable project automations and bounded native adapter are implemented. Full
+authenticated Chrome and live native-computer canaries are not. The repository's customer-unattended and V1
 NO-GO status remains unchanged.
 
 ## Inspected results
@@ -26,6 +26,16 @@ workflow was removed in that commit. Permanent checks remain in
 `.github/workflows/project-engagement.yml` and the normal repository workflows.
 Do not treat older failed UI checks on pre-fix SHAs as the result for `ca5077b`;
 do not label a later uninspected CI run as passed either.
+
+The post-merge native adapter slice was verified locally against the official
+Cua Driver 0.28.2 macOS arm64 release. The downloaded asset matched the
+published SHA-256 `818ddefa0fa8ba2ec9cba837c7aa634a4b064221c748752cf49c5b08e2c94e8c`,
+the app was accepted by macOS Gatekeeper with a stapled notarization ticket,
+and the standalone binary reported `cua-driver 0.28.2`. Its modern MCP
+`server/discover` and `tools/list` protocol responses were inspected, and the
+Lumi adapter passed 26 native/contract tests plus 29 desktop unit tests, 3
+connection tests and 6 runner tests. No OS permissions were granted and no
+native app was mutated during this probe.
 
 ## What these tests establish
 
@@ -58,8 +68,10 @@ matrix is not signed macOS/Windows release certification.
   the frontend graph. The production build also warns about large bundles.
   These warnings have not been fixed or represented as a clean security audit.
 - Existing Chrome profile attachment, authenticated/JavaScript browser workflows,
-  browser mutations, uploads/download interaction and native desktop-driver
-  execution are not implemented on this new tool path.
+  browser mutations and uploads/download interaction are not implemented on this
+  new tool path. Native computer execution is wired through the verified Cua
+  adapter for interactive tasks, but no live app canary or Windows executable pin
+  has been validated.
 - Provider recovery is now opt-in through the existing OS-backed broker on macOS
   and Windows; Linux remains session-only. No cloud runner or OS background
   service is implemented here.
