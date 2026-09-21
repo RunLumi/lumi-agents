@@ -1,7 +1,6 @@
 /* Tasks panel — durable task list, provider setup, and the Run button
-   that wires a task to the desktop's real planning loop. The provider
-   credential is held in the shell's memory for this session only; the
-   form says so and the backend never persists or returns it. */
+   that wires a task to the desktop's real planning loop. Provider
+   persistence is opt-in and remains behind the OS credential broker. */
 import { useEffect, useRef, useState } from "react";
 import { Glyph } from "../components/Icons";
 import { t } from "../lib/i18n";
@@ -39,31 +38,34 @@ interface Props {
   projectId: string;
   tasks: Task[];
   onChanged: () => void;
+  onAutomate?: (task: Task) => void;
 }
 
-export function TasksPanel({ projectId, tasks, onChanged }: Props) {
+export function TasksPanel({ projectId, tasks, onChanged, onAutomate }: Props) {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [rememberProvider, setRememberProvider] = useState(false);
   const [runningTask, setRunningTask] = useState<string | null>(null);
   const pollRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    providerGetConfig().then((c) => setConfigured(c.configured)).catch(() => setConfigured(null));
+    providerGetConfig().then((c) => {
+      setConfigured(c.configured);
+      setRememberProvider(c.remembered);
+    }).catch(() => setConfigured(null));
   }, []);
 
   // While a run is live, poll task status so the transition to
   // COMPLETED/FAILED shows up without a manual refresh.
   useEffect(() => {
-    if (!runningTask) return;
     const timer = window.setInterval(() => {
       taskList(projectId).then((tasks) => {
         onChanged();
         const live = tasks.find((task) => task.task_id === runningTask);
         if (live && live.status !== "RUNNING") {
           setRunningTask(null);
-          window.clearInterval(timer);
         }
       }).catch(() => {});
     }, 2000);
@@ -81,8 +83,10 @@ export function TasksPanel({ projectId, tasks, onChanged }: Props) {
       endpoint: endpoint.trim(),
       model: model.trim(),
       apiKey: apiKey.trim(),
+      remember: rememberProvider,
     }).then((c) => {
       setConfigured(c.configured);
+      setRememberProvider(c.remembered);
       setApiKey("");
       toast(t("provider.saved"), "success");
     }).catch((e) => toast(String(e), "error"));
@@ -115,6 +119,10 @@ export function TasksPanel({ projectId, tasks, onChanged }: Props) {
             </Field>
             <Button variant="secondary" size="sm" onClick={saveProvider}>{t("provider.save")}</Button>
           </div>
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={rememberProvider} onChange={(e) => setRememberProvider(e.target.checked)} />
+            {t("provider.remember")}
+          </label>
           <p className="muted small">{t("provider.desc")}</p>
           <Separator style={{ margin: "12px 0" }} />
         </>
@@ -146,6 +154,7 @@ export function TasksPanel({ projectId, tasks, onChanged }: Props) {
                   <StatusBadge variant={statusVariant(task.status)}>
                     {t(TASK_STATUS_KEY[task.status] ?? "status.unknown")}
                   </StatusBadge>
+                  {task.status === "COMPLETED" && onAutomate && <Button variant="ghost" size="sm" onClick={() => onAutomate(task)}>{t("automations.fromTask")}</Button>}
                   {isRunning && <span className="muted small">{t("tasks.runningNow")}</span>}
                 </div>
               );

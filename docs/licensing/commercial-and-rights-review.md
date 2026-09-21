@@ -100,8 +100,8 @@ hello@runlumi.app. No price, SLA or indemnity is promised by this file.
 
 ## Existing dependency evidence gap
 
-At the inspected baseline, `workers/playwright/package.json` has no committed
-`package-lock.json`. Its Apache package metadata is checked; a narrowly listed
-exception records the absent lock without changing the dependency graph. A
-reviewed lock and browser-worker release audit remain required for a reproducible
-distributed dependency claim. This licensing change does not certify them.
+The browser worker now has a committed `package-lock.json`, and the offline
+metadata check requires locks for every first-party npm manifest. This is a
+reproducibility prerequisite, not a complete dependency or release audit; the
+normal dependency-policy and release checks remain authoritative for those
+claims.

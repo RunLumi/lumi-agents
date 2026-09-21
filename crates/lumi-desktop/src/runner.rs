@@ -31,13 +31,25 @@ use std::path::Path;
 
 /// The provider session the user configured for this app session. The
 /// credential lives in memory only — never persisted, never logged.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ProviderSession {
     /// `"openai"` or `"openai-compatible"` for any compatible endpoint.
     pub family: String,
     pub endpoint: String,
     pub model: String,
     pub api_key: String,
+}
+
+impl std::fmt::Debug for ProviderSession {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProviderSession")
+            .field("family", &self.family)
+            .field("endpoint", &self.endpoint)
+            .field("model", &self.model)
+            .field("api_key", &"[REDACTED]")
+            .finish()
+    }
 }
 
 /// Statuses a (re)run may start from. `RUNNING` is excluded on purpose:
@@ -93,7 +105,7 @@ pub fn provider_parts(session: &ProviderSession) -> Result<ProviderParts, String
 /// failed task continues instead of redoing work. Failed and ambiguous
 /// prior actions are deliberately omitted: they are not progress.
 /// `None` when the task has no verified action history.
-fn resume_context_from_ledger(
+pub(crate) fn resume_context_from_ledger(
     orchestrator: &lumi_orchestrator::Orchestrator<lumi_state::JsonStateStore>,
     task: &Task,
 ) -> Option<String> {
@@ -105,16 +117,16 @@ fn resume_context_from_ledger(
             let lumi_audit::AuditEventKind::Action(details) = &event.kind else {
                 return None;
             };
-            let verified = matches!(
-                (&details.execution_status, &details.verification),
-                (
-                    Some(ExecutionStatus::Success),
-                    lumi_audit::VerificationStatus::Passed
-                ) | (
-                    Some(ExecutionStatus::Success),
-                    lumi_audit::VerificationStatus::NotRequired
-                ),
-            );
+            let verified = match (&details.execution_status, &details.verification) {
+                (Some(ExecutionStatus::Success), lumi_audit::VerificationStatus::Passed) => true,
+                // A non-consequential read has no external effect to verify;
+                // it is safe progress to carry forward. Consequential work
+                // must always have independent Passed evidence.
+                (Some(ExecutionStatus::Success), lumi_audit::VerificationStatus::NotRequired) => {
+                    !details.risk_class.is_consequential()
+                }
+                _ => false,
+            };
             verified.then(|| {
                 format!(
                     "- {} on {} (verified)",

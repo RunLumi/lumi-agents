@@ -1,9 +1,9 @@
 export type NavKey =
-  | "projects" | "tasks" | "files" | "changes" | "git"
+  | "projects" | "tasks" | "automations" | "files" | "changes" | "git"
   | "artifacts" | "evidence" | "approvals";
 
 const PROJECT_NAV_KEYS = new Set<NavKey>([
-  "tasks", "files", "changes", "git", "artifacts", "evidence", "approvals",
+  "tasks", "automations", "files", "changes", "git", "artifacts", "evidence", "approvals",
 ]);
 
 /** Maps the visible Project tab to the matching sidebar destination. */

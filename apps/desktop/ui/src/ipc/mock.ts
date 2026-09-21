@@ -309,11 +309,11 @@ export function createMockTransport(): Transport {
         case "file_search":
           return searchFixture(args?.query as string, args?.mode as string) as T;
         case "provider_get_config":
-          return { configured: true, family: "openai-compatible", endpoint: "http://localhost:11434/v1", model: "llama3.1" } as T;
+          return { configured: true, remembered: false, family: "openai-compatible", endpoint: "http://localhost:11434/v1", model: "llama3.1" } as T;
         case "provider_set_config":
-          return { configured: true, family: "openai-compatible", endpoint: args?.endpoint as string, model: args?.model as string } as T;
+          return { configured: true, remembered: Boolean(args?.remember), family: "openai-compatible", endpoint: args?.endpoint as string, model: args?.model as string } as T;
         case "provider_clear_config":
-          return { configured: false } as T;
+          return { configured: false, remembered: false } as T;
         case "task_run": {
           const id = args?.taskId as string;
           const task = tasks.find((t) => t.task_id === id);

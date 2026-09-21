@@ -1,0 +1,45 @@
+name: project engagement
+on:
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'crates/lumi-desktop/**'
+      - 'crates/lumi-browser/**'
+      - 'workers/playwright/**'
+      - '.github/workflows/project-engagement.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - 'crates/lumi-desktop/**'
+      - 'crates/lumi-browser/**'
+      - 'workers/playwright/**'
+      - '.github/workflows/project-engagement.yml'
+permissions:
+  contents: read
+concurrency:
+  group: project-engagement-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser-and-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a
+        with:
+          node-version: 22
+      - name: Install locked packages without browser postinstall
+        run: |
+          npm ci --prefix workers/playwright --ignore-scripts
+          npm audit --prefix workers/playwright --audit-level=high
+          npm ci --prefix apps/desktop/ui
+      - name: Install the pinned browser
+        working-directory: workers/playwright
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Real browser and network boundary canaries
+        working-directory: workers/playwright
+        run: node --test tests/readonly-network.test.mjs tests/readonly-browser.test.mjs
+      - name: Project UI behavior with explicit fixture transport
+        working-directory: workers/playwright
+        run: node --test tests/project-ui.test.mjs

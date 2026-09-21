@@ -16,14 +16,14 @@ import {
 import { Badge, StatusBadge, type BadgeVariant } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/overlays";
 import { FilesTab, type FileRequest } from "./FilesTab";
 import { TasksPanel } from "./TasksPanel";
+import { TaskComposer } from "./TaskComposer";
+import { AutomationsPanel } from "./AutomationsPanel";
+import { requestedTools, type AutomationSeed } from "../lib/engagement";
 import {
   connectionsConnect, connectionsDisconnect, connectionsList, connectionsVerify, gitBranches,
-  automationsList, automationsCreate, automationsSetEnabled, automationsDelete,
-  type AutomationRecord,
-  gitCommit, gitLog, gitSwitch, projectRelink, projectRemove, taskCreate,
+  gitCommit, gitLog, gitSwitch, projectRelink, projectRemove,
 } from "../ipc/commands";
 import type { ConnectionRecord } from "../ipc/commands";
 import { useCallback } from "react";
@@ -50,7 +50,7 @@ interface Props {
 }
 
 const TABS: [string, string][] = [
-  ["home", "nav.home"], ["tasks", "nav.tasks"], ["files", "nav.files"],
+  ["home", "nav.home"], ["tasks", "nav.tasks"], ["automations", "nav.automations"], ["files", "nav.files"],
   ["changes", "nav.changes"], ["git", "nav.git"], ["artifacts", "nav.artifacts"],
   ["evidence", "nav.evidence"], ["approvals", "nav.approvals"], ["settings", "nav.settings"],
 ];
@@ -131,7 +131,7 @@ export function ProjectDetail({
   tab, onTabChange, fileRequest, onRequestConsumed, onProjectRemoved, reload, onReveal,
 }: Props) {
   const [relinkPath, setRelinkPath] = useState("");
-  const [goal, setGoal] = useState("");
+  const [automationSeed, setAutomationSeed] = useState<AutomationSeed | null>(null);
   const [connections, setConnections] = useState<ConnectionRecord[]>([]);
   const [connName, setConnName] = useState("");
   const [connKind, setConnKind] = useState("api_key");
@@ -180,39 +180,6 @@ export function ProjectDetail({
     }).catch((e) => toast(String(e), "error"));
   };
 
-  // Project automations (Spec 27): schedules whose admitted firings
-  // materialize durable project-bound tasks.
-  const [automations, setAutomations] = useState<AutomationRecord[]>([]);
-  const [autoGoal, setAutoGoal] = useState("");
-  const [autoCron, setAutoCron] = useState("");
-  const refreshAutomations = useCallback(() => {
-    automationsList(overview.project_id).then(setAutomations).catch(() => {});
-  }, [overview.project_id]);
-  useEffect(() => {
-    refreshAutomations();
-  }, [refreshAutomations]);
-  const createAutomation = () => {
-    if (!autoGoal.trim() || !autoCron.trim()) {
-      toast(t("automations.missingFields"), "error");
-      return;
-    }
-    automationsCreate(overview.project_id, autoGoal.trim(), autoCron.trim()).then(() => {
-      setAutoGoal(""); setAutoCron("");
-      toast(t("automations.created"), "success");
-      refreshAutomations();
-    }).catch((e) => toast(String(e), "error"));
-  };
-  const toggleAutomation = (record: AutomationRecord) => {
-    automationsSetEnabled(overview.project_id, record.automation_id, !record.enabled).then(() => {
-      refreshAutomations();
-    }).catch((e) => toast(String(e), "error"));
-  };
-  const removeAutomation = (record: AutomationRecord) => {
-    automationsDelete(overview.project_id, record.automation_id).then(() => {
-      toast(t("automations.deleted"), "success");
-      refreshAutomations();
-    }).catch((e) => toast(String(e), "error"));
-  };
   const [commitMsg, setCommitMsg] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [branchName, setBranchName] = useState("");
@@ -240,15 +207,6 @@ export function ProjectDetail({
     gitLog(overview.project_id, 8).then(setLog).catch(() => setLog([]));
     gitBranches(overview.project_id).then(setBranches).catch(() => setBranches([]));
   }, [tab, git, overview.project_id]);
-
-  const createTask = () => {
-    if (!goal.trim()) { toast(t("tasks.describeGoal"), "error"); return; }
-    taskCreate(overview.project_id, goal.trim()).then(() => {
-      setGoal("");
-      toast(t("tasks.created"), "success");
-      reload();
-    }).catch(() => toast(t("misc.openFailed"), "error"));
-  };
 
   const commitPicked = () => {
     if (!commitMsg.trim() || picked.size === 0) { toast(t("git.tickFirst"), "error"); return; }
@@ -341,22 +299,15 @@ export function ProjectDetail({
         </TabsContent>
 
         <TabsContent value="tasks">
-          <div className="card">
-            <div className="inline-form">
-              <Field id="task-goal" label={t("tasks.goalLabel")}>
-                <Input
-                  id="task-goal"
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value)}
-                  placeholder={t("tasks.placeholder")}
-                  onKeyDown={(e) => e.key === "Enter" && createTask()}
-                />
-              </Field>
-              <Button size="sm" onClick={createTask}>{t("tasks.create")}</Button>
-            </div>
-            <Separator style={{ margin: "12px 0" }} />
-            <TasksPanel projectId={overview.project_id} tasks={tasks} onChanged={reload} />
-          </div>
+          <TaskComposer key={overview.project_id} projectId={overview.project_id} onCreated={reload}
+            onSchedule={(goal, tools) => { setAutomationSeed({ goal, tools, nonce: Date.now() }); onTabChange("automations"); }} />
+          <TasksPanel projectId={overview.project_id} tasks={tasks} onChanged={reload}
+            onAutomate={(task) => { setAutomationSeed({ goal: task.goal, tools: requestedTools(task.goal, ["files"]), nonce: Date.now() }); onTabChange("automations"); }} />
+        </TabsContent>
+
+        <TabsContent value="automations">
+          <AutomationsPanel key={overview.project_id} projectId={overview.project_id} seed={automationSeed}
+            onSeedConsumed={() => setAutomationSeed(null)} onChanged={reload} onOpenTasks={() => onTabChange("tasks")} />
         </TabsContent>
 
         <TabsContent value="files">
@@ -608,43 +559,6 @@ export function ProjectDetail({
                 <Button size="sm" onClick={connectConnection}>{t("connections.add")}</Button>
               </div>
               <p className="muted small">{t("connections.kind")}: {connKind}</p>
-            </div>
-            <div className="card">
-              <h3 style={{ marginTop: 16 }}>{t("automations.title")}</h3>
-              <p className="muted small">{t("automations.desc")}</p>
-              {automations.length === 0 ? (
-                <p className="muted small">{t("automations.empty")}</p>
-              ) : (
-                <div className="mini-list">
-                  {automations.map((record) => (
-                    <div key={record.automation_id} className="mini-row">
-                      <span style={{ flex: 1, minWidth: 0 }} className="small">
-                        {record.goal}
-                        <span className="mono muted small" style={{ marginLeft: 6 }}>
-                          {record.schedule.cron_expression}
-                        </span>
-                      </span>
-                      {record.enabled ? (
-                        <StatusBadge variant="status-done">{t("automations.enabled")}</StatusBadge>
-                      ) : (
-                        <StatusBadge variant="status-open">{t("automations.disabled")}</StatusBadge>
-                      )}
-                      <Button variant="secondary" size="sm" onClick={() => toggleAutomation(record)}>
-                        {record.enabled ? t("automations.disable") : t("automations.enable")}
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => removeAutomation(record)}>
-                        {t("automations.delete")}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <h3 style={{ marginTop: 16 }}>{t("automations.add")}</h3>
-              <div className="inline-form">
-                <Input value={autoGoal} onChange={(e) => setAutoGoal(e.target.value)} placeholder={t("automations.goal")} />
-                <Input value={autoCron} onChange={(e) => setAutoCron(e.target.value)} placeholder={t("automations.cron")} className="mono" />
-                <Button size="sm" onClick={createAutomation}>{t("automations.add")}</Button>
-              </div>
             </div>
             <div className="card">
               <h3>{t("settings.caps")}</h3>

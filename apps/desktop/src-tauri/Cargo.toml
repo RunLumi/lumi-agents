@@ -13,7 +13,6 @@ lumi-state = { path = "../../../crates/lumi-state" }
 lumi-orchestrator = { path = "../../../crates/lumi-orchestrator" }
 lumi-handoff = { path = "../../../crates/lumi-handoff" }
 lumi-desktop = { path = "../../../crates/lumi-desktop" }
-lumi-scheduler = { path = "../../../crates/lumi-scheduler" }
 lumi-project = { path = "../../../crates/lumi-project" }
 lumi-secrets = { path = "../../../crates/lumi-secrets" }
 lumi-models = { path = "../../../crates/lumi-models" }
