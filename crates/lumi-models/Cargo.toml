@@ -10,7 +10,7 @@ license.workspace = true
 lumi-protocol = { path = "../lumi-protocol" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-ureq = { version = "2", optional = true, default-features = false, features = ["native-tls", "json", "gzip"] }
+ureq = { version = "3", optional = true, default-features = false, features = ["native-tls", "json", "gzip"] }
 
 [features]
 default = ["http"]
